@@ -28,7 +28,9 @@ const adminAuthMiddleware = (req: NextRequest) => {
     });
 };
 
-const workosMiddleware = authkitMiddleware();
+const workosMiddleware = authkitMiddleware({
+    redirectUri: process.env.WORKOS_REDIRECT_URI || 'http://localhost:3000/callback'
+});
 
 export default async function middleware(req: NextRequest, event: any) {
     // Admin Path -> Basic Auth
