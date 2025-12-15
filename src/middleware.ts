@@ -12,8 +12,8 @@ export function middleware(req: NextRequest) {
         const auth = basicAuth.split(' ')[1];
         const [user, pwd] = Buffer.from(auth, 'base64').toString().split(':');
 
-        // Check against env var
-        if (pwd === process.env.ADMIN_PASSWORD) {
+        // Check against env vars
+        if (user === process.env.ADMIN_USERNAME && pwd === process.env.ADMIN_PASSWORD) {
             return NextResponse.next();
         }
     }
