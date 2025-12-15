@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { MockAiService, AnalysisResult } from "../services/mockAi";
 import { captureLead } from "@/features/leads/actions/captureLead";
 
@@ -12,6 +13,7 @@ export interface Message {
 export type ChatState = "INITIAL" | "ANALYZING" | "PROPOSAL" | "NEGOTIATION" | "CLOSING" | "COMPLETED";
 
 export function useChatFlow() {
+    const router = useRouter();
     const [messages, setMessages] = useState<Message[]>([]);
     const [state, setState] = useState<ChatState>("INITIAL");
     const [complexity, setComplexity] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -62,9 +64,11 @@ export function useChatFlow() {
                 if (result.success) {
                     addMessage("ai", "Perfect. I've created your project file and saved your spot. Redirecting you to the Project Builder...");
                     setState("COMPLETED");
+                    setTimeout(() => router.push('/project/builder'), 2000);
                 } else {
                     addMessage("ai", "I saved your details offline. Redirecting you...");
                     setState("COMPLETED");
+                    setTimeout(() => router.push('/project/builder'), 2000);
                 }
             }, 1500);
             return;
