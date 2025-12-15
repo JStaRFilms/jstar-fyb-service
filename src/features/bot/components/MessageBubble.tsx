@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Bot, User } from "lucide-react";
 import { motion } from "framer-motion";
+import ReactMarkdown from 'react-markdown';
 
 interface MessageBubbleProps {
     role: "ai" | "user";
@@ -43,7 +44,13 @@ export function MessageBubble({ role, content, timestamp }: MessageBubbleProps) 
                             : "bg-accent/5 border-accent/20 rounded-tl-[1.5rem] rounded-bl-[1.5rem] rounded-br-[0.25rem] rounded-tr-[1.5rem] text-white"
                     )}
                 >
-                    {content}
+                    {isAi && typeof content === 'string' ? (
+                        <div className="prose prose-invert prose-sm max-w-none prose-headings:font-display prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white prose-a:text-primary prose-ul:text-gray-300 prose-ol:text-gray-300">
+                            <ReactMarkdown>{content}</ReactMarkdown>
+                        </div>
+                    ) : (
+                        content
+                    )}
                 </div>
                 {timestamp && (
                     <span className={cn("text-xs text-gray-500 block", !isAi && "text-right")}>
@@ -54,3 +61,4 @@ export function MessageBubble({ role, content, timestamp }: MessageBubbleProps) 
         </motion.div>
     );
 }
+

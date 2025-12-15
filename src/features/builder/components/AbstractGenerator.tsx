@@ -2,9 +2,10 @@
 
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Sparkles, Send, Check, RefreshCw, Bot, Edit3 } from "lucide-react";
+import { Loader2, Sparkles, Send, Check, RefreshCw, Bot, Edit3, Eye, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCompletion } from '@ai-sdk/react';
+import ReactMarkdown from 'react-markdown';
 
 export function AbstractGenerator() {
     const { data, updateData, setStep } = useBuilderStore();
@@ -22,6 +23,7 @@ export function AbstractGenerator() {
 
     // Local refinement input
     const [refineInput, setRefineInput] = useState("");
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -78,29 +80,47 @@ export function AbstractGenerator() {
                         <span>Abstract Editor</span>
                     </div>
 
-                    <button
-                        onClick={() => complete("", { body: { topic: data.topic, twist: data.twist } })}
-                        className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5"
-                        disabled={isLoading}
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                        Regenerate
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Preview/Edit Toggle */}
+                        {!isLoading && (
+                            <button
+                                onClick={() => setIsPreviewMode(!isPreviewMode)}
+                                className={`text-xs transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${isPreviewMode ? 'bg-primary/20 text-primary' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                            >
+                                {isPreviewMode ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                {isPreviewMode ? 'Edit' : 'Preview'}
+                            </button>
+                        )}
+
+                        <button
+                            onClick={() => complete("", { body: { topic: data.topic, twist: data.twist } })}
+                            className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5"
+                            disabled={isLoading}
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                            Regenerate
+                        </button>
+                    </div>
                 </div>
 
-                {/* Text Area */}
-                <div className="p-8 bg-gradient-to-b from-transparent to-black/20">
-                    <textarea
-                        ref={textareaRef}
-                        value={completion}
-                        onChange={(e) => {
-                            setCompletion(e.target.value);
-                            updateData({ abstract: e.target.value });
-                        }}
-                        disabled={isLoading}
-                        className="w-full min-h-[300px] bg-transparent border-none focus:ring-0 text-lg font-serif leading-relaxed text-gray-200 resize-none p-0 placeholder-gray-700 focus:outline-none selection:bg-primary/30"
-                        placeholder="Waiting for AI generation..."
-                    />
+                {/* Content Area */}
+                <div className="p-8 bg-gradient-to-b from-transparent to-black/20 min-h-[350px]">
+                    {isLoading || isPreviewMode ? (
+                        <div className="prose prose-invert prose-lg max-w-none font-serif leading-relaxed prose-headings:font-display prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white">
+                            <ReactMarkdown>{completion || "*Generating abstract...*"}</ReactMarkdown>
+                        </div>
+                    ) : (
+                        <textarea
+                            ref={textareaRef}
+                            value={completion}
+                            onChange={(e) => {
+                                setCompletion(e.target.value);
+                                updateData({ abstract: e.target.value });
+                            }}
+                            className="w-full min-h-[300px] bg-transparent border-none focus:ring-0 text-lg font-serif leading-relaxed text-gray-200 resize-none p-0 placeholder-gray-700 focus:outline-none selection:bg-primary/30"
+                            placeholder="Waiting for AI generation..."
+                        />
+                    )}
                 </div>
 
                 {/* AI Command Bar */}

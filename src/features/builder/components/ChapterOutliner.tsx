@@ -3,6 +3,7 @@
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useState, useEffect } from "react";
 import { Lock, ShieldCheck, Check, Loader2 } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
 
 // Placeholder chapters for display when outline is still loading or empty
 const PLACEHOLDER_CHAPTERS = [
