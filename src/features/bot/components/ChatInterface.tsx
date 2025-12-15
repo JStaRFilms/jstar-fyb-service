@@ -7,6 +7,7 @@ import { MessageBubble } from "./MessageBubble";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ComplexityMeter } from "./ComplexityMeter";
 import { useChatFlow } from "../hooks/useChatFlow";
+import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function ChatInterface() {
@@ -41,7 +42,7 @@ export function ChatInterface() {
                         <h1 className="font-display font-bold text-lg tracking-wide">Project Consultant</h1>
                         <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            <span className="text-xs text-gray-400 font-mono">Topia AI Active</span>
+                            <span className="text-xs text-gray-400 font-mono">Jay (Active)</span>
                         </div>
                     </div>
                 </div>
@@ -56,47 +57,31 @@ export function ChatInterface() {
             <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
                 <AnimatePresence>
                     {messages.map((msg) => (
-                        <MessageBubble
-                            key={msg.id}
-                            role={msg.role}
-                            content={msg.content}
-                            timestamp={msg.timestamp}
-                        />
+                        <div key={msg.id} className="flex flex-col gap-2">
+                            <MessageBubble
+                                role={msg.role}
+                                content={msg.content}
+                                timestamp={msg.timestamp}
+                            />
+                            {/* Render Tool Invocations (Proposals) */}
+                            {msg.role === 'ai' && msg.toolInvocations?.map((tool: any) => {
+                                if (tool.toolName === 'suggestTopics' && tool.state === 'result') {
+                                    return (
+                                        <div key={tool.toolCallId} className="ml-0 md:ml-14 animate-in fade-in slide-in-from-bottom-2">
+                                            <ProposalCard
+                                                topics={tool.result.topics}
+                                                onAccept={(topic) => handleAction("accept")}
+                                            />
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })}
+                        </div>
                     ))}
                 </AnimatePresence>
 
                 {state === "ANALYZING" && <ThinkingIndicator />}
-
-                {/* Interactive Chips for Negotiation */}
-                {state === "NEGOTIATION" && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex gap-4 max-w-2xl"
-                    >
-                        <div className="w-10 h-10 shrink-0" /> {/* Spacer */}
-                        <div className="flex flex-wrap gap-2 w-full">
-                            <button
-                                onClick={() => handleAction("accept")}
-                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-primary transition-all"
-                            >
-                                Accept topic
-                            </button>
-                            <button
-                                onClick={() => handleAction("simplify")}
-                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-accent/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-accent transition-all"
-                            >
-                                Make it simpler
-                            </button>
-                            <button
-                                onClick={() => handleAction("harder")}
-                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-red-500 transition-all"
-                            >
-                                Too boring
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
 
                 <div ref={messagesEndRef} />
             </main>

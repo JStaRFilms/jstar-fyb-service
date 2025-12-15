@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { MockAiService, AnalysisResult } from "../services/mockAi";
-import { captureLead } from "@/features/leads/actions/captureLead";
+import { useChat } from "@ai-sdk/react";
 
 export interface Message {
     id: string;
     role: "ai" | "user";
     content: React.ReactNode;
+    toolInvocations?: any[];
     timestamp: string;
 }
 
@@ -14,111 +14,78 @@ export type ChatState = "INITIAL" | "ANALYZING" | "PROPOSAL" | "NEGOTIATION" | "
 
 export function useChatFlow() {
     const router = useRouter();
-    const [messages, setMessages] = useState<Message[]>([]);
     const [state, setState] = useState<ChatState>("INITIAL");
     const [complexity, setComplexity] = useState<1 | 2 | 3 | 4 | 5>(1);
-    const [proposal, setProposal] = useState<AnalysisResult | null>(null);
-    const [originalIdea, setOriginalIdea] = useState("");
+    const [anonymousId, setAnonymousId] = useState<string>("");
 
-    const hasInitialized = useRef(false);
-
-    // Initial Greeting
+    // Initialize Anonymous ID
     useEffect(() => {
-        if (!hasInitialized.current) {
-            hasInitialized.current = true;
-            addMessage("ai", "Scanning academic trends... 🤖");
-            setTimeout(() => {
-                addMessage("ai", "I'm your Project Consultant. Tell me, what's your department and what kind of 'vibe' do you want? (e.g., 'Computer Science, something with AI but not too hard')");
-            }, 1000);
+        let id = localStorage.getItem("jstar_anonymous_id");
+        if (!id) {
+            id = crypto.randomUUID();
+            localStorage.setItem("jstar_anonymous_id", id);
         }
+        setAnonymousId(id);
     }, []);
 
-    const addMessage = (role: "ai" | "user", content: React.ReactNode) => {
-        const newMessage: Message = {
-            id: Math.random().toString(36).substr(2, 9),
-            role,
-            content,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages((prev) => [...prev, newMessage]);
-    };
+    const { messages: aiMessages, append, setInput, isLoading } = useChat({
+        api: "/api/chat",
+        body: { anonymousId },
+        onFinish: (message: any) => {
+            // Check for tool calls to update state/complexity
+            if (message.toolInvocations) {
+                const suggestionTool = message.toolInvocations.find((t: any) => t.toolName === 'suggestTopics');
+                if (suggestionTool) {
+                    setState("NEGOTIATION");
+                    setComplexity(3);
+                }
+            }
+        }
+    });
+
+    // Transform AI SDK messages to our UI format
+    const messages: Message[] = aiMessages.map((m: any) => ({
+        id: m.id,
+        role: m.role === 'user' ? 'user' : 'ai',
+        content: m.content,
+        toolInvocations: m.toolInvocations,
+        timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'
+    }));
+
+    // Auto-greet
+    const hasInitialized = useRef(false);
+    useEffect(() => {
+        if (!hasInitialized.current && anonymousId) {
+            hasInitialized.current = true;
+            // Future: Load initial messages or trigger greeting
+        }
+    }, [anonymousId]);
+
 
     const handleUserMessage = async (text: string) => {
-        addMessage("user", text);
-
         if (state === "CLOSING") {
-            setState("ANALYZING"); // brief pause
-
-            // Capture Lead
-            const leadData = {
-                whatsapp: text,
-                department: proposal?.department || "Computer Science",
-                topic: originalIdea,
-                twist: proposal?.twist || "Unknown",
-                complexity: complexity
-            };
-
-            const result = await captureLead(leadData);
-
-            setTimeout(() => {
-                if (result.success) {
-                    addMessage("ai", "Perfect. I've created your project file and saved your spot. Redirecting you to the Project Builder...");
-                    setState("COMPLETED");
-                    setTimeout(() => router.push('/project/builder'), 2000);
-                } else {
-                    addMessage("ai", "I saved your details offline. Redirecting you...");
-                    setState("COMPLETED");
-                    setTimeout(() => router.push('/project/builder'), 2000);
-                }
-            }, 1500);
+            // Handle Lead Capture / Auth flow
+            // Ideally we save the chat here definitively
+            router.push('/project/builder');
             return;
         }
 
-        setOriginalIdea(text);
         setState("ANALYZING");
-
-        try {
-            const result = await MockAiService.analyzeIdea(text);
-            setProposal(result);
-            setComplexity(result.complexity);
-
-            setState("PROPOSAL");
-
-            // Presenting the proposal
-            addMessage("ai", "Analyzing feasible topics...");
-
-            setTimeout(() => {
-                addMessage("ai", (
-                    <div>
-                        <p>That idea is a bit basic. How about we <strong className="text-primary">twist</strong> it?</p>
-                        <p className="mt-2">Instead, let's build a <span className="text-accent font-bold">"{result.twist}"</span>.</p>
-                        <ul className="mt-3 space-y-2 text-sm">
-                            {result.reasoning.map((r, i) => (
-                                <li key={i} className="flex items-center gap-2">
-                                    <span className="text-green-400">✓</span> {r}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ));
-                setState("NEGOTIATION");
-            }, 1500);
-
-        } catch (error) {
-            addMessage("ai", "My systems are overloaded. Try again.");
-            setState("INITIAL");
-        }
+        await append({ role: 'user', content: text });
+        if (!isLoading) setState("PROPOSAL");
     };
 
     const handleAction = (action: "accept" | "simplify" | "harder") => {
         if (action === "accept") {
-            addMessage("user", "I love it. Let's do it.");
-            setTimeout(() => {
-                addMessage("ai", "Excellent choice. To generate the full abstract and chapter outline, I need your WhatsApp number to create your file.");
-                setState("CLOSING");
-            }, 1000);
+            append({ role: 'user', content: "I accept this topic. Let's proceed." });
+            setState("CLOSING");
+        } else if (action === "simplify") {
+            setComplexity(prev => Math.max(1, prev - 1) as any);
+            append({ role: 'user', content: "That's too complex. Make it simpler." });
+        } else if (action === "harder") {
+            setComplexity(prev => Math.min(5, prev + 1) as any);
+            append({ role: 'user', content: "Too boring. Give me something harder." });
         }
-        // Can implement other actions later
     };
 
     return {

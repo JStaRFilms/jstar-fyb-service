@@ -24,7 +24,7 @@ export function MessageBubble({ role, content, timestamp }: MessageBubbleProps) 
             {/* Avatar */}
             <div
                 className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border shadow-lg",
+                    "w-10 h-10 rounded-full hidden md:flex items-center justify-center shrink-0 border shadow-lg",
                     isAi
                         ? "bg-primary/20 border-primary/30 shadow-primary/20"
                         : "bg-accent/20 border-accent/30 shadow-accent/20"
