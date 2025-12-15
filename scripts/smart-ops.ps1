@@ -9,14 +9,14 @@ $REPO_NAME = "jstar-fyb-service"
 $REPO = "$REPO_OWNER/$REPO_NAME"
 
 # Project Board Config (Empty strings if unused)
-$PROJECT_NUMBER = ""
-$PROJECT_ID = ""
-$STATUS_FIELD_ID = ""
-$TODO_OPTION_ID = ""
-$IN_PROGRESS_OPTION_ID = ""
-$DONE_OPTION_ID = ""
-$START_DATE_FIELD_ID = ""
-$TARGET_DATE_FIELD_ID = ""
+$PROJECT_NUMBER = "6"
+$PROJECT_ID = "PVT_kwHOBryib84BKpDJ"
+$STATUS_FIELD_ID = "PVTSSF_lAHOBryib84BKpDJzg6cv6I"
+$TODO_OPTION_ID = "f75ad846"
+$IN_PROGRESS_OPTION_ID = "47fc9ee4"
+$DONE_OPTION_ID = "98236657"
+$START_DATE_FIELD_ID = "PVTF_lAHOBryib84BKpDJzg6c0Vo"
+$TARGET_DATE_FIELD_ID = "PVTF_lAHOBryib84BKpDJzg6c05U"
 
 # ============ HELPERS ============
 function Write-Status { param($Msg, $Color="Cyan") Write-Host ":: $Msg" -ForegroundColor $Color }

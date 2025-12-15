@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { MockAiService, AnalysisResult } from "../services/mockAi";
+import { captureLead } from "@/features/leads/actions/captureLead";
 
 export interface Message {
     id: string;
@@ -15,6 +16,7 @@ export function useChatFlow() {
     const [state, setState] = useState<ChatState>("INITIAL");
     const [complexity, setComplexity] = useState<1 | 2 | 3 | 4 | 5>(1);
     const [proposal, setProposal] = useState<AnalysisResult | null>(null);
+    const [originalIdea, setOriginalIdea] = useState("");
 
     const hasInitialized = useRef(false);
 
@@ -44,14 +46,31 @@ export function useChatFlow() {
 
         if (state === "CLOSING") {
             setState("ANALYZING"); // brief pause
+
+            // Capture Lead
+            const leadData = {
+                whatsapp: text,
+                department: "Computer Science", // Mocked for now, or extract
+                topic: originalIdea,
+                twist: proposal?.twist || "Unknown",
+                complexity: complexity
+            };
+
+            const result = await captureLead(leadData);
+
             setTimeout(() => {
-                addMessage("ai", "Perfect. I've created your project file. Redirecting you to the Project Builder...");
-                setState("COMPLETED");
-                // TODO: Here we would trigger the actual redirection or DB save
+                if (result.success) {
+                    addMessage("ai", "Perfect. I've created your project file and saved your spot. Redirecting you to the Project Builder...");
+                    setState("COMPLETED");
+                } else {
+                    addMessage("ai", "I saved your details offline. Redirecting you...");
+                    setState("COMPLETED");
+                }
             }, 1500);
             return;
         }
 
+        setOriginalIdea(text);
         setState("ANALYZING");
 
         try {
