@@ -4,28 +4,47 @@ import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useState, useEffect } from "react";
 import { Lock, ShieldCheck, Check, Loader2 } from "lucide-react";
 
+// Placeholder chapters for display when outline is still loading or empty
+const PLACEHOLDER_CHAPTERS = [
+    { title: "Introduction", content: "Background of study, problem statement, research objectives, and scope..." },
+    { title: "Literature Review", content: "Analysis of existing systems, theoretical framework, and methodology analysis..." },
+    { title: "System Methodology", content: "System analysis, design methodology, and implementation strategies..." },
+];
+
 export function ChapterOutliner() {
-    const { data, isPaid, unlockPaywall } = useBuilderStore();
-    const [outline, setOutline] = useState<any[]>(data.outline || []);
-    const [isGenerating, setIsGenerating] = useState(outline.length === 0);
+    const { data, isPaid, unlockPaywall, updateData } = useBuilderStore();
+    const [isGenerating, setIsGenerating] = useState(true);
+    const [outline, setOutline] = useState<{ title: string; content: string }[]>(data.outline || []);
 
     useEffect(() => {
-        if (outline.length === 0) {
-            setTimeout(() => {
-                setOutline([
-                    { title: "Introduction", content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua." },
-                    { title: "1.1 Background of Study", content: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit." },
-                    { title: "1.2 Problem Statement", content: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit." },
-                ]);
+        // Simulate outline generation (will be replaced with real AI later)
+        if (data.abstract && outline.length === 0) {
+            const timer = setTimeout(() => {
+                const generatedOutline = [
+                    { title: "Introduction", content: "Background of study, problem statement, research objectives, and scope of the project." },
+                    { title: "Literature Review", content: "Analysis of existing systems, theoretical framework, and critical evaluation of related work." },
+                    { title: "System Methodology", content: "System analysis, design methodology, data flow diagrams, and implementation plan." },
+                    { title: "Implementation & Results", content: "System development, testing procedures, results analysis, and performance evaluation." },
+                    { title: "Conclusion & Recommendations", content: "Summary of findings, limitations, future work, and recommendations for improvement." },
+                ];
+                setOutline(generatedOutline);
+                updateData({ outline: generatedOutline });
                 setIsGenerating(false);
-            }, 1500);
+            }, 2000);
+            return () => clearTimeout(timer);
+        } else if (outline.length > 0) {
+            setIsGenerating(false);
         }
-    }, []);
+    }, [data.abstract]);
 
-    // Truncate abstract for preview (matches mockup: short teaser ending with ...)
+    // Truncate abstract for preview
     const abstractPreview = data.abstract
         ? data.abstract.slice(0, 180) + '...'
-        : "In an era of rampant misinformation, the integrity of digital media is paramount. This project proposes a decentralized approach to verifying news authenticity utilizing the immutability of blockchain technology...";
+        : "Loading abstract...";
+
+    // Use real outline or placeholders for display
+    const displayOutline = outline.length > 0 ? outline : PLACEHOLDER_CHAPTERS;
+    const displayTitle = data.topic || "Project Title";
 
     if (isGenerating) {
         return (
@@ -53,7 +72,7 @@ export function ChapterOutliner() {
                 {/* Visible Teaser - glass-panel */}
                 <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-t-2xl border-b border-white/5">
                     <span className="text-xs font-mono text-accent uppercase tracking-wider mb-2 block">Project Title</span>
-                    <h2 className="text-xl font-bold leading-tight">{data.topic || "Blockchain-Based Fake News Detection System using SHA-256 Hashing Algorithm"}</h2>
+                    <h2 className="text-xl font-bold leading-tight">{displayTitle}</h2>
 
                     <div className="mt-6">
                         <span className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2 block">Abstract Preview</span>
@@ -65,18 +84,17 @@ export function ChapterOutliner() {
 
                 {/* Blurred/Locked Content - glass-panel */}
                 <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-b-2xl border-t-0 relative overflow-hidden">
-                    {/* blur-content */}
+                    {/* blur-content - Always show chapters (real or placeholder) */}
                     <div className="blur-[8px] select-none pointer-events-none opacity-50 space-y-6">
-                        {outline.map((chapter, i) => (
+                        {displayOutline.map((chapter, i) => (
                             <div key={i}>
-                                <h3 className="font-bold text-lg mb-2">{i === 0 ? `Chapter 1: ${chapter.title}` : chapter.title}</h3>
+                                <h3 className="font-bold text-lg mb-2">Chapter {i + 1}: {chapter.title}</h3>
                                 <p className="text-gray-400 text-sm">{chapter.content}</p>
-                                {i === 1 && <p className="text-gray-400 text-sm mt-2">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>}
                             </div>
                         ))}
                     </div>
 
-                    {/* Paywall Overlay */}
+                    {/* Paywall Overlay - Always visible when not paid */}
                     {!isPaid && (
                         <div className="absolute inset-0 bg-gradient-to-t from-dark via-dark/80 to-transparent flex flex-col items-center justify-end pb-10 z-10 px-6 text-center">
                             <Lock className="w-12 h-12 text-primary mb-4" />

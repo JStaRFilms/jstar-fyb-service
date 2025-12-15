@@ -4,15 +4,24 @@ import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useState, useEffect, useRef } from "react";
 import { Loader2, Sparkles, Send, Check, RefreshCw, Bot, Edit3 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCompletion } from '@ai-sdk/react';
 
 export function AbstractGenerator() {
     const { data, updateData, setStep } = useBuilderStore();
-
-    // Abstract Editing State
-    const [abstract, setAbstract] = useState(data.abstract || "");
-    const [refineInput, setRefineInput] = useState("");
-    const [isGenerating, setIsGenerating] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // AI Completion Hook
+    const { completion, complete, isLoading, setCompletion } = useCompletion({
+        api: '/api/generate/abstract',
+        streamProtocol: 'text', // Required for toTextStreamResponse()
+        initialCompletion: data.abstract,
+        onFinish: (prompt, completion) => {
+            updateData({ abstract: completion });
+        }
+    });
+
+    // Local refinement input
+    const [refineInput, setRefineInput] = useState("");
 
     // Auto-resize textarea
     useEffect(() => {
@@ -20,41 +29,23 @@ export function AbstractGenerator() {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
         }
-    }, [abstract]);
-
-    // Simulation of AI Streaming
-    const streamAbstract = (newText: string) => {
-        setIsGenerating(true);
-        setAbstract("");
-        let i = 0;
-        const interval = setInterval(() => {
-            setAbstract(newText.slice(0, i));
-            i++;
-            if (i > newText.length) {
-                clearInterval(interval);
-                setIsGenerating(false);
-                updateData({ abstract: newText });
-            }
-        }, 8); // Slightly faster
-    };
+    }, [completion]);
 
     // Initial Auto-Start
     useEffect(() => {
-        if (!data.abstract) {
-            const initialDraft = `This project, titled "${data.topic}", aims to revolutionize the industry by incorporating ${data.twist || "advanced approaches"}. The proposed system leverages a scalable architecture to ensure robustness... \n\nKey objectives include:\n1. Designing a secure authentication module.\n2. Implementing distinct user roles.\n3. Evaluating performance metrics under load.\n\nThe expected outcome is a fully functional prototype demonstrating the viability of integrating ${data.twist || "this technology"} into modern workflows.`;
-            streamAbstract(initialDraft);
+        if (!data.abstract && !isLoading) {
+            complete("", { body: { topic: data.topic, twist: data.twist } });
         }
     }, []);
 
     const handleRefine = () => {
         if (!refineInput) return;
-        const refinedDraft = `${abstract} \n\n(Refined: "${refineInput}") -> Updated validation metrics and added security compliance content.`;
-        streamAbstract(refinedDraft);
+        complete("", { body: { topic: data.topic, twist: data.twist, instruction: refineInput } });
         setRefineInput("");
     };
 
     const handleApprove = () => {
-        updateData({ abstract });
+        updateData({ abstract: completion });
         setStep('OUTLINE');
     };
 
@@ -66,7 +57,7 @@ export function AbstractGenerator() {
                     <h2 className="text-2xl font-display font-bold text-white mb-1">Project Context</h2>
                     <p className="text-sm text-gray-400">Review and refine the AI-generated abstract before structuring the chapters.</p>
                 </div>
-                {isGenerating && (
+                {isLoading && (
                     <div className="flex items-center gap-2 text-primary bg-primary/10 px-4 py-2 rounded-full border border-primary/20">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span className="font-mono text-xs uppercase tracking-wider font-bold">AI Writing...</span>
@@ -88,11 +79,11 @@ export function AbstractGenerator() {
                     </div>
 
                     <button
-                        onClick={() => streamAbstract(data.abstract || abstract)}
+                        onClick={() => complete("", { body: { topic: data.topic, twist: data.twist } })}
                         className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5"
-                        disabled={isGenerating}
+                        disabled={isLoading}
                     >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                         Regenerate
                     </button>
                 </div>
@@ -101,9 +92,12 @@ export function AbstractGenerator() {
                 <div className="p-8 bg-gradient-to-b from-transparent to-black/20">
                     <textarea
                         ref={textareaRef}
-                        value={abstract}
-                        onChange={(e) => setAbstract(e.target.value)}
-                        disabled={isGenerating}
+                        value={completion}
+                        onChange={(e) => {
+                            setCompletion(e.target.value);
+                            updateData({ abstract: e.target.value });
+                        }}
+                        disabled={isLoading}
                         className="w-full min-h-[300px] bg-transparent border-none focus:ring-0 text-lg font-serif leading-relaxed text-gray-200 resize-none p-0 placeholder-gray-700 focus:outline-none selection:bg-primary/30"
                         placeholder="Waiting for AI generation..."
                     />
@@ -124,14 +118,14 @@ export function AbstractGenerator() {
                                     type="text"
                                     value={refineInput}
                                     onChange={(e) => setRefineInput(e.target.value)}
-                                    disabled={isGenerating}
+                                    disabled={isLoading}
                                     placeholder="Give instructions to refine (e.g. 'Make it more academic')"
                                     className="w-full bg-transparent border-none px-4 py-3.5 text-sm text-white focus:ring-0 placeholder-gray-500 font-light"
                                     onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
                                 />
                                 <button
                                     onClick={handleRefine}
-                                    disabled={!refineInput || isGenerating}
+                                    disabled={!refineInput || isLoading}
                                     className="mr-2 p-2 bg-white/10 rounded-lg hover:bg-primary hover:text-white transition-all disabled:opacity-0 disabled:scale-90"
                                 >
                                     <Send className="w-4 h-4" />
@@ -145,7 +139,7 @@ export function AbstractGenerator() {
                         {/* Approve Button */}
                         <button
                             onClick={handleApprove}
-                            disabled={isGenerating}
+                            disabled={isLoading}
                             className="w-full md:w-auto px-8 py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-display font-bold text-sm uppercase tracking-wide shadow-[0_0_20px_rgba(22,163,74,0.3)] hover:shadow-[0_0_30px_rgba(22,163,74,0.5)] transform hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:shadow-none text-white"
                         >
                             <Check className="w-5 h-5" />
