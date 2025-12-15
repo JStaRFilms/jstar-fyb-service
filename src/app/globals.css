@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #8b5cf6;
+  --color-accent: #06b6d4;
+  --color-bg: #030014;
+}
+
+body {
+  color: white;
+  background: var(--color-bg);
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-lg;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-[#c4b5fd] via-[#a78bfa] to-[#22d3ee] bg-clip-text text-transparent;
+  }
+
+  .glow-box {
+    box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.3);
+  }
+}
+
+/* Animations from mockups */
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.animate-float-slow {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-fast {
+  animation: float 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-scroll {
+  animation: scroll 20s linear infinite;
+}
+
+/* Complexity Meter Animation */
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(139, 92, 246, 0.5); }
+}
+
+.animate-pulse-glow {
+    animation: pulse-glow 2s infinite;
+}
