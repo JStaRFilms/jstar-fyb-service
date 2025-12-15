@@ -59,8 +59,8 @@ export function ProjectGallery() {
                             whileInView={{ opacity: 1, y: 0, scale: 1 }}
                             viewport={{ once: true }}
                             transition={{ type: "spring", stiffness: 50, damping: 10, delay: index * 0.2 }}
-                            whileHover={{ y: -15, scale: 1.05, transition: { type: "spring", stiffness: 200 } }}
-                            className="group relative h-80 rounded-2xl overflow-hidden cursor-pointer"
+                            whileHover={{ y: -10, scale: 1.02, transition: { type: "spring", stiffness: 200 } }}
+                            className="group relative h-80 rounded-2xl overflow-hidden cursor-pointer will-change-transform"
                         >
                             {/* Card Background */}
                             <div className={`absolute inset-0 bg-gradient-to-br ${project.gradient} opacity-10 group-hover:opacity-20 transition-opacity duration-500`} />

@@ -29,8 +29,8 @@ export function Pricing() {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ type: "spring", stiffness: 60, damping: 12, delay: 0.2 }}
-                        whileHover={{ scale: 1.05, y: -10, transition: { type: "spring", stiffness: 300 } }}
-                        className="glass-panel p-10 rounded-3xl relative overflow-hidden group border border-white/5 hover:border-accent/50 transition-colors duration-500"
+                        whileHover={{ scale: 1.02, y: -5, transition: { type: "spring", stiffness: 300 } }}
+                        className="glass-panel p-10 rounded-3xl relative overflow-hidden group border border-white/5 hover:border-accent/50 transition-colors duration-500 will-change-transform"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 

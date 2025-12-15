@@ -33,24 +33,18 @@ export function Hero() {
     return (
         <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
             {/* Background Elements */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/20 via-dark to-dark opacity-40pointer-events-none"></div>
-            <motion.div
-                animate={{ opacity: [0.5, 0.8, 0.5], scale: [1, 1.1, 1] }}
-                transition={{ duration: 4, repeat: Infinity }}
-                className="absolute top-20 right-20 w-64 h-64 bg-accent/20 rounded-full blur-[100px]"
-            />
-            <motion.div
-                animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.2, 1] }}
-                transition={{ duration: 5, repeat: Infinity, delay: 1 }}
-                className="absolute bottom-20 left-20 w-96 h-96 bg-primary/20 rounded-full blur-[120px]"
-            />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/20 via-dark to-dark opacity-40 pointer-events-none"></div>
+
+            {/* Optimized: Removed heavy scale/opacity Framer Motion loops. Using CSS directly or static. */}
+            <div className="absolute top-20 right-20 w-64 h-64 bg-accent/20 rounded-full blur-[80px] animate-pulse opacity-50" />
+            <div className="absolute bottom-20 left-20 w-96 h-96 bg-primary/20 rounded-full blur-[100px] animate-pulse opacity-30" style={{ animationDelay: '1s' }} />
 
             <div className="container mx-auto px-6 relative z-10 text-center">
-                {/* Floating Icons */}
+                {/* Floating Icons - Optimized with will-change-transform */}
                 <motion.div
                     animate={{ y: [-15, 15, -15], rotate: [0, 5, 0] }}
                     transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute top-0 left-10 w-24 h-24 glass-panel rounded-2xl flex items-center justify-center border-l-4 border-l-accent opacity-60 hidden md:flex"
+                    className="absolute top-0 left-10 w-24 h-24 glass-panel rounded-2xl flex items-center justify-center border-l-4 border-l-accent opacity-60 hidden md:flex will-change-transform"
                 >
                     <Code className="w-10 h-10 text-accent" />
                 </motion.div>
@@ -58,7 +52,7 @@ export function Hero() {
                 <motion.div
                     animate={{ y: [15, -15, 15], rotate: [0, -5, 0] }}
                     transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                    className="absolute bottom-40 right-10 w-32 h-32 glass-panel rounded-full flex items-center justify-center border-r-4 border-r-primary opacity-60 hidden md:flex"
+                    className="absolute bottom-40 right-10 w-32 h-32 glass-panel rounded-full flex items-center justify-center border-r-4 border-r-primary opacity-60 hidden md:flex will-change-transform"
                 >
                     <Cpu className="w-12 h-12 text-primary" />
                 </motion.div>
