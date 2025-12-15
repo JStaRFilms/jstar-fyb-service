@@ -1,0 +1,146 @@
+'use client';
+
+import { useEffect, useRef, useState } from "react";
+import { Mic, SendHorizontal, Plus, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { MessageBubble } from "./MessageBubble";
+import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ComplexityMeter } from "./ComplexityMeter";
+import { useChatFlow } from "../hooks/useChatFlow";
+import { motion, AnimatePresence } from "framer-motion";
+
+export function ChatInterface() {
+    const { messages, state, complexity, handleUserMessage, handleAction } = useChatFlow();
+    const [inputValue, setInputValue] = useState("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, state]);
+
+    const onSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inputValue.trim()) return;
+        handleUserMessage(inputValue);
+        setInputValue("");
+    };
+
+    return (
+        <div className="flex flex-col h-[100dvh] bg-dark text-white overflow-hidden font-sans">
+            {/* Header */}
+            <header className="h-16 flex items-center justify-between px-4 border-b border-white/5 bg-dark/80 backdrop-blur-md z-20 shrink-0">
+                <div className="flex items-center gap-3">
+                    <Link href="/" className="p-2 rounded-full hover:bg-white/5 text-gray-400">
+                        <ArrowLeft className="w-5 h-5" />
+                    </Link>
+                    <div>
+                        <h1 className="font-display font-bold text-lg tracking-wide">Project Consultant</h1>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            <span className="text-xs text-gray-400 font-mono">Topia AI Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Complexity Meter Widget */}
+                <div className="hidden md:block">
+                    <ComplexityMeter score={complexity} />
+                </div>
+            </header>
+
+            {/* Chat Area */}
+            <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
+                <AnimatePresence>
+                    {messages.map((msg) => (
+                        <MessageBubble
+                            key={msg.id}
+                            role={msg.role}
+                            content={msg.content}
+                            timestamp={msg.timestamp}
+                        />
+                    ))}
+                </AnimatePresence>
+
+                {state === "ANALYZING" && <ThinkingIndicator />}
+
+                {/* Interactive Chips for Negotiation */}
+                {state === "NEGOTIATION" && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex gap-4 max-w-2xl"
+                    >
+                        <div className="w-10 h-10 shrink-0" /> {/* Spacer */}
+                        <div className="flex flex-wrap gap-2 w-full">
+                            <button
+                                onClick={() => handleAction("accept")}
+                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-primary transition-all"
+                            >
+                                Accept topic
+                            </button>
+                            <button
+                                onClick={() => handleAction("simplify")}
+                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-accent/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-accent transition-all"
+                            >
+                                Make it simpler
+                            </button>
+                            <button
+                                onClick={() => handleAction("harder")}
+                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-red-500 transition-all"
+                            >
+                                Too boring
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+
+                <div ref={messagesEndRef} />
+            </main>
+
+            {/* Mobile Complexity Meter */}
+            <div className="md:hidden absolute bottom-[88px] left-0 right-0 px-4 pointer-events-none">
+                <div className="bg-dark/90 backdrop-blur-md border border-white/10 rounded-lg p-2 flex justify-between items-center pointer-events-auto">
+                    <span className="text-xs text-gray-400 font-mono uppercase">Complexity</span>
+                    <div className="scale-75 origin-right">
+                        <ComplexityMeter score={complexity} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Input Area */}
+            <footer className="p-4 bg-dark/80 backdrop-blur-xl border-t border-white/5 shrink-0 z-30">
+                <form onSubmit={onSubmit} className="flex gap-3 relative max-w-4xl mx-auto">
+                    <button type="button" className="p-4 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-colors md:hidden">
+                        <Plus className="w-6 h-6" />
+                    </button>
+
+                    <div className="flex-1 relative">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={state === "CLOSING" ? "Enter your WhatsApp number..." : "Type your reply..."}
+                            disabled={state === "ANALYZING"}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-12 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-all font-light disabled:opacity-50"
+                        />
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-white/10 rounded-lg text-gray-400 transition-colors">
+                            <Mic className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={!inputValue.trim()}
+                        className="p-4 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                        <SendHorizontal className="w-6 h-6" />
+                    </button>
+                </form>
+            </footer>
+        </div>
+    );
+}
