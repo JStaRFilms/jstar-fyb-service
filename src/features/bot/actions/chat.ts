@@ -76,3 +76,16 @@ export async function getConversation(conversationId: string) {
         include: { messages: true }
     });
 }
+
+export async function mergeAnonymousConversations(anonymousId: string, userId: string) {
+    try {
+        await prisma.conversation.updateMany({
+            where: { anonymousId: anonymousId, userId: null },
+            data: { userId: userId },
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Failed to merge chats:', error);
+        return { success: false, error };
+    }
+}

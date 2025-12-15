@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, SendHorizontal, Plus, ArrowLeft } from "lucide-react";
+import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
 import { ThinkingIndicator } from "./ThinkingIndicator";
@@ -9,11 +9,30 @@ import { ComplexityMeter } from "./ComplexityMeter";
 import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { mergeAnonymousConversations } from "../actions/chat";
+import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
     const { messages, state, complexity, handleUserMessage, handleAction } = useChatFlow();
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Auth & Persistence
+    const { user } = useAuth();
+
+    useEffect(() => {
+        const anonymousId = localStorage.getItem("jstar_anonymous_id");
+        if (user && anonymousId) {
+            // User just logged in, but has an anonymous history
+            // Merge it!
+            mergeAnonymousConversations(anonymousId, user.id || "")
+                .then(() => {
+                    // console.log("Merged history");
+                    // specific cleanup if needed, keeping anonymousId is fine for session continuity
+                });
+        }
+    }, [user]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,17 +58,43 @@ export function ChatInterface() {
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="font-display font-bold text-lg tracking-wide">Project Consultant</h1>
+                        <h1 className="font-display font-bold text-lg tracking-wide hidden md:block">Project Consultant</h1>
+                        <h1 className="font-display font-bold text-lg tracking-wide md:hidden">Jay</h1>
                         <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            <span className="text-xs text-gray-400 font-mono">Jay (Active)</span>
+                            <span className="text-xs text-gray-400 font-mono">Active</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Complexity Meter Widget */}
-                <div className="hidden md:block">
-                    <ComplexityMeter score={complexity} />
+                <div className="flex items-center gap-3">
+                    {/* Complexity Widget - Desktop */}
+                    <div className="hidden md:block">
+                        <ComplexityMeter score={complexity} />
+                    </div>
+
+                    {/* Auth Button */}
+                    {user ? (
+                        <div className="flex items-center gap-3 pl-3 border-l border-white/10">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold ring-2 ring-white/10">
+                                {user.firstName?.charAt(0) || "U"}
+                            </div>
+                            <button
+                                onClick={() => signOutAction()}
+                                className="p-2 rounded-full hover:bg-white/5 text-gray-400 hover:text-red-400 transition-colors"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => signInAction()}
+                            className="px-4 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 text-xs font-bold text-primary transition-all flex items-center gap-2"
+                        >
+                            <User className="w-3 h-3" />
+                            Sign In to Save
+                        </button>
+                    )}
                 </div>
             </header>
 

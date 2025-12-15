@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 
 export const config = {
-    matcher: '/admin/:path*',
+    matcher: [
+        '/((?!_next/static|_next/image|favicon.ico).*)',
+    ],
 };
 
-export function middleware(req: NextRequest) {
+const adminAuthMiddleware = (req: NextRequest) => {
     const basicAuth = req.headers.get('authorization');
 
     if (basicAuth) {
         const auth = basicAuth.split(' ')[1];
         const [user, pwd] = Buffer.from(auth, 'base64').toString().split(':');
 
-        // Check against env vars
         if (user === process.env.ADMIN_USERNAME && pwd === process.env.ADMIN_PASSWORD) {
             return NextResponse.next();
         }
@@ -24,4 +26,16 @@ export function middleware(req: NextRequest) {
             'WWW-Authenticate': 'Basic realm="Admin Area"',
         },
     });
+};
+
+const workosMiddleware = authkitMiddleware();
+
+export default async function middleware(req: NextRequest, event: any) {
+    // Admin Path -> Basic Auth
+    if (req.nextUrl.pathname.startsWith('/admin')) {
+        return adminAuthMiddleware(req);
+    }
+
+    // All other paths -> WorkOS AuthKit
+    return workosMiddleware(req, event);
 }

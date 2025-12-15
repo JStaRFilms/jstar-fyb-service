@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         tools: {
             suggestTopics: tool({
                 description: 'Suggest 3 unique project topics with twists.',
-                parameters: z.object({
+                inputSchema: z.object({
                     topics: z.array(z.object({
                         title: z.string(),
                         twist: z.string(),
@@ -61,5 +61,5 @@ export async function POST(req: Request) {
         },
     });
 
-    return result.toDataStreamResponse();
+    return result.toUIMessageStreamResponse();
 }
