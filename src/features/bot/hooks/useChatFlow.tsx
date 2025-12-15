@@ -50,7 +50,7 @@ export function useChatFlow() {
             // Capture Lead
             const leadData = {
                 whatsapp: text,
-                department: "Computer Science", // Mocked for now, or extract
+                department: proposal?.department || "Computer Science",
                 topic: originalIdea,
                 twist: proposal?.twist || "Unknown",
                 complexity: complexity

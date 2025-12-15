@@ -1,15 +1,19 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminLeadsPage() {
+export default async function AdminLeadsPage({ searchParams }: { searchParams: { page?: string } }) {
     // Graceful fallback if DB is not ready
     let leads: any[] = [];
+    const page = Number(searchParams?.page) || 1;
+    const pageSize = 50;
+
     try {
         leads = await prisma.lead.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: pageSize,
+            skip: (page - 1) * pageSize
         });
     } catch (e) {
         console.error("DB Error", e);
@@ -69,6 +73,22 @@ export default async function AdminLeadsPage() {
                     </tbody>
                 </table>
             </div>
-        </div>
+
+            <div className="mt-4 flex justify-between items-center text-gray-400">
+                <div className="text-sm">Page {page}</div>
+                <div className="flex gap-2">
+                    {page > 1 && (
+                        <Link href={`/admin/leads?page=${page - 1}`} className="px-3 py-1 bg-white/5 rounded hover:bg-white/10">
+                            Previous
+                        </Link>
+                    )}
+                    {leads.length === pageSize && (
+                        <Link href={`/admin/leads?page=${page + 1}`} className="px-3 py-1 bg-white/5 rounded hover:bg-white/10">
+                            Next
+                        </Link>
+                    )}
+                </div>
+            </div>
+        </div >
     );
 }

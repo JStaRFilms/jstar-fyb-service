@@ -14,7 +14,7 @@ model Lead {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   
-  whatsapp  String
+  whatsapp  String   @unique
   department String
   topic     String   // The original idea
   twist     String   // The AI generated twist
