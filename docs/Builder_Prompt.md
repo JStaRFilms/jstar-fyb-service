@@ -26,3 +26,8 @@ Your goal is to build the foundation:
 - **200-Line Rule:** Split files before they get huge.
 - **Zod Everything:** Validate all API inputs.
 - **SQLite:** Remember we are using SQLite, so no sophisticated Postgres-only features yet.
+
+## Mandatory Mockup-Driven Implementation
+The `/docs/mockups` folder is the **UNQUESTIONABLE source of truth** for all front-end UI/UX.
+You must NOT deviate from the layout, color palette, typography, or component structure defined in the mockups.
+Before implementing any page, open the corresponding mockup file and replicate it exactly.

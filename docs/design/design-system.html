@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J Star FYB Experience - Design System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Vibe Config */
+        :root {
+            --color-primary: #8b5cf6; /* Violet */
+            --color-accent: #06b6d4;  /* Cyan */
+            --color-bg: #030014;      /* Deep Space Black */
+        }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--color-bg);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Glow Effects */
+        .glow-text {
+            text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+        }
+        
+        .glow-box {
+            box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Gradient Text */
+        .text-gradient {
+            background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 50%, #22d3ee 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Ambient Background blobs */
+        .ambient-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.4;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#030014',
+                        surface: '#0f0c29',
+                        primary: '#8b5cf6',
+                        accent: '#06b6d4',
+                        muted: '#94a3b8'
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-8 pb-32">
+
+    <!-- Ambient Background -->
+    <div class="ambient-blob bg-primary w-96 h-96 top-0 -left-20"></div>
+    <div class="ambient-blob bg-accent w-[600px] h-[600px] bottom-0 -right-40"></div>
+
+    <div class="max-w-6xl mx-auto space-y-20">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-12">
+            <div>
+                <h1 class="text-4xl font-bold font-display uppercase tracking-widest">
+                    J Star <span class="text-gradient">Design System</span>
+                </h1>
+                <p class="text-muted mt-2">Vibe: Overkill. Sexy. Cinematic.</p>
+            </div>
+            <div class="px-4 py-2 glass-panel rounded-full text-sm font-mono text-accent">
+                v1.0.0
+            </div>
+        </header>
+
+        <!-- 01. Typography -->
+        <section>
+            <h2 class="text-2xl font-display font-bold text-muted mb-8 border-b border-white/10 pb-4">01. Typography</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div class="space-y-6">
+                    <div>
+                        <span class="text-xs text-muted uppercase tracking-wider mb-2 block">Display H1 (Space Grotesk Bold)</span>
+                        <h1 class="text-6xl font-display font-bold leading-tight">
+                            Build Your <br><span class="text-gradient">Masterpiece</span>
+                        </h1>
+                    </div>
+                    <div>
+                        <span class="text-xs text-muted uppercase tracking-wider mb-2 block">Heading H2</span>
+                        <h2 class="text-4xl font-display font-bold">Research Made Simple</h2>
+                    </div>
+                    <div>
+                        <span class="text-xs text-muted uppercase tracking-wider mb-2 block">Heading H3</span>
+                        <h3 class="text-2xl font-display font-semibold">AI-Powered Assistance</h3>
+                    </div>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <span class="text-xs text-muted uppercase tracking-wider mb-2 block">Body Large (Outfit)</span>
+                        <p class="text-xl text-gray-300 leading-relaxed">
+                            Start your final year project with confidence. Our tools help you structure, research, and write with speed and precision, wrapped in an experience that feels like magic.
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-xs text-muted uppercase tracking-wider mb-2 block">Body Regular</span>
+                        <p class="text-base text-gray-400 leading-relaxed">
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-xs text-muted uppercase tracking-wider mb-2 block">Caption / Mono</span>
+                        <p class="text-sm font-mono text-primary">System.init_process(user_id)</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 02. Colors -->
+        <section>
+            <h2 class="text-2xl font-display font-bold text-muted mb-8 border-b border-white/10 pb-4">02. Color Palette</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- Swatch -->
+                <div class="space-y-3">
+                    <div class="h-32 rounded-2xl bg-[#030014] border border-white/10 flex items-end p-4">
+                        <span class="font-mono text-xs">#030014</span>
+                    </div>
+                    <p class="font-medium">Deep Space</p>
+                    <p class="text-sm text-muted">Main Background</p>
+                </div>
+                <!-- Swatch -->
+                <div class="space-y-3">
+                    <div class="h-32 rounded-2xl bg-[#8b5cf6] glow-box flex items-end p-4">
+                        <span class="font-mono text-xs">#8b5cf6</span>
+                    </div>
+                    <p class="font-medium">Neon Violet</p>
+                    <p class="text-sm text-muted">Primary Action</p>
+                </div>
+                <!-- Swatch -->
+                <div class="space-y-3">
+                    <div class="h-32 rounded-2xl bg-[#06b6d4] flex items-end p-4">
+                        <span class="font-mono text-xs text-black">#06b6d4</span>
+                    </div>
+                    <p class="font-medium">Cyber Cyan</p>
+                    <p class="text-sm text-muted">Accents</p>
+                </div>
+                 <!-- Swatch -->
+                 <div class="space-y-3">
+                    <div class="h-32 rounded-2xl glass-panel flex items-end p-4">
+                        <span class="font-mono text-xs">Glass</span>
+                    </div>
+                    <p class="font-medium">Glass Surface</p>
+                    <p class="text-sm text-muted">Cards / UI</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 03. Buttons & Interactives -->
+        <section>
+            <h2 class="text-2xl font-display font-bold text-muted mb-8 border-b border-white/10 pb-4">03. Controls</h2>
+            <div class="flex flex-wrap gap-8 items-center">
+                
+                <!-- Primary Glow Button -->
+                <div>
+                    <span class="text-xs text-muted uppercase tracking-wider mb-4 block">Primary Glow</span>
+                    <button class="px-8 py-4 bg-primary rounded-xl font-display font-bold tracking-wide uppercase text-sm hover:scale-105 transition-transform duration-300 glow-box relative overflow-hidden group">
+                        <span class="relative z-10">Get Started</span>
+                        <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    </button>
+                </div>
+
+                <!-- Glass Button -->
+                <div>
+                    <span class="text-xs text-muted uppercase tracking-wider mb-4 block">Glass Secondary</span>
+                    <button class="px-8 py-4 glass-panel rounded-xl font-display font-bold tracking-wide uppercase text-sm hover:bg-white/10 transition-colors border-white/20">
+                        View Demo
+                    </button>
+                </div>
+
+                 <!-- Icon Button -->
+                 <div>
+                    <span class="text-xs text-muted uppercase tracking-wider mb-4 block">Icon Action</span>
+                    <button class="w-12 h-12 rounded-full glass-panel flex items-center justify-center hover:bg-primary/20 hover:scale-110 transition-all text-accent">
+                        <i data-lucide="zap"></i>
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 04. Cards & Data -->
+        <section>
+            <h2 class="text-2xl font-display font-bold text-muted mb-8 border-b border-white/10 pb-4">04. UI Components</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <!-- Feature Card -->
+                <div class="glass-panel p-8 rounded-3xl relative overflow-hidden group hover:border-primary/50 transition-colors duration-500">
+                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-primary/20 blur-3xl rounded-full group-hover:bg-primary/40 transition-all"></div>
+                    
+                    <div class="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 text-primary border border-white/10">
+                        <i data-lucide="box"></i>
+                    </div>
+                    <h3 class="text-2xl font-display font-bold mb-3">3D Assets</h3>
+                    <p class="text-gray-400 mb-6 font-light">
+                        Includes a library of high-fidelity 3D assets ready to drop into your project.
+                    </p>
+                    <a href="#" class="text-sm font-bold uppercase tracking-wider text-accent flex items-center gap-2 group-hover:gap-4 transition-all">
+                        Learn More <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+
+                <!-- Form Element -->
+                <div class="glass-panel p-8 rounded-3xl">
+                    <h3 class="text-lg font-display font-bold mb-6">Input Field</h3>
+                    <div class="space-y-4">
+                        <div class="relative group">
+                            <input type="text" placeholder=" " class="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-4 outline-none focus:border-accent transition-colors peer text-white placeholder-transparent">
+                            <label class="absolute left-4 top-4 text-gray-500 text-sm transition-all peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-4 peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-accent peer-focus:bg-[#030014] peer-focus:px-2 pointer-events-none">
+                                Project Topic
+                            </label>
+                        </div>
+                        
+                        <div class="relative group">
+                            <select class="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-4 outline-none focus:border-accent transition-colors text-gray-300 appearance-none cursor-pointer">
+                                <option>Computer Science</option>
+                                <option>Engineering</option>
+                            </select>
+                            <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

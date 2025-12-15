@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Consultant - J Star FYB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #8b5cf6;
+            --color-accent: #06b6d4;
+            --color-bg: #030014;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--color-bg);
+            color: white;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* Glass & Vibe */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-bubble-ai {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1.5rem 1.5rem 1.5rem 0.25rem;
+        }
+
+        .glass-bubble-user {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 1.5rem 1.5rem 0.25rem 1.5rem;
+        }
+
+        /* Complexity Meter Animation */
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(139, 92, 246, 0.5);
+            }
+        }
+
+        .meter-fill {
+            animation: pulse-glow 2s infinite;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { dark: '#030014', primary: '#8b5cf6', accent: '#06b6d4', muted: '#94a3b8' }, fontFamily: { sans: ['Outfit', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'], } } }
+        }
+    </script>
+</head>
+
+<body class="bg-dark">
+
+    <!-- Header: Mobile Optimized -->
+    <header
+        class="h-16 flex items-center justify-between px-4 border-b border-white/5 bg-dark/80 backdrop-blur-md z-20 shrink-0">
+        <div class="flex items-center gap-3">
+            <a href="home.html" class="p-2 rounded-full hover:bg-white/5 text-gray-400">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div>
+                <h1 class="font-display font-bold text-lg tracking-wide">Project Consultant</h1>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="text-xs text-gray-400 font-mono">Topia AI Active</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complexity Meter Widget -->
+        <div class="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+            <span class="text-xs text-gray-400 font-mono uppercase">Complexity</span>
+            <div class="flex gap-1">
+                <div class="w-2 h-4 rounded-sm bg-green-500"></div>
+                <div class="w-2 h-4 rounded-sm bg-green-500"></div>
+                <div class="w-2 h-4 rounded-sm bg-yellow-500"></div>
+                <div class="w-2 h-4 rounded-sm bg-white/10"></div>
+                <div class="w-2 h-4 rounded-sm bg-white/10"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Chat Area -->
+    <main class="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
+
+        <!-- AI Welcome -->
+        <div class="flex gap-4 max-w-2xl">
+            <div
+                class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 shadow-[0_0_15px_rgba(139,92,246,0.2)]">
+                <i data-lucide="bot" class="w-5 h-5 text-primary"></i>
+            </div>
+            <div class="space-y-2">
+                <div class="px-5 py-4 glass-bubble-ai text-gray-200 leading-relaxed shadow-lg">
+                    <p>Scanning academic trends... 🤖</p>
+                    <p class="mt-2">I'm your Project Consultant. Tell me, what's your department and what kind of "vibe"
+                        do you want for your project? (e.g., "Computer Science, something with AI but not too hard")</p>
+                </div>
+                <span class="text-xs text-gray-500 ml-2">10:42 AM</span>
+            </div>
+        </div>
+
+        <!-- User Reply -->
+        <div class="flex gap-4 max-w-2xl ml-auto flex-row-reverse">
+            <div
+                class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shrink-0 border border-accent/30">
+                <i data-lucide="user" class="w-5 h-5 text-accent"></i>
+            </div>
+            <div class="space-y-2">
+                <div class="px-5 py-4 glass-bubble-user text-white leading-relaxed shadow-lg">
+                    <p>I'm in Computer Science. I want something cool with Crypto but I don't want to fail.</p>
+                </div>
+                <span class="text-xs text-gray-500 mr-2 text-right block">10:43 AM</span>
+            </div>
+        </div>
+
+        <!-- AI Suggestion + Logic -->
+        <div class="flex gap-4 max-w-2xl">
+            <div
+                class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 shadow-[0_0_15px_rgba(139,92,246,0.2)]">
+                <i data-lucide="bot" class="w-5 h-5 text-primary"></i>
+            </div>
+            <div class="space-y-4 w-full">
+                <div class="px-5 py-4 glass-bubble-ai text-gray-200 leading-relaxed shadow-lg">
+                    <p>Crypto is risky if you don't know Solidity. How about we <strong>twist</strong> it?</p>
+                    <p class="mt-2">Instead of a full Exchange, let's build a <span
+                            class="text-accent font-bold">"Blockchain-Based Fake News Detector"</span>.</p>
+                    <ul class="mt-3 space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            Easy Code (Hashing logic)</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            Sounds Complex (Impresses Lecturers)</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-400"></i>
+                            Modern Topic</li>
+                    </ul>
+                </div>
+
+                <!-- Interactive Chips -->
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        class="px-4 py-2 rounded-full glass-panel hover:bg-primary/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-primary transition-all">
+                        Accept topic
+                    </button>
+                    <button
+                        class="px-4 py-2 rounded-full glass-panel hover:bg-accent/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-accent transition-all">
+                        Make it simpler
+                    </button>
+                    <button
+                        class="px-4 py-2 rounded-full glass-panel hover:bg-red-500/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-red-500 transition-all">
+                        Too boring
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Complexity Meter (Inline) -->
+        <div class="md:hidden flex items-center justify-between p-3 rounded-lg bg-white/5 mt-4 mx-2">
+            <span class="text-xs text-muted uppercase">Project Complexity</span>
+            <div class="flex gap-1">
+                <div class="w-2 h-3 rounded-sm bg-green-500"></div>
+                <div class="w-2 h-3 rounded-sm bg-green-500"></div>
+                <div class="w-2 h-3 rounded-sm bg-yellow-500"></div>
+                <div class="w-2 h-3 rounded-sm bg-white/10"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Input Area -->
+    <footer class="p-4 bg-dark/80 backdrop-blur-xl border-t border-white/5 shrink-0 z-30">
+        <form class="flex gap-3 relative max-w-4xl mx-auto">
+            <button type="button"
+                class="p-4 rounded-xl glass-panel text-gray-400 hover:text-white transition-colors md:hidden">
+                <i data-lucide="plus" class="w-6 h-6"></i>
+            </button>
+            <div class="flex-1 relative">
+                <input type="text" placeholder="Type your reply..."
+                    class="w-full bg-white/5 border border-white/10 rounded-xl pl-4 pr-12 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-all font-light">
+                <button type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-white/10 rounded-lg text-gray-400 transition-colors">
+                    <i data-lucide="mic" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <button type="submit"
+                class="p-4 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all hover:scale-105">
+                <i data-lucide="send-horizontal" class="w-6 h-6"></i>
+            </button>
+        </form>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

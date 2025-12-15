@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - J Star FYB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #8b5cf6;
+            --color-accent: #06b6d4;
+            --color-bg: #030014;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--color-bg);
+            color: white;
+            min-height: 100vh;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { dark: '#030014', primary: '#8b5cf6', accent: '#06b6d4' }, fontFamily: { sans: ['Outfit', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'], } } }
+        }
+    </script>
+</head>
+
+<body class="bg-dark pb-20">
+
+    <header
+        class="sticky top-0 z-40 bg-dark/90 backdrop-blur-md border-b border-white/5 px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-bold font-display uppercase tracking-widest text-primary">Agency Admin</h1>
+        <div class="flex items-center gap-4">
+            <button class="p-2 hover:bg-white/10 rounded-full transition-colors"><i data-lucide="bell"
+                    class="w-5 h-5 text-gray-400"></i></button>
+            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-xs">JS</div>
+        </div>
+    </header>
+
+    <main class="px-4 py-6 md:px-8">
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-panel p-4 rounded-2xl">
+                <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Leads</p>
+                <div class="text-2xl font-bold font-display">124</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-primary/30 bg-primary/5">
+                <p class="text-xs text-primary uppercase tracking-wider mb-1">Revenue</p>
+                <div class="text-2xl font-bold font-display text-primary">₦450k</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl">
+                <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Paid Users</p>
+                <div class="text-2xl font-bold font-display">30</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl">
+                <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Pending</p>
+                <div class="text-2xl font-bold font-display text-yellow-500">5</div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold">Recent Leads</h2>
+            <div class="flex gap-2">
+                <button
+                    class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs hover:bg-white/10">Filter</button>
+                <button
+                    class="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90">Export</button>
+            </div>
+        </div>
+
+        <!-- Mobile: Card List View -->
+        <div class="space-y-4 md:hidden">
+
+            <!-- Lead Card 1 -->
+            <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-green-500">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-bold text-lg">Chioma Okeke</h3>
+                        <p class="text-xs text-gray-400">Computer Science</p>
+                    </div>
+                    <span
+                        class="px-2 py-1 bg-green-500/10 text-green-500 text-[10px] font-bold uppercase rounded-md">Paid</span>
+                </div>
+
+                <p class="text-sm text-gray-300 mb-4 line-clamp-1">Topic: AI-Driven Traffic Control System...</p>
+
+                <div class="flex gap-2 border-t border-white/5 pt-4">
+                    <a href="tel:+2348012345678"
+                        class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center gap-2 text-sm font-medium">
+                        <i data-lucide="phone" class="w-4 h-4"></i> Call
+                    </a>
+                    <a href="https://wa.me/2348012345678"
+                        class="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center gap-2 text-sm font-medium">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp
+                    </a>
+                </div>
+            </div>
+
+            <!-- Lead Card 2 -->
+            <div class="glass-panel p-5 rounded-2xl border-l-4 border-l-yellow-500">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-bold text-lg">Emeka Johnson</h3>
+                        <p class="text-xs text-gray-400">Engineering</p>
+                    </div>
+                    <span
+                        class="px-2 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-bold uppercase rounded-md">Unpaid</span>
+                </div>
+
+                <p class="text-sm text-gray-300 mb-4 line-clamp-1">Topic: Solar Powered Inverter System...</p>
+
+                <div class="flex gap-2 border-t border-white/5 pt-4">
+                    <button
+                        class="flex-1 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-primary/20">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Mark Paid
+                    </button>
+                    <a href="https://wa.me/2348012345678"
+                        class="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center gap-2 text-sm font-medium">
+                        Follow Up
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Desktop: Table View -->
+        <div class="hidden md:block glass-panel rounded-2xl overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-white/5 text-gray-400 text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="p-4 font-medium">Student</th>
+                        <th class="p-4 font-medium">Topic</th>
+                        <th class="p-4 font-medium">Status</th>
+                        <th class="p-4 font-medium text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5 text-sm">
+                    <tr class="hover:bg-white/5 transition-colors">
+                        <td class="p-4">
+                            <p class="font-bold">Chioma Okeke</p>
+                            <p class="text-xs text-gray-500">+234 801 234 5678</p>
+                        </td>
+                        <td class="p-4 text-gray-300">AI-Driven Traffic Control System</td>
+                        <td class="p-4"><span class="text-green-500 font-bold text-xs uppercase">Paid</span></td>
+                        <td class="p-4 text-right">
+                            <button class="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"><i
+                                    data-lucide="more-horizontal" class="w-5 h-5"></i></button>
+                        </td>
+                    </tr>
+                    <tr class="hover:bg-white/5 transition-colors">
+                        <td class="p-4">
+                            <p class="font-bold">Emeka Johnson</p>
+                            <p class="text-xs text-gray-500">+234 902 345 6789</p>
+                        </td>
+                        <td class="p-4 text-gray-300">Solar Powered Inverter System</td>
+                        <td class="p-4"><span class="text-yellow-500 font-bold text-xs uppercase">Unpaid</span></td>
+                        <td class="p-4 text-right flex items-center justify-end gap-2">
+                            <button
+                                class="px-3 py-1 rounded bg-primary text-xs font-bold text-white hover:bg-primary/90">Mark
+                                Paid</button>
+                            <button class="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"><i
+                                    data-lucide="more-horizontal" class="w-5 h-5"></i></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
