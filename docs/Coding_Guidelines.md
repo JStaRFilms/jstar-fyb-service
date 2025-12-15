@@ -25,6 +25,10 @@ Announce completion. Present final documentation. Provide integration instructio
 
 ## Tech Stack Guidelines
 
+> [!IMPORTANT]
+> **Package Manager:** Use **pnpm** for all dependency management.
+
+
 ### 1. Next.js App Router Standard
 - **Server First:** All components are RSC (React Server Components) by default.
 - **Client Sparingly:** Only use `'use client'` for interactivity (`onClick`, `useState`) or browser APIs.
