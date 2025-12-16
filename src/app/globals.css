@@ -61,3 +61,30 @@ body {
 .animate-pulse-glow {
     animation: pulse-glow 2s infinite;
 }
+
+/* Wipe reveal animation - simulates text streaming */
+@keyframes wipe-reveal {
+    0% {
+        clip-path: inset(0 0 100% 0);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    100% {
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+    }
+}
+
+.animate-wipe-reveal {
+    animation: wipe-reveal 0.8s ease-out forwards;
+}
+
+/* Staggered delays for sequential reveal */
+.animate-wipe-delay-1 { animation-delay: 0s; }
+.animate-wipe-delay-2 { animation-delay: 0.3s; }
+.animate-wipe-delay-3 { animation-delay: 0.6s; }
+.animate-wipe-delay-4 { animation-delay: 0.9s; }
+.animate-wipe-delay-5 { animation-delay: 1.2s; }
+

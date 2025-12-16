@@ -19,7 +19,12 @@ export async function POST(req: Request) {
   ${twist ? `Unique Twist/Approach: ${twist}` : ''}
   
   Style: Academic yet accessible, distinction-grade quality.
-  Format: 2-3 paragraphs.
+  Format: 2-3 paragraphs of flowing prose only.
+  
+  IMPORTANT: 
+  - Do NOT include a title or heading like "Abstract" or "**Abstract**" at the start.
+  - Start directly with the content (e.g., "Modern libraries face..." or "This study proposes...")
+  - Do NOT use markdown formatting like ** or # in the output.
   
   Structure:
   1. Context/Problem Statement
