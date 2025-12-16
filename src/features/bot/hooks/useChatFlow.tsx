@@ -55,6 +55,32 @@ export function useChatFlow() {
         })
         .filter(m => m.content && (typeof m.content === 'string' ? m.content.trim() : true)); // Filter empty messages
 
+    // Watch for setComplexity tool calls and update complexity meter
+    useEffect(() => {
+        for (const m of aiMessages) {
+            if (m.parts) {
+                for (const part of m.parts as any[]) {
+                    // Check for setComplexity tool call (either from input or result)
+                    if (part.type === 'tool-invocation' && part.toolName === 'setComplexity') {
+                        const level = part.args?.level || part.result?.level;
+                        if (level >= 1 && level <= 5) {
+                            console.log('[Complexity] Tool called with level:', level);
+                            setComplexity(level as 1 | 2 | 3 | 4 | 5);
+                        }
+                    }
+                    // Also check for tool-setComplexity part type (AI SDK v5 format)
+                    if (part.type?.includes('setComplexity')) {
+                        const level = part.input?.level || part.result?.level || part.args?.level;
+                        if (level >= 1 && level <= 5) {
+                            console.log('[Complexity] Tool detected with level:', level);
+                            setComplexity(level as 1 | 2 | 3 | 4 | 5);
+                        }
+                    }
+                }
+            }
+        }
+    }, [aiMessages]);
+
     // Auto-greet
     const hasInitialized = useRef(false);
     useEffect(() => {
