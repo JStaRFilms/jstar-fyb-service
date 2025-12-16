@@ -1,13 +1,24 @@
 'use client';
 
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
-import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sparkles, MessageSquare, X } from "lucide-react";
 
 export function TopicSelector() {
-    const { data, updateData, setStep } = useBuilderStore();
+    const { data, updateData, setStep, isFromChat, hydrateFromChat, clearChatData } = useBuilderStore();
     const [topic, setTopic] = useState(data.topic);
     const [twist, setTwist] = useState(data.twist);
+
+    // Hydrate from chat handoff on mount
+    useEffect(() => {
+        const hydrated = hydrateFromChat();
+        if (hydrated) {
+            // Sync local state with store after hydration
+            const state = useBuilderStore.getState();
+            setTopic(state.data.topic);
+            setTwist(state.data.twist);
+        }
+    }, [hydrateFromChat]);
 
     const handleConfirm = () => {
         if (!topic.trim()) return;
@@ -15,10 +26,33 @@ export function TopicSelector() {
         setStep('ABSTRACT');
     };
 
+    const handleClearChatData = () => {
+        clearChatData();
+        setTopic('');
+        setTwist('');
+    };
+
     return (
         <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-8">
             <h2 className="text-2xl font-display font-bold mb-2 text-white">Project Foundation</h2>
-            <p className="text-gray-400 mb-8 text-sm">Define the core subject and the unique innovative angle.</p>
+            <p className="text-gray-400 mb-6 text-sm">Define the core subject and the unique innovative angle.</p>
+
+            {/* Chat Handoff Badge */}
+            {isFromChat && (
+                <div className="flex items-center justify-between mb-6 p-3 bg-primary/10 rounded-xl border border-primary/20">
+                    <span className="text-sm text-primary flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        Topic imported from Jay
+                    </span>
+                    <button
+                        onClick={handleClearChatData}
+                        className="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
+                    >
+                        <X className="w-3 h-3" />
+                        Clear & Start Fresh
+                    </button>
+                </div>
+            )}
 
             <div className="space-y-6 mb-8">
                 <div>

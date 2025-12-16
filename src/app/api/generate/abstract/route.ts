@@ -7,7 +7,7 @@ const groq = createOpenAI({
     apiKey: process.env.GROQ_API_KEY,
 });
 
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
     const { topic, twist, instruction } = await req.json();
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   `;
 
     const result = streamText({
-        model: groq('llama-3.3-70b-versatile'), // Reverting to known Groq model
+        model: groq('openai/gpt-oss-120b'), // Reverting to known Groq model
         system: systemPrompt,
         prompt: `Write the abstract for "${topic}".`,
     });

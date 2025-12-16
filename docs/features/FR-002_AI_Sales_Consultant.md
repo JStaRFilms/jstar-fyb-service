@@ -1,38 +1,134 @@
-# FR-002: AI Sales Consultant (Bot)
+# FR-002: AI Sales Consultant (Jay)
 
 ## Goal
-A "Hacker/Consultant" style chat interface where students find a project topic. The AI acts as a "Project Consultant", rejecting boring ideas and suggesting "twisted" academic versions.
+An AI-powered chat interface where students find a project topic through guided conversation with "Jay" - the Lead Project Architect. Jay acts as a sales consultant who critiques boring ideas, suggests impressive "J Star Twists", and guides users toward purchasing J Star Dev Packages.
+
+## Status: ✅ Implemented
+
+---
 
 ## Component Breakdown
 
-### Server Components (RSC)
-- `src/app/(bot)/project/chat/page.tsx`: Layout wrapper, fetches initial script if needed.
+### Server Components
+| File | Purpose |
+|------|---------|
+| `src/app/(saas)/chat/page.tsx` | Route wrapper, renders ChatInterface |
+| `src/app/api/chat/route.ts` | Groq AI endpoint with streaming, tools, and retry logic |
+| `src/features/bot/actions/chat.ts` | Server actions for conversation persistence |
 
-### Client Components (`use client`)
-- `src/features/bot/components/ChatInterface.tsx`: Main container, handles scroll, input, and messages.
-- `src/features/bot/components/MessageBubble.tsx`: Styled bubbles for AI (Glass/Purple) and User (Glass/Blue).
-- `src/features/bot/components/ComplexityMeter.tsx`: Visual widget showing project difficulty (Green->Yellow->Red).
-- `src/features/bot/components/ThinkingIndicator.tsx`: "Scanning academic trends..." animation.
+### Client Components (`'use client'`)
+| File | Purpose |
+|------|---------|
+| `src/features/bot/components/ChatInterface.tsx` | Main container, handles scroll, input, messages |
+| `src/features/bot/components/MessageBubble.tsx` | Styled bubbles with markdown rendering (react-markdown) |
+| `src/features/bot/components/ComplexityMeter.tsx` | Visual 1-5 difficulty meter (AI-controlled) |
+| `src/features/bot/components/SuggestionChips.tsx` | Action buttons: Accept/Simplify/Harder + "Proceed to Builder" |
+| `src/features/bot/hooks/useChatFlow.tsx` | State machine, tool detection, chat→builder handoff |
+
+---
 
 ## Logic & Data Flow
-### State Management (`useChatFlow.ts`)
-A simple state machine:
-1.  **INITIAL**: AI Greeting ("What's your department?").
-2.  **ANALYZING_INPUT**: User types idea -> Mock delay -> AI Analysis.
-3.  **PROPOSAL**: AI suggests a "Twist" (e.g., "Blockchain Fake News Detector").
-4.  **NEGOTIATION**: User accepts or asks for simpler/harder.
-5.  **CLOSING**: Bot asks for WhatsApp number (Transition to FR-003).
 
-### Mock AI Service (`src/features/bot/services/mockAi.ts`)
-- `analyzeIdea(department, text)`: Returns a pre-set "Twist".
-- `calculateComplexity(text)`: Returns 1-5 score.
+### AI Provider Setup
+```typescript
+// Groq via OpenAI-compatible SDK
+const groq = createOpenAI({
+    baseURL: 'https://api.groq.com/openai/v1',
+    apiKey: process.env.GROQ_API_KEY,
+});
+```
+
+### System Prompt (Jay's Persona)
+- **Tone:** Senior Dev talking to junior student. Nigerian tech slang ("Omo", "No wahala").
+- **Style:** Short, punchy, markdown-heavy. Never writes essays.
+- **Mission:** Critique boring ideas, suggest J Star Twists, sell dev packages.
+- **Pricing Reference:** Basic ₦120k, Standard ₦200k, Premium ₦320k.
+
+### AI Tools (Function Calling)
+| Tool | Description | Returns |
+|------|-------------|---------|
+| `suggestTopics` | Suggests 3 project topics with twists | `{ topics: [{ title, twist, difficulty }] }` |
+| `setComplexity` | Updates the complexity meter (1-5) | `{ level, reason, updated: true }` |
+| `getPricing` | Returns J Star pricing tiers | `{ basic, standard, premium }` |
+| `confirmTopic` | Confirms topic and triggers builder handoff | `{ topic, twist, confirmed: true }` |
+
+### State Machine (`useChatFlow`)
+```
+INITIAL → ANALYZING → PROPOSAL → NEGOTIATION → CLOSING
+```
+
+### Chat → Builder Handoff
+
+#### Flow
+1. User chats with Jay → gets topic suggestion
+2. **Smart Suggestion Chips** appear: "Accept Topic", "Make it Simpler", "Too Boring"
+3. User clicks "Accept Topic" → AI calls `confirmTopic` tool
+4. Chips switch to **"Proceed to Builder"** button (manual trigger)
+5. User clicks → saves to `localStorage`, redirects to `/project/builder`
+6. Builder's `useBuilderStore.hydrateFromChat()` pre-fills topic/twist
+
+#### State Tracking
+```typescript
+// useChatFlow.tsx
+const [confirmedTopic, setConfirmedTopic] = useState<{topic: string, twist: string} | null>(null);
+```
+
+#### Manual Proceed Function (Reliable)
+```typescript
+const proceedToBuilder = () => {
+    if (confirmedTopic) {
+        localStorage.setItem('jstar_confirmed_topic', JSON.stringify({
+            topic: confirmedTopic.topic,
+            twist: confirmedTopic.twist,
+            confirmedAt: new Date().toISOString()
+        }));
+    }
+    router.push('/project/builder');
+};
+```
+
+---
+
+## Reliability Features
+
+### Retry Logic
+```typescript
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000; // Exponential backoff: 1s, 2s, 4s
+```
+
+### Empty Message Filter
+Client filters out blank AI responses to prevent gray bubbles in UI.
+
+### Error Handling
+Returns user-friendly error: "Jay is currently offline (System Overload)."
+
+---
 
 ## Database Schema
-No DB interaction yet (until FR-003 Lead Capture).
+Uses existing Prisma schema from FR-003:
+- `Conversation` table stores messages as JSON
+- `Lead` table captures user info
 
-## Implementation Steps
-1.  [ ] **Setup**: Create `src/features/bot` and `src/app/(bot)` structure.
-2.  [ ] **UI Components**: Build `MessageBubble`, `ComplexityMeter`, `ChatInterface` from `chat.html`.
-3.  [ ] **Mock AI**: Implement `mockAi.ts` with hardcoded "smart" responses.
-4.  [ ] **State Machine**: Implement `useChatFlow` handle the conversation steps.
-5.  [ ] **Page Assembly**: Wire everything into `src/app/(bot)/project/chat/page.tsx`.
+---
+
+## Dependencies
+- `ai` (Vercel AI SDK v5)
+- `@ai-sdk/react` (useChat hook)
+- `@ai-sdk/openai` (Groq provider)
+- `react-markdown` (Message rendering)
+- `zod` (Tool input validation)
+
+---
+
+## Implementation Checklist
+- [x] Groq AI integration with streaming
+- [x] Jay system prompt with Nigerian slang
+- [x] Tool: suggestTopics
+- [x] Tool: setComplexity (updates UI meter)
+- [x] Tool: getPricing
+- [x] Tool: confirmTopic (chat→builder handoff)
+- [x] Retry logic with exponential backoff
+- [x] Empty message filtering
+- [x] Markdown rendering in MessageBubble
+- [x] Mobile-optimized UI (no bot icon on mobile)

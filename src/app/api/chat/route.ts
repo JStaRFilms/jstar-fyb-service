@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { convertToModelMessages, streamText, tool, UIMessage } from 'ai';
+import { convertToModelMessages, streamText, tool, UIMessage, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { saveConversation } from '@/features/bot/actions/chat';
 
@@ -10,7 +10,7 @@ const groq = createOpenAI({
 });
 
 // Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -52,9 +52,19 @@ export async function POST(req: Request) {
         const modelMessages = convertToModelMessages(messages);
 
         const result = await streamTextWithRetry({
-            // SWITCHED TO LLAMA 3.1 70B (Best for Sales Logic on Groq)
+            // FIX 1: Use Llama 3.3 70B (Best for Tool Calling on Groq)
             model: groq('moonshotai/kimi-k2-instruct-0905'),
+
+            // FIX 2: Enable multi-step (Crucial for tools to execute properly)
+            stopWhen: stepCountIs(5),
+
             system: `You are **Jay**, the Lead Project Architect at **J Star Projects**.
+
+## CRITICAL - TOOL TRIGGER (READ FIRST):
+- **IF user accepts a topic** (e.g., "I accept", "let's go", "sounds good", "I like it", "yes", "proceed"):
+  1. DO NOT just say "Great". 
+  2. **IMMEDIATELY call the \`confirmTopic\` tool**.
+  3. Extract the confirmed Title and the Twist from the conversation context.
 
 ## YOUR VIBE:
 - You are a "Senior Dev" talking to a junior/final year student.
@@ -113,6 +123,17 @@ export async function POST(req: Request) {
                             standard: "₦200,000",
                             premium: "₦320,000"
                         };
+                    }
+                }),
+                // ADDED: Confirm topic for Chat → Builder handoff
+                confirmTopic: tool({
+                    description: 'CRITICAL: Call this IMMEDIATELY when user accepts a topic. Trigger words: "I accept", "yes", "let\'s go", "sounds good", "proceed", "that works". Extract the topic title and unique twist/feature, then call this tool. This redirects user to the Project Builder.',
+                    inputSchema: z.object({
+                        topic: z.string().describe('The confirmed project topic title'),
+                        twist: z.string().describe('The unique angle, feature, or innovation that makes it special'),
+                    }),
+                    execute: async ({ topic, twist }) => {
+                        return { topic, twist, confirmed: true };
                     }
                 })
             },

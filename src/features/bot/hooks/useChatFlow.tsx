@@ -12,12 +12,18 @@ export interface Message {
 
 export type ChatState = "INITIAL" | "ANALYZING" | "PROPOSAL" | "NEGOTIATION" | "CLOSING" | "COMPLETED";
 
+export interface ConfirmedTopic {
+    topic: string;
+    twist: string;
+}
+
 export function useChatFlow() {
     const router = useRouter();
     const [state, setState] = useState<ChatState>("INITIAL");
     const [complexity, setComplexity] = useState<1 | 2 | 3 | 4 | 5>(1);
     const [anonymousId, setAnonymousId] = useState<string>("");
     const [inputText, setInputText] = useState("");
+    const [confirmedTopic, setConfirmedTopic] = useState<ConfirmedTopic | null>(null);
 
     // Initialize Anonymous ID
     useEffect(() => {
@@ -81,6 +87,31 @@ export function useChatFlow() {
         }
     }, [aiMessages]);
 
+    // Watch for confirmTopic tool calls → update state (but don't auto-redirect)
+    useEffect(() => {
+        for (const m of aiMessages) {
+            if (m.parts) {
+                for (const part of m.parts as any[]) {
+                    // Check for confirmTopic tool invocation (AI SDK v5 format)
+                    const isConfirmTopic =
+                        (part.type === 'tool-invocation' && part.toolName === 'confirmTopic') ||
+                        (part.type?.includes('confirmTopic')) ||
+                        (part.toolName === 'confirmTopic');
+
+                    if (isConfirmTopic) {
+                        const topic = part.args?.topic || part.result?.topic || part.input?.topic;
+                        const twist = part.args?.twist || part.result?.twist || part.input?.twist;
+                        if (topic && !confirmedTopic) {
+                            console.log('[Chat Handoff] Topic confirmed:', { topic, twist });
+                            setConfirmedTopic({ topic, twist: twist || '' });
+                            setState("CLOSING");
+                        }
+                    }
+                }
+            }
+        }
+    }, [aiMessages, confirmedTopic]);
+
     // Auto-greet
     const hasInitialized = useRef(false);
     useEffect(() => {
@@ -90,14 +121,7 @@ export function useChatFlow() {
         }
     }, [anonymousId]);
 
-
     const handleUserMessage = async (text: string) => {
-        if (state === "CLOSING") {
-            // Handle Lead Capture / Auth flow
-            router.push('/project/builder');
-            return;
-        }
-
         setState("ANALYZING");
         await sendMessage({ text });
         setState("PROPOSAL");
@@ -110,10 +134,25 @@ export function useChatFlow() {
         } else if (action === "simplify") {
             setComplexity(prev => Math.max(1, prev - 1) as any);
             sendMessage({ text: "That's too complex. Make it simpler." });
+            // Reset confirmed topic if user wants to change
+            setConfirmedTopic(null);
         } else if (action === "harder") {
             setComplexity(prev => Math.min(5, prev + 1) as any);
             sendMessage({ text: "Too boring. Give me something harder." });
+            setConfirmedTopic(null);
         }
+    };
+
+    // Manual proceed to builder (reliable trigger)
+    const proceedToBuilder = () => {
+        if (confirmedTopic) {
+            localStorage.setItem('jstar_confirmed_topic', JSON.stringify({
+                topic: confirmedTopic.topic,
+                twist: confirmedTopic.twist,
+                confirmedAt: new Date().toISOString()
+            }));
+        }
+        router.push('/project/builder');
     };
 
     return {
@@ -121,7 +160,9 @@ export function useChatFlow() {
         state,
         complexity,
         isLoading,
+        confirmedTopic,
         handleUserMessage,
-        handleAction
+        handleAction,
+        proceedToBuilder
     };
 }

@@ -7,7 +7,7 @@ const groq = createOpenAI({
     apiKey: process.env.GROQ_API_KEY,
 });
 
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 const outlineSchema = z.object({
     title: z.string().describe("Refined academic title of the project"),
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     const { topic, abstract } = await req.json();
 
     const result = streamObject({
-        model: groq('llama-3.3-70b-versatile'),
+        model: groq('openai/gpt-oss-120b'),
         schema: outlineSchema,
         system: `You are an expert academic curriculum designer.
     Create a 5-chapter distinction-grade project outline based on the verified abstract.

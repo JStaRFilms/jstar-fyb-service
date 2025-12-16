@@ -6,6 +6,7 @@ import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ComplexityMeter } from "./ComplexityMeter";
+import { SuggestionChips } from "./SuggestionChips";
 import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +15,7 @@ import { mergeAnonymousConversations } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
-    const { messages, state, complexity, handleUserMessage, handleAction } = useChatFlow();
+    const { messages, state, complexity, isLoading, confirmedTopic, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow();
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -125,6 +126,18 @@ export function ChatInterface() {
                         </div>
                     ))}
                 </AnimatePresence>
+
+                {/* Smart Suggestion Chips - shown after last AI message */}
+                {messages.length > 0 && messages[messages.length - 1].role === 'ai' && (
+                    <div className="ml-0 md:ml-14 max-w-2xl">
+                        <SuggestionChips
+                            confirmedTopic={confirmedTopic}
+                            onAction={handleAction}
+                            onProceed={proceedToBuilder}
+                            isLoading={isLoading}
+                        />
+                    </div>
+                )}
 
                 {state === "ANALYZING" && <ThinkingIndicator />}
 
