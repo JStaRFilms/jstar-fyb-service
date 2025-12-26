@@ -40,6 +40,12 @@ export default async function middleware(req: NextRequest, event: any) {
 
     // All other paths -> WorkOS AuthKit (with error handling)
     try {
+        // Exclude public paths that don't require auth
+        const publicPaths = ['/', '/api/chat', '/api/webhook', '/error'];
+        if (publicPaths.some(path => req.nextUrl.pathname === path || req.nextUrl.pathname.startsWith(path + '/'))) {
+            return NextResponse.next();
+        }
+
         return await workosMiddleware(req, event);
     } catch (error) {
         console.error('[Middleware] WorkOS AuthKit error:', error);

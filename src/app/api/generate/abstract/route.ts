@@ -1,5 +1,6 @@
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import { z } from 'zod';
 
 // Validate environment variables
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -15,8 +16,25 @@ const groq = createOpenAI({
 
 export const maxDuration = 120;
 
+const requestSchema = z.object({
+    topic: z.string().min(1, 'Topic is required'),
+    twist: z.string().optional(),
+    instruction: z.string().optional()
+});
+
 export async function POST(req: Request) {
-    const { topic, twist, instruction } = await req.json();
+    const body = await req.json();
+
+    // Validate input
+    const validation = requestSchema.safeParse(body);
+    if (!validation.success) {
+        return new Response(
+            JSON.stringify({ error: 'Invalid input', details: validation.error }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+
+    const { topic, twist, instruction } = validation.data;
 
     const systemPrompt = `You are an expert academic research consultant. 
   Your goal is to write a compelling, technically sound project abstract.

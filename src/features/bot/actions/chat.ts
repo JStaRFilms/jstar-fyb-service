@@ -111,25 +111,24 @@ export async function saveConversation({
         // Delete all messages for this conversation and re-insert. (Safe, simple, fast enough for < 100 msgs)
 
         try {
-            await prisma.message.deleteMany({
-                where: { conversationId: conversation.id },
-            });
-        } catch (error) {
-            console.error('[saveConversation] Failed to delete old messages:', error);
-            return { success: false, error: 'Failed to update conversation history' };
-        }
+            // Use transaction to ensure atomicity
+            const messagesToCreate = messages.map((m) => ({
+                conversationId: conversation.id,
+                role: m.role,
+                content: serializeMessageContent(m.content),
+            }));
 
-        try {
-            await prisma.message.createMany({
-                data: messages.map((m) => ({
-                    conversationId: conversation.id,
-                    role: m.role,
-                    content: serializeMessageContent(m.content), // Safe serialization
-                })),
-            });
+            await prisma.$transaction([
+                prisma.message.deleteMany({
+                    where: { conversationId: conversation.id },
+                }),
+                prisma.message.createMany({
+                    data: messagesToCreate,
+                }),
+            ]);
         } catch (error) {
-            console.error('[saveConversation] Failed to save messages:', error);
-            return { success: false, error: 'Failed to save messages' };
+            console.error('[saveConversation] Failed to update messages:', error);
+            return { success: false, error: 'Failed to update conversation history' };
         }
 
         return { success: true, conversationId: conversation.id };

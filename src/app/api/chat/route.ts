@@ -51,11 +51,28 @@ async function streamTextWithRetry(
     throw lastError || new Error('All retry attempts failed');
 }
 
+const chatSchema = z.object({
+    messages: z.array(z.object({
+        role: z.string(),
+        content: z.string(),
+        id: z.string().optional()
+    })).min(1),
+    conversationId: z.string().optional(),
+    anonymousId: z.string().optional()
+});
+
 export async function POST(req: Request) {
     try {
-        const { messages, conversationId, anonymousId }: { messages: UIMessage[], conversationId?: string, anonymousId?: string } = await req.json();
+        const body = await req.json();
+        const validation = chatSchema.safeParse(body);
 
-        const modelMessages = convertToModelMessages(messages);
+        if (!validation.success) {
+            return new Response(JSON.stringify({ error: 'Invalid input', details: validation.error }), { status: 400 });
+        }
+
+        const { messages, conversationId, anonymousId } = validation.data;
+
+        const modelMessages = convertToModelMessages(messages as UIMessage[]);
 
         const result = await streamTextWithRetry({
             // FIX 1: Use Llama 3.3 70B (Best for Tool Calling on Groq)
