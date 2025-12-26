@@ -35,7 +35,7 @@ export function useChatFlow() {
         setAnonymousId(id);
     }, []);
 
-    const { messages: aiMessages, sendMessage, status } = useChat();
+    const { messages: aiMessages, sendMessage, status, error, regenerate } = useChat();
 
     const isLoading = status === 'streaming' || status === 'submitted';
 
@@ -161,6 +161,8 @@ export function useChatFlow() {
         complexity,
         isLoading,
         confirmedTopic,
+        error,
+        regenerate,
         handleUserMessage,
         handleAction,
         proceedToBuilder

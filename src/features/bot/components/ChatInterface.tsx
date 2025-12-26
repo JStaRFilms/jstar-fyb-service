@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User } from "lucide-react";
+import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User, AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ComplexityMeter } from "./ComplexityMeter";
 import { SuggestionChips } from "./SuggestionChips";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,7 +16,7 @@ import { mergeAnonymousConversations } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
-    const { messages, state, complexity, isLoading, confirmedTopic, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow();
+    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow();
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -101,47 +102,63 @@ export function ChatInterface() {
 
             {/* Chat Area */}
             <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
-                <AnimatePresence>
-                    {messages.map((msg) => (
-                        <div key={msg.id} className="flex flex-col gap-2">
-                            <MessageBubble
-                                role={msg.role}
-                                content={msg.content}
-                                timestamp={msg.timestamp}
-                            />
-                            {/* Render Tool Invocations (Proposals) */}
-                            {msg.role === 'ai' && msg.toolInvocations?.map((tool: any) => {
-                                if (tool.toolName === 'suggestTopics' && tool.state === 'result') {
-                                    return (
-                                        <div key={tool.toolCallId} className="ml-0 md:ml-14 animate-in fade-in slide-in-from-bottom-2">
-                                            <ProposalCard
-                                                topics={tool.result.topics}
-                                                onAccept={(topic) => handleAction("accept")}
-                                            />
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            })}
+                <ErrorBoundary>
+                    {/* Error Alert */}
+                    {error && (
+                        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+                            <AlertTriangle className="w-5 h-5 shrink-0" />
+                            <p className="text-sm flex-1">Something went wrong. Please try again.</p>
+                            <button
+                                onClick={() => regenerate?.()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-colors"
+                            >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Retry
+                            </button>
                         </div>
-                    ))}
-                </AnimatePresence>
+                    )}
+                    <AnimatePresence>
+                        {messages.map((msg) => (
+                            <div key={msg.id} className="flex flex-col gap-2">
+                                <MessageBubble
+                                    role={msg.role}
+                                    content={msg.content}
+                                    timestamp={msg.timestamp}
+                                />
+                                {/* Render Tool Invocations (Proposals) */}
+                                {msg.role === 'ai' && msg.toolInvocations?.map((tool: any) => {
+                                    if (tool.toolName === 'suggestTopics' && tool.state === 'result') {
+                                        return (
+                                            <div key={tool.toolCallId} className="ml-0 md:ml-14 animate-in fade-in slide-in-from-bottom-2">
+                                                <ProposalCard
+                                                    topics={tool.result.topics}
+                                                    onAccept={(topic) => handleAction("accept")}
+                                                />
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                        ))}
+                    </AnimatePresence>
 
-                {/* Smart Suggestion Chips - shown after last AI message */}
-                {messages.length > 0 && messages[messages.length - 1].role === 'ai' && (
-                    <div className="ml-0 md:ml-14 max-w-2xl">
-                        <SuggestionChips
-                            confirmedTopic={confirmedTopic}
-                            onAction={handleAction}
-                            onProceed={proceedToBuilder}
-                            isLoading={isLoading}
-                        />
-                    </div>
-                )}
+                    {/* Smart Suggestion Chips - shown after last AI message */}
+                    {messages.length > 0 && messages[messages.length - 1].role === 'ai' && (
+                        <div className="ml-0 md:ml-14 max-w-2xl">
+                            <SuggestionChips
+                                confirmedTopic={confirmedTopic}
+                                onAction={handleAction}
+                                onProceed={proceedToBuilder}
+                                isLoading={isLoading}
+                            />
+                        </div>
+                    )}
 
-                {state === "ANALYZING" && <ThinkingIndicator />}
+                    {state === "ANALYZING" && <ThinkingIndicator />}
 
-                <div ref={messagesEndRef} />
+                    <div ref={messagesEndRef} />
+                </ErrorBoundary>
             </main>
 
             {/* Mobile Complexity Meter */}

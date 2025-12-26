@@ -6,6 +6,7 @@ import { Loader2, Sparkles, Send, Check, RefreshCw, Bot, Edit3, Eye, Pencil } fr
 import { motion, AnimatePresence } from "framer-motion";
 import { useCompletion } from '@ai-sdk/react';
 import ReactMarkdown from 'react-markdown';
+import { SkeletonText } from "@/components/ui/Skeleton";
 
 export function AbstractGenerator() {
     const { data, updateData, setStep } = useBuilderStore();
@@ -107,7 +108,11 @@ export function AbstractGenerator() {
                 <div className="p-8 bg-gradient-to-b from-transparent to-black/20 min-h-[350px]">
                     {isLoading || isPreviewMode ? (
                         <div className="prose prose-invert prose-lg max-w-none font-serif leading-relaxed prose-headings:font-display prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white">
-                            <ReactMarkdown>{completion || "*Generating abstract...*"}</ReactMarkdown>
+                            {completion ? (
+                                <ReactMarkdown>{completion}</ReactMarkdown>
+                            ) : (
+                                <SkeletonText lines={6} />
+                            )}
                         </div>
                     ) : (
                         <textarea
@@ -167,7 +172,7 @@ export function AbstractGenerator() {
                         </button>
                     </div>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 }

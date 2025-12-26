@@ -28,7 +28,7 @@ async function streamTextWithRetry(
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            const result = streamText(config);
+            const result = await streamText(config);
             return result;
         } catch (error) {
             lastError = error as Error;

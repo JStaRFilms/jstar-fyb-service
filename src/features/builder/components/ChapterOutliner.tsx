@@ -6,6 +6,7 @@ import { Lock, ShieldCheck, Check, Loader2, RefreshCw } from "lucide-react";
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
 import ReactMarkdown from 'react-markdown';
+import { SkeletonChapter } from "@/components/ui/Skeleton";
 
 // Static placeholder chapters shown before payment (no API calls wasted)
 const PLACEHOLDER_CHAPTERS = [
@@ -141,10 +142,7 @@ export function ChapterOutliner() {
                         ) : isStreaming ? (
                             // Skeleton while waiting for first chapter
                             [...Array(3)].map((_, i) => (
-                                <div key={i} className="animate-pulse">
-                                    <div className="h-6 bg-white/10 rounded w-1/3 mb-2"></div>
-                                    <div className="h-4 bg-white/5 rounded w-full"></div>
-                                </div>
+                                <SkeletonChapter key={i} />
                             ))
                         ) : null}
                     </div>
