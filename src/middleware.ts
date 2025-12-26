@@ -38,6 +38,17 @@ export default async function middleware(req: NextRequest, event: any) {
         return adminAuthMiddleware(req);
     }
 
-    // All other paths -> WorkOS AuthKit
-    return workosMiddleware(req, event);
+    // All other paths -> WorkOS AuthKit (with error handling)
+    try {
+        return await workosMiddleware(req, event);
+    } catch (error) {
+        console.error('[Middleware] WorkOS AuthKit error:', error);
+
+        // Fallback: redirect to error page with context
+        const errorUrl = new URL('/error', req.url);
+        errorUrl.searchParams.set('reason', 'authkit');
+        errorUrl.searchParams.set('message', 'Authentication service unavailable');
+
+        return NextResponse.redirect(errorUrl);
+    }
 }

@@ -1,24 +1,30 @@
 'use client';
 
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sparkles, MessageSquare, X } from "lucide-react";
 
 export function TopicSelector() {
     const { data, updateData, setStep, isFromChat, hydrateFromChat, clearChatData } = useBuilderStore();
     const [topic, setTopic] = useState(data.topic);
     const [twist, setTwist] = useState(data.twist);
+    const hasHydratedRef = useRef(false);
 
-    // Hydrate from chat handoff on mount
+    // Hydrate from chat handoff on mount (only once)
     useEffect(() => {
+        if (hasHydratedRef.current) return; // Already hydrated
+
         const hydrated = hydrateFromChat();
         if (hydrated) {
-            // Sync local state with store after hydration
-            const state = useBuilderStore.getState();
-            setTopic(state.data.topic);
-            setTwist(state.data.twist);
+            hasHydratedRef.current = true;
+            // Get the state directly after hydration
+            const currentTopic = useBuilderStore.getState().data.topic;
+            const currentTwist = useBuilderStore.getState().data.twist;
+
+            setTopic(currentTopic);
+            setTwist(currentTwist);
         }
-    }, [hydrateFromChat]);
+    }, [hydrateFromChat]); // Only include hydrateFromChat
 
     const handleConfirm = () => {
         if (!topic.trim()) return;

@@ -1,10 +1,16 @@
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
+// Validate environment variables
+const groqApiKey = process.env.GROQ_API_KEY;
+if (!groqApiKey) {
+    throw new Error('GROQ_API_KEY environment variable is required');
+}
+
 // Create Groq provider using OpenAI SDK compatibility
 const groq = createOpenAI({
     baseURL: 'https://api.groq.com/openai/v1',
-    apiKey: process.env.GROQ_API_KEY,
+    apiKey: groqApiKey,
 });
 
 export const maxDuration = 120;

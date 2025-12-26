@@ -34,7 +34,7 @@ export function ChatInterface() {
                     // specific cleanup if needed, keeping anonymousId is fine for session continuity
                 });
         }
-    }, [user]);
+    }, [user, user?.id]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

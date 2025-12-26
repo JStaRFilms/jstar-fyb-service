@@ -3,10 +3,16 @@ import { convertToModelMessages, streamText, tool, UIMessage, stepCountIs } from
 import { z } from 'zod';
 import { saveConversation } from '@/features/bot/actions/chat';
 
+// Validate environment variables
+const groqApiKey = process.env.GROQ_API_KEY;
+if (!groqApiKey) {
+    throw new Error('GROQ_API_KEY environment variable is required');
+}
+
 // Create Groq provider
 const groq = createOpenAI({
     baseURL: 'https://api.groq.com/openai/v1',
-    apiKey: process.env.GROQ_API_KEY,
+    apiKey: groqApiKey,
 });
 
 // Allow streaming responses up to 30 seconds
