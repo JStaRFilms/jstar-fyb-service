@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from "react";
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -8,7 +9,7 @@ import { TopicSelector } from "@/features/builder/components/TopicSelector";
 import { AbstractGenerator } from "@/features/builder/components/AbstractGenerator";
 import { ChapterOutliner } from "@/features/builder/components/ChapterOutliner";
 
-export default function BuilderPage() {
+function BuilderContent() {
     const { step, setStep, updateData } = useBuilderStore();
     const searchParams = useSearchParams();
 
@@ -20,7 +21,7 @@ export default function BuilderPage() {
             updateData({ topic, twist });
             // Ideally we might want to confirm this in the UI
         }
-    }, [searchParams]);
+    }, [searchParams, updateData]);
 
     return (
         <div className="min-h-screen bg-dark text-white p-4 md:p-8 flex flex-col items-center">
@@ -74,5 +75,13 @@ export default function BuilderPage() {
                 </AnimatePresence>
             </main>
         </div>
+    );
+}
+
+export default function BuilderPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-dark flex items-center justify-center text-white/50">Loading Builder...</div>}>
+            <BuilderContent />
+        </Suspense>
     );
 }

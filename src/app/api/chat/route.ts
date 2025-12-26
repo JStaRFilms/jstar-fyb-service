@@ -55,7 +55,10 @@ const chatSchema = z.object({
     messages: z.array(z.object({
         role: z.string(),
         content: z.string(),
-        id: z.string().optional()
+        id: z.string().optional(),
+        parts: z.array(z.any()).optional(),
+        toolInvocations: z.array(z.any()).optional(),
+        experimental_attachments: z.array(z.any()).optional(),
     })).min(1),
     conversationId: z.string().optional(),
     anonymousId: z.string().optional()
@@ -72,7 +75,8 @@ export async function POST(req: Request) {
 
         const { messages, conversationId, anonymousId } = validation.data;
 
-        const modelMessages = convertToModelMessages(messages as UIMessage[]);
+        // Cast to unknown first to satisfy strict type overlap checks for UIMessage
+        const modelMessages = convertToModelMessages(messages as unknown as UIMessage[]);
 
         const result = await streamTextWithRetry({
             // FIX 1: Use Llama 3.3 70B (Best for Tool Calling on Groq)

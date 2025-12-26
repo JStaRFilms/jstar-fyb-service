@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from "react";
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -10,7 +11,7 @@ import { ChapterOutliner } from "@/features/builder/components/ChapterOutliner";
 import { X } from "lucide-react";
 import Link from "next/link";
 
-export default function BuilderPage() {
+function BuilderContent() {
     const { step, updateData } = useBuilderStore();
     const searchParams = useSearchParams();
 
@@ -18,7 +19,7 @@ export default function BuilderPage() {
         const topic = searchParams.get('topic');
         const twist = searchParams.get('twist');
         if (topic && twist) updateData({ topic, twist });
-    }, [searchParams]);
+    }, [searchParams, updateData]);
 
     // Helper to determine step index
     const getStepIndex = () => ['TOPIC', 'ABSTRACT', 'OUTLINE'].indexOf(step);
@@ -100,5 +101,13 @@ export default function BuilderPage() {
                 </AnimatePresence>
             </main>
         </div>
+    );
+}
+
+export default function BuilderPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-dark flex items-center justify-center text-white/50">Loading Builder...</div>}>
+            <BuilderContent />
+        </Suspense>
     );
 }
