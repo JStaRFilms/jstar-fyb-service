@@ -1,49 +1,94 @@
 import { create } from 'zustand';
 
-export type BuilderStep = 1 | 2 | 3;
+export type BuilderStep = 'TOPIC' | 'ABSTRACT' | 'OUTLINE' | 'PAYWALL';
 
-interface BuilderState {
-    currentStep: BuilderStep;
-    topicKeyword: string;
-    selectedTopic: string | null;
-    generatedAbstract: string | null;
-    generatedOutline: string[] | null;
-
-    // Actions
-    setKeyword: (keyword: string) => void;
-    selectTopic: (topic: string) => void;
-    setAbstract: (abstract: string) => void;
-    setOutline: (outline: string[]) => void;
-    nextStep: () => void;
-    prevStep: () => void;
-    reset: () => void;
+interface ProjectData {
+    topic: string;
+    twist: string;
+    abstract: string;
+    outline: any[]; // define stricter type later
 }
 
-export const useBuilderStore = create<BuilderState>((set) => ({
-    currentStep: 1,
-    topicKeyword: "",
-    selectedTopic: null,
-    generatedAbstract: null,
-    generatedOutline: null,
+interface BuilderState {
+    step: BuilderStep;
+    data: ProjectData;
+    isGenerating: boolean;
+    isPaid: boolean;
+    isFromChat: boolean;
 
-    setKeyword: (keyword) => set({ topicKeyword: keyword }),
-    selectTopic: (topic) => set({ selectedTopic: topic }),
-    setAbstract: (abstract) => set({ generatedAbstract: abstract }),
-    setOutline: (outline) => set({ generatedOutline: outline }),
+    setStep: (step: BuilderStep) => void;
+    updateData: (data: Partial<ProjectData>) => void;
+    setGenerating: (isGenerating: boolean) => void;
+    unlockPaywall: () => void;
+    hydrateFromChat: () => boolean;
+    clearChatData: () => void;
+}
 
-    nextStep: () => set((state) => ({
-        currentStep: Math.min(state.currentStep + 1, 3) as BuilderStep
+const CHAT_HANDOFF_KEY = 'jstar_confirmed_topic';
+
+export const useBuilderStore = create<BuilderState>((set, get) => ({
+    step: 'TOPIC',
+    data: {
+        topic: '',
+        twist: '',
+        abstract: '',
+        outline: []
+    },
+    isGenerating: false,
+    isPaid: false,
+    isFromChat: false,
+
+    setStep: (step) => set({ step }),
+    updateData: (newData) => set((state) => ({
+        data: { ...state.data, ...newData }
     })),
+    setGenerating: (isGenerating) => set({ isGenerating }),
+    unlockPaywall: () => set({ isPaid: true }),
 
-    prevStep: () => set((state) => ({
-        currentStep: Math.max(state.currentStep - 1, 1) as BuilderStep
-    })),
+    // Hydrate topic/twist from localStorage (set by chat handoff)
+    hydrateFromChat: () => {
+        if (typeof window === 'undefined') return false;
 
-    reset: () => set({
-        currentStep: 1,
-        topicKeyword: "",
-        selectedTopic: null,
-        generatedAbstract: null,
-        generatedOutline: null
-    })
+        const stored = localStorage.getItem(CHAT_HANDOFF_KEY);
+        if (!stored) return false;
+
+        try {
+            const { topic, twist, confirmedAt } = JSON.parse(stored);
+
+            // Check if data is stale (older than 24 hours)
+            const confirmedDate = new Date(confirmedAt);
+            const now = new Date();
+            const hoursOld = (now.getTime() - confirmedDate.getTime()) / (1000 * 60 * 60);
+            if (hoursOld > 24) {
+                localStorage.removeItem(CHAT_HANDOFF_KEY);
+                return false;
+            }
+
+            // Only hydrate if we don't already have data
+            if (!get().data.topic) {
+                set({
+                    data: { ...get().data, topic, twist: twist || '' },
+                    isFromChat: true
+                });
+                console.log('[Builder] Hydrated from chat:', { topic, twist });
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.error('[Builder] Failed to parse chat handoff data:', e);
+            localStorage.removeItem(CHAT_HANDOFF_KEY);
+            return false;
+        }
+    },
+
+    // Clear chat handoff data and reset form
+    clearChatData: () => {
+        localStorage.removeItem(CHAT_HANDOFF_KEY);
+        set({
+            data: { topic: '', twist: '', abstract: '', outline: [] },
+            isFromChat: false,
+            step: 'TOPIC'
+        });
+        console.log('[Builder] Chat data cleared');
+    }
 }));

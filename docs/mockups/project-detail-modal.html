@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Detail Modal - J Star FYB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #8b5cf6;
+            --color-accent: #06b6d4;
+            --color-bg: #030014;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--color-bg);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 50%, #22d3ee 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glow-box {
+            box-shadow: 0 0 40px -10px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background: rgba(3, 0, 20, 0.92);
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-content {
+            animation: slideUp 0.4s ease-out;
+        }
+
+        /* Floating elements */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .float-slow { animation: float 4s ease-in-out infinite; }
+
+        /* Progress bar */
+        .progress-fill {
+            animation: progressGrow 1s ease-out forwards;
+        }
+
+        @keyframes progressGrow {
+            from { width: 0%; }
+        }
+
+        /* Tech pill hover */
+        .tech-pill:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Image shimmer effect */
+        .shimmer {
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0) 0%, 
+                rgba(255,255,255,0.05) 50%, 
+                rgba(255,255,255,0) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Scrollbar styling */
+        .modal-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-scroll::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+        }
+        .modal-scroll::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 3px;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { dark: '#030014', primary: '#8b5cf6', accent: '#06b6d4', muted: '#94a3b8' }, fontFamily: { sans: ['Outfit', 'sans-serif'], display: ['Space Grotesk', 'sans-serif'], } } }
+        }
+    </script>
+</head>
+
+<body class="bg-dark min-h-screen">
+
+    <!-- MODAL BACKDROP (Full Screen Overlay) -->
+    <div class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+        
+        <!-- Close Button (Top Right) -->
+        <button class="absolute top-6 right-6 z-60 w-12 h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full flex items-center justify-center transition-all hover:scale-110 group">
+            <i data-lucide="x" class="w-5 h-5 text-white/70 group-hover:text-white"></i>
+        </button>
+
+        <!-- Navigation Arrows -->
+        <button class="absolute left-4 top-1/2 -translate-y-1/2 z-60 w-14 h-14 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/50 rounded-full flex items-center justify-center transition-all hover:scale-110 group hidden md:flex">
+            <i data-lucide="chevron-left" class="w-6 h-6 text-white/50 group-hover:text-white"></i>
+        </button>
+        <button class="absolute right-4 top-1/2 -translate-y-1/2 z-60 w-14 h-14 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/50 rounded-full flex items-center justify-center transition-all hover:scale-110 group hidden md:flex">
+            <i data-lucide="chevron-right" class="w-6 h-6 text-white/50 group-hover:text-white"></i>
+        </button>
+
+        <!-- MODAL CONTENT -->
+        <div class="modal-content w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 relative">
+            
+            <!-- Gradient Glow Background -->
+            <div class="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-cyan-500/10 pointer-events-none"></div>
+            <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
+            <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/15 rounded-full blur-[120px] pointer-events-none"></div>
+
+            <div class="modal-scroll overflow-y-auto max-h-[90vh] relative">
+                
+                <!-- Hero Section -->
+                <div class="relative h-[50vh] min-h-[400px] overflow-hidden">
+                    <!-- Project Screenshot/Mockup -->
+                    <div class="absolute inset-0 bg-gradient-to-b from-purple-900/30 via-purple-900/20 to-dark">
+                        <div class="absolute inset-0 shimmer"></div>
+                        <!-- Placeholder for actual project screenshot -->
+                        <div class="absolute inset-0 flex items-center justify-center opacity-20">
+                            <div class="grid grid-cols-3 gap-4 w-3/4 h-3/4">
+                                <div class="bg-white/5 rounded-lg"></div>
+                                <div class="bg-white/5 rounded-lg col-span-2"></div>
+                                <div class="bg-white/5 rounded-lg col-span-2"></div>
+                                <div class="bg-white/5 rounded-lg"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Floating Tech Icons -->
+                    <div class="absolute top-8 left-8 float-slow glass-panel p-4 rounded-xl hidden md:block">
+                        <i data-lucide="code-2" class="w-8 h-8 text-accent"></i>
+                    </div>
+                    <div class="absolute bottom-20 right-12 float-slow glass-panel p-4 rounded-xl hidden md:block" style="animation-delay: 0.5s;">
+                        <i data-lucide="cpu" class="w-8 h-8 text-primary"></i>
+                    </div>
+
+                    <!-- Hero Content Overlay -->
+                    <div class="absolute inset-0 flex flex-col justify-end p-8 md:p-12 bg-gradient-to-t from-dark via-dark/80 to-transparent">
+                        
+                        <!-- Category Badge -->
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="px-3 py-1 bg-primary/20 border border-primary/30 text-primary rounded-full text-xs font-mono uppercase tracking-wider">
+                                Computer Science
+                            </span>
+                            <span class="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold uppercase">
+                                ✓ Distinction
+                            </span>
+                        </div>
+
+                        <!-- Title -->
+                        <h1 class="text-4xl md:text-6xl font-display font-bold mb-4 leading-tight">
+                            E-Commerce <span class="text-gradient">AI Agent</span>
+                        </h1>
+
+                        <!-- Subtitle -->
+                        <p class="text-lg text-gray-300 max-w-2xl mb-6 font-light">
+                            An intelligent conversational shopping assistant that uses GPT-4 to provide personalized product recommendations and handle customer queries 24/7.
+                        </p>
+
+                        <!-- Quick Stats -->
+                        <div class="flex flex-wrap gap-6 text-sm">
+                            <div class="flex items-center gap-2 text-gray-400">
+                                <i data-lucide="calendar" class="w-4 h-4 text-accent"></i>
+                                <span>December 2024</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-gray-400">
+                                <i data-lucide="clock" class="w-4 h-4 text-accent"></i>
+                                <span>8 weeks delivery</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-gray-400">
+                                <i data-lucide="file-text" class="w-4 h-4 text-accent"></i>
+                                <span>92 pages documentation</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Body -->
+                <div class="p-8 md:p-12 bg-dark">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                        
+                        <!-- Left Column: Main Content -->
+                        <div class="lg:col-span-2 space-y-12">
+                            
+                            <!-- About Section -->
+                            <section>
+                                <h2 class="text-2xl font-display font-bold mb-6 flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="info" class="w-5 h-5 text-primary"></i>
+                                    </div>
+                                    About This Project
+                                </h2>
+                                <div class="glass-panel p-6 rounded-2xl space-y-4 text-gray-300 leading-relaxed">
+                                    <p>
+                                        This final year project implements an AI-powered shopping assistant for e-commerce platforms. The system uses natural language processing to understand customer intent and provide relevant product suggestions.
+                                    </p>
+                                    <p>
+                                        The project integrates <span class="text-white font-semibold">OpenAI's GPT-4</span> for conversation handling, <span class="text-white font-semibold">Next.js 14</span> for the frontend with Server Actions, and <span class="text-white font-semibold">Stripe</span> for seamless payment processing.
+                                    </p>
+                                </div>
+                            </section>
+
+                            <!-- Key Features -->
+                            <section>
+                                <h2 class="text-2xl font-display font-bold mb-6 flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-accent/20 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="sparkles" class="w-5 h-5 text-accent"></i>
+                                    </div>
+                                    Key Features
+                                </h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="glass-panel p-5 rounded-xl hover:border-primary/30 transition-colors group">
+                                        <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                            <i data-lucide="bot" class="w-4 h-4 text-primary"></i>
+                                        </div>
+                                        <h4 class="font-bold mb-1">AI Chatbot</h4>
+                                        <p class="text-sm text-gray-400">Natural language product search and recommendations</p>
+                                    </div>
+                                    <div class="glass-panel p-5 rounded-xl hover:border-accent/30 transition-colors group">
+                                        <div class="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                            <i data-lucide="credit-card" class="w-4 h-4 text-accent"></i>
+                                        </div>
+                                        <h4 class="font-bold mb-1">Stripe Checkout</h4>
+                                        <p class="text-sm text-gray-400">Secure payment processing with webhooks</p>
+                                    </div>
+                                    <div class="glass-panel p-5 rounded-xl hover:border-emerald-500/30 transition-colors group">
+                                        <div class="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                            <i data-lucide="gauge" class="w-4 h-4 text-emerald-400"></i>
+                                        </div>
+                                        <h4 class="font-bold mb-1">Admin Dashboard</h4>
+                                        <p class="text-sm text-gray-400">Real-time analytics and inventory management</p>
+                                    </div>
+                                    <div class="glass-panel p-5 rounded-xl hover:border-rose-500/30 transition-colors group">
+                                        <div class="w-8 h-8 bg-rose-500/10 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                            <i data-lucide="smartphone" class="w-4 h-4 text-rose-400"></i>
+                                        </div>
+                                        <h4 class="font-bold mb-1">Mobile Responsive</h4>
+                                        <p class="text-sm text-gray-400">Fully optimized for all device sizes</p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Screenshots Carousel -->
+                            <section>
+                                <h2 class="text-2xl font-display font-bold mb-6 flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="image" class="w-5 h-5 text-white"></i>
+                                    </div>
+                                    Screenshots
+                                </h2>
+                                <div class="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
+                                    <div class="flex-shrink-0 w-80 h-48 rounded-xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border border-white/10 overflow-hidden relative group cursor-pointer">
+                                        <div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
+                                            <span>Homepage Preview</span>
+                                        </div>
+                                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <i data-lucide="maximize" class="w-8 h-8 text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0 w-80 h-48 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-white/10 overflow-hidden relative group cursor-pointer">
+                                        <div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
+                                            <span>AI Chat Interface</span>
+                                        </div>
+                                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <i data-lucide="maximize" class="w-8 h-8 text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0 w-80 h-48 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-white/10 overflow-hidden relative group cursor-pointer">
+                                        <div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
+                                            <span>Admin Dashboard</span>
+                                        </div>
+                                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <i data-lucide="maximize" class="w-8 h-8 text-white"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                        </div>
+
+                        <!-- Right Column: Sidebar -->
+                        <div class="space-y-8">
+                            
+                            <!-- Tech Stack -->
+                            <div class="glass-panel p-6 rounded-2xl">
+                                <h3 class="font-display font-bold mb-4 flex items-center gap-2">
+                                    <i data-lucide="layers" class="w-4 h-4 text-accent"></i>
+                                    Tech Stack
+                                </h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="tech-pill px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm font-mono transition-all cursor-default">
+                                        Next.js 14
+                                    </span>
+                                    <span class="tech-pill px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm font-mono transition-all cursor-default">
+                                        TypeScript
+                                    </span>
+                                    <span class="tech-pill px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm font-mono transition-all cursor-default">
+                                        OpenAI GPT-4
+                                    </span>
+                                    <span class="tech-pill px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm font-mono transition-all cursor-default">
+                                        Stripe
+                                    </span>
+                                    <span class="tech-pill px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm font-mono transition-all cursor-default">
+                                        Prisma
+                                    </span>
+                                    <span class="tech-pill px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-sm font-mono transition-all cursor-default">
+                                        Tailwind CSS
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Project Metrics -->
+                            <div class="glass-panel p-6 rounded-2xl">
+                                <h3 class="font-display font-bold mb-4 flex items-center gap-2">
+                                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-primary"></i>
+                                    Project Metrics
+                                </h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between mb-1 text-sm">
+                                            <span class="text-gray-400">Code Quality</span>
+                                            <span class="text-primary font-bold">95%</span>
+                                        </div>
+                                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                                            <div class="progress-fill h-full bg-primary rounded-full" style="width: 95%;"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between mb-1 text-sm">
+                                            <span class="text-gray-400">Documentation</span>
+                                            <span class="text-accent font-bold">100%</span>
+                                        </div>
+                                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                                            <div class="progress-fill h-full bg-accent rounded-full" style="width: 100%;"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between mb-1 text-sm">
+                                            <span class="text-gray-400">Test Coverage</span>
+                                            <span class="text-emerald-400 font-bold">87%</span>
+                                        </div>
+                                        <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                                            <div class="progress-fill h-full bg-emerald-500 rounded-full" style="width: 87%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Deliverables -->
+                            <div class="glass-panel p-6 rounded-2xl">
+                                <h3 class="font-display font-bold mb-4 flex items-center gap-2">
+                                    <i data-lucide="package" class="w-4 h-4 text-emerald-400"></i>
+                                    Deliverables Included
+                                </h3>
+                                <ul class="space-y-3 text-sm text-gray-300">
+                                    <li class="flex items-start gap-3">
+                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                        <span>Full source code with documentation</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                        <span>5-chapter project report (92 pages)</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                        <span>Defense presentation slides</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                        <span>1-on-1 defense coaching session</span>
+                                    </li>
+                                    <li class="flex items-start gap-3">
+                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                        <span>Video walkthrough of the system</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- CTA -->
+                            <div class="space-y-3">
+                                <button class="w-full py-4 bg-primary rounded-xl font-display font-bold uppercase tracking-wide glow-box hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
+                                    <i data-lucide="rocket" class="w-5 h-5"></i>
+                                    Start a Similar Project
+                                </button>
+                                <button class="w-full py-4 glass-panel rounded-xl font-display font-bold uppercase tracking-wide hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
+                                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                                    Ask About This Project
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

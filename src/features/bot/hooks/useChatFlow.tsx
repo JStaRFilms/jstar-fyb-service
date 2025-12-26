@@ -1,131 +1,170 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { MockAiService, AnalysisResult } from "../services/mockAi";
-import { captureLead } from "@/features/leads/actions/captureLead";
+import { useChat } from "@ai-sdk/react";
 
 export interface Message {
     id: string;
     role: "ai" | "user";
     content: React.ReactNode;
+    toolInvocations?: any[];
     timestamp: string;
 }
 
 export type ChatState = "INITIAL" | "ANALYZING" | "PROPOSAL" | "NEGOTIATION" | "CLOSING" | "COMPLETED";
 
+export interface ConfirmedTopic {
+    topic: string;
+    twist: string;
+}
+
 export function useChatFlow() {
     const router = useRouter();
-    const [messages, setMessages] = useState<Message[]>([]);
     const [state, setState] = useState<ChatState>("INITIAL");
     const [complexity, setComplexity] = useState<1 | 2 | 3 | 4 | 5>(1);
-    const [proposal, setProposal] = useState<AnalysisResult | null>(null);
-    const [originalIdea, setOriginalIdea] = useState("");
+    const [anonymousId, setAnonymousId] = useState<string>("");
+    const [inputText, setInputText] = useState("");
+    const [confirmedTopic, setConfirmedTopic] = useState<ConfirmedTopic | null>(null);
 
-    const hasInitialized = useRef(false);
-
-    // Initial Greeting
+    // Initialize Anonymous ID
     useEffect(() => {
-        if (!hasInitialized.current) {
-            hasInitialized.current = true;
-            addMessage("ai", "Scanning academic trends... 🤖");
-            setTimeout(() => {
-                addMessage("ai", "I'm your Project Consultant. Tell me, what's your department and what kind of 'vibe' do you want? (e.g., 'Computer Science, something with AI but not too hard')");
-            }, 1000);
+        let id = localStorage.getItem("jstar_anonymous_id");
+        if (!id) {
+            id = crypto.randomUUID();
+            localStorage.setItem("jstar_anonymous_id", id);
         }
+        setAnonymousId(id);
     }, []);
 
-    const addMessage = (role: "ai" | "user", content: React.ReactNode) => {
-        const newMessage: Message = {
-            id: Math.random().toString(36).substr(2, 9),
-            role,
-            content,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setMessages((prev) => [...prev, newMessage]);
-    };
+    const { messages: aiMessages, sendMessage, status, error, regenerate } = useChat();
+
+    const isLoading = status === 'streaming' || status === 'submitted';
+
+    // Transform AI SDK messages to our UI format and filter out empty ones
+    const messages: Message[] = aiMessages
+        .map((m: any) => {
+            // Extract text from parts array or use content directly
+            let textContent = '';
+            if (m.parts) {
+                const textPart = m.parts.find((p: any) => p.type === 'text');
+                textContent = textPart?.text || '';
+            } else if (typeof m.content === 'string') {
+                textContent = m.content;
+            }
+
+            return {
+                id: m.id,
+                role: (m.role === 'user' ? 'user' : 'ai') as 'user' | 'ai',
+                content: textContent,
+                toolInvocations: m.parts?.filter((p: any) => p.type?.startsWith('tool-')),
+                timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'
+            };
+        })
+        .filter(m => m.content && (typeof m.content === 'string' ? m.content.trim() : true)); // Filter empty messages
+
+    // Watch for setComplexity tool calls and update complexity meter
+    useEffect(() => {
+        for (const m of aiMessages) {
+            if (m.parts) {
+                for (const part of m.parts as any[]) {
+                    // Check for setComplexity tool call (either from input or result)
+                    if (part.type === 'tool-invocation' && part.toolName === 'setComplexity') {
+                        const level = part.args?.level || part.result?.level;
+                        if (level >= 1 && level <= 5) {
+                            console.log('[Complexity] Tool called with level:', level);
+                            setComplexity(level as 1 | 2 | 3 | 4 | 5);
+                        }
+                    }
+                    // Also check for tool-setComplexity part type (AI SDK v5 format)
+                    if (part.type?.includes('setComplexity')) {
+                        const level = part.input?.level || part.result?.level || part.args?.level;
+                        if (level >= 1 && level <= 5) {
+                            console.log('[Complexity] Tool detected with level:', level);
+                            setComplexity(level as 1 | 2 | 3 | 4 | 5);
+                        }
+                    }
+                }
+            }
+        }
+    }, [aiMessages]);
+
+    // Watch for confirmTopic tool calls → update state (but don't auto-redirect)
+    useEffect(() => {
+        for (const m of aiMessages) {
+            if (m.parts) {
+                for (const part of m.parts as any[]) {
+                    // Check for confirmTopic tool invocation (AI SDK v5 format)
+                    const isConfirmTopic =
+                        (part.type === 'tool-invocation' && part.toolName === 'confirmTopic') ||
+                        (part.type?.includes('confirmTopic')) ||
+                        (part.toolName === 'confirmTopic');
+
+                    if (isConfirmTopic) {
+                        const topic = part.args?.topic || part.result?.topic || part.input?.topic;
+                        const twist = part.args?.twist || part.result?.twist || part.input?.twist;
+                        if (topic && !confirmedTopic) {
+                            console.log('[Chat Handoff] Topic confirmed:', { topic, twist });
+                            setConfirmedTopic({ topic, twist: twist || '' });
+                            setState("CLOSING");
+                        }
+                    }
+                }
+            }
+        }
+    }, [aiMessages, confirmedTopic]);
+
+    // Auto-greet
+    const hasInitialized = useRef(false);
+    useEffect(() => {
+        if (!hasInitialized.current && anonymousId) {
+            hasInitialized.current = true;
+            // Future: Load initial messages or trigger greeting
+        }
+    }, [anonymousId]);
 
     const handleUserMessage = async (text: string) => {
-        addMessage("user", text);
-
-        if (state === "CLOSING") {
-            setState("ANALYZING"); // brief pause
-
-            // Capture Lead
-            const leadData = {
-                whatsapp: text,
-                department: proposal?.department || "Computer Science",
-                topic: originalIdea,
-                twist: proposal?.twist || "Unknown",
-                complexity: complexity
-            };
-
-            const result = await captureLead(leadData);
-
-            setTimeout(() => {
-                if (result.success) {
-                    addMessage("ai", "Perfect. I've created your project file and saved your spot. Redirecting you to the Project Builder...");
-                    setState("COMPLETED");
-                    setTimeout(() => router.push('/project/builder'), 2000);
-                } else {
-                    addMessage("ai", "I saved your details offline. Redirecting you...");
-                    setState("COMPLETED");
-                    setTimeout(() => router.push('/project/builder'), 2000);
-                }
-            }, 1500);
-            return;
-        }
-
-        setOriginalIdea(text);
         setState("ANALYZING");
-
-        try {
-            const result = await MockAiService.analyzeIdea(text);
-            setProposal(result);
-            setComplexity(result.complexity);
-
-            setState("PROPOSAL");
-
-            // Presenting the proposal
-            addMessage("ai", "Analyzing feasible topics...");
-
-            setTimeout(() => {
-                addMessage("ai", (
-                    <div>
-                        <p>That idea is a bit basic. How about we <strong className="text-primary">twist</strong> it?</p>
-                        <p className="mt-2">Instead, let's build a <span className="text-accent font-bold">"{result.twist}"</span>.</p>
-                        <ul className="mt-3 space-y-2 text-sm">
-                            {result.reasoning.map((r, i) => (
-                                <li key={i} className="flex items-center gap-2">
-                                    <span className="text-green-400">✓</span> {r}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ));
-                setState("NEGOTIATION");
-            }, 1500);
-
-        } catch (error) {
-            addMessage("ai", "My systems are overloaded. Try again.");
-            setState("INITIAL");
-        }
+        await sendMessage({ text });
+        setState("PROPOSAL");
     };
 
     const handleAction = (action: "accept" | "simplify" | "harder") => {
         if (action === "accept") {
-            addMessage("user", "I love it. Let's do it.");
-            setTimeout(() => {
-                addMessage("ai", "Excellent choice. To generate the full abstract and chapter outline, I need your WhatsApp number to create your file.");
-                setState("CLOSING");
-            }, 1000);
+            sendMessage({ text: "I accept this topic. Let's proceed." });
+            setState("CLOSING");
+        } else if (action === "simplify") {
+            setComplexity(prev => Math.max(1, prev - 1) as any);
+            sendMessage({ text: "That's too complex. Make it simpler." });
+            // Reset confirmed topic if user wants to change
+            setConfirmedTopic(null);
+        } else if (action === "harder") {
+            setComplexity(prev => Math.min(5, prev + 1) as any);
+            sendMessage({ text: "Too boring. Give me something harder." });
+            setConfirmedTopic(null);
         }
-        // Can implement other actions later
+    };
+
+    // Manual proceed to builder (reliable trigger)
+    const proceedToBuilder = () => {
+        if (confirmedTopic) {
+            localStorage.setItem('jstar_confirmed_topic', JSON.stringify({
+                topic: confirmedTopic.topic,
+                twist: confirmedTopic.twist,
+                confirmedAt: new Date().toISOString()
+            }));
+        }
+        router.push('/project/builder');
     };
 
     return {
         messages,
         state,
         complexity,
+        isLoading,
+        confirmedTopic,
+        error,
+        regenerate,
         handleUserMessage,
-        handleAction
+        handleAction,
+        proceedToBuilder
     };
 }

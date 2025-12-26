@@ -1,18 +1,43 @@
 'use client';
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, SendHorizontal, Plus, ArrowLeft } from "lucide-react";
+import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User, AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ComplexityMeter } from "./ComplexityMeter";
+import { SuggestionChips } from "./SuggestionChips";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useChatFlow } from "../hooks/useChatFlow";
+import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { mergeAnonymousConversations } from "../actions/chat";
+import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
-    const { messages, state, complexity, handleUserMessage, handleAction } = useChatFlow();
+    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow();
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Auth & Persistence
+    const { user } = useAuth();
+
+    useEffect(() => {
+        const anonymousId = localStorage.getItem("jstar_anonymous_id");
+        if (user && anonymousId) {
+            // User just logged in, but has an anonymous history
+            // Merge it!
+            mergeAnonymousConversations(anonymousId, user.id || "")
+                .then(() => {
+                    // console.log("Merged history");
+                    // specific cleanup if needed, keeping anonymousId is fine for session continuity
+                })
+                .catch((err) => {
+                    console.error("Failed to merge anonymous history:", err);
+                });
+        }
+    }, [user, user?.id]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,67 +63,105 @@ export function ChatInterface() {
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="font-display font-bold text-lg tracking-wide">Project Consultant</h1>
+                        <h1 className="font-display font-bold text-lg tracking-wide hidden md:block">Project Consultant</h1>
+                        <h1 className="font-display font-bold text-lg tracking-wide md:hidden">Jay</h1>
                         <div className="flex items-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            <span className="text-xs text-gray-400 font-mono">Topia AI Active</span>
+                            <span className="text-xs text-gray-400 font-mono">Active</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Complexity Meter Widget */}
-                <div className="hidden md:block">
-                    <ComplexityMeter score={complexity} />
+                <div className="flex items-center gap-3">
+                    {/* Complexity Widget - Desktop */}
+                    <div className="hidden md:block">
+                        <ComplexityMeter score={complexity} />
+                    </div>
+
+                    {/* Auth Button */}
+                    {user ? (
+                        <div className="flex items-center gap-3 pl-3 border-l border-white/10">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold ring-2 ring-white/10">
+                                {user.firstName?.charAt(0) || "U"}
+                            </div>
+                            <button
+                                onClick={() => signOutAction()}
+                                className="p-2 rounded-full hover:bg-white/5 text-gray-400 hover:text-red-400 transition-colors"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => signInAction()}
+                            className="px-4 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 text-xs font-bold text-primary transition-all flex items-center gap-2"
+                        >
+                            <User className="w-3 h-3" />
+                            Sign In to Save
+                        </button>
+                    )}
                 </div>
             </header>
 
             {/* Chat Area */}
             <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
-                <AnimatePresence>
-                    {messages.map((msg) => (
-                        <MessageBubble
-                            key={msg.id}
-                            role={msg.role}
-                            content={msg.content}
-                            timestamp={msg.timestamp}
-                        />
-                    ))}
-                </AnimatePresence>
-
-                {state === "ANALYZING" && <ThinkingIndicator />}
-
-                {/* Interactive Chips for Negotiation */}
-                {state === "NEGOTIATION" && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex gap-4 max-w-2xl"
-                    >
-                        <div className="w-10 h-10 shrink-0" /> {/* Spacer */}
-                        <div className="flex flex-wrap gap-2 w-full">
+                <ErrorBoundary>
+                    {/* Error Alert */}
+                    {error && (
+                        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+                            <AlertTriangle className="w-5 h-5 shrink-0" />
+                            <p className="text-sm flex-1">Something went wrong. Please try again.</p>
                             <button
-                                onClick={() => handleAction("accept")}
-                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-primary transition-all"
+                                onClick={() => regenerate?.()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-colors"
                             >
-                                Accept topic
-                            </button>
-                            <button
-                                onClick={() => handleAction("simplify")}
-                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-accent/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-accent transition-all"
-                            >
-                                Make it simpler
-                            </button>
-                            <button
-                                onClick={() => handleAction("harder")}
-                                className="px-4 py-2 rounded-full bg-white/5 hover:bg-red-500/20 border border-white/10 text-xs font-mono uppercase tracking-wide hover:border-red-500 transition-all"
-                            >
-                                Too boring
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Retry
                             </button>
                         </div>
-                    </motion.div>
-                )}
+                    )}
+                    <AnimatePresence>
+                        {messages.map((msg) => (
+                            <div key={msg.id} className="flex flex-col gap-2">
+                                <MessageBubble
+                                    role={msg.role}
+                                    content={msg.content}
+                                    timestamp={msg.timestamp}
+                                />
+                                {/* Render Tool Invocations (Proposals) */}
+                                {msg.role === 'ai' && msg.toolInvocations?.map((tool: any) => {
+                                    if (tool.toolName === 'suggestTopics' && tool.state === 'result') {
+                                        return (
+                                            <div key={tool.toolCallId} className="ml-0 md:ml-14 animate-in fade-in slide-in-from-bottom-2">
+                                                <ProposalCard
+                                                    topics={tool.result.topics}
+                                                    onAccept={(topic) => handleAction("accept")}
+                                                />
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                        ))}
+                    </AnimatePresence>
 
-                <div ref={messagesEndRef} />
+                    {/* Smart Suggestion Chips - shown after last AI message */}
+                    {messages.length > 0 && messages[messages.length - 1].role === 'ai' && (
+                        <div className="ml-0 md:ml-14 max-w-2xl">
+                            <SuggestionChips
+                                confirmedTopic={confirmedTopic}
+                                onAction={handleAction}
+                                onProceed={proceedToBuilder}
+                                isLoading={isLoading}
+                            />
+                        </div>
+                    )}
+
+                    {state === "ANALYZING" && <ThinkingIndicator />}
+
+                    <div ref={messagesEndRef} />
+                </ErrorBoundary>
             </main>
 
             {/* Mobile Complexity Meter */}
