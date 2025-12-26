@@ -32,6 +32,9 @@ export function ChatInterface() {
                 .then(() => {
                     // console.log("Merged history");
                     // specific cleanup if needed, keeping anonymousId is fine for session continuity
+                })
+                .catch((err) => {
+                    console.error("Failed to merge anonymous history:", err);
                 });
         }
     }, [user, user?.id]);
