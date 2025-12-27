@@ -130,6 +130,15 @@ export function Hero() {
                         See Examples
                     </Link>
                 </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.2 }}
+                    className="mt-8 text-sm text-gray-500 font-medium"
+                >
+                    Looking for the <Link href="/project/consult" className="text-primary hover:underline underline-offset-4">Full Agency Service?</Link>
+                </motion.div>
             </div>
 
             {/* Scroll Indicator */}

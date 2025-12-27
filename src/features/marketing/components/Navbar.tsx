@@ -31,10 +31,11 @@ export function Navbar() {
                 <div className="hidden md:flex gap-8 text-sm font-medium tracking-wide">
                     <Link href="#experience" className="hover:text-primary transition-colors text-white/80">Experience</Link>
                     <Link href="#pricing" className="hover:text-primary transition-colors text-white/80">Pricing</Link>
+                    <Link href="/project/consult" className="hover:text-primary transition-colors text-white/80">Agency</Link>
                     <Link href="#showcase" className="hover:text-primary transition-colors text-white/80">Showcase</Link>
                 </div>
 
-                <Link 
+                <Link
                     href="/project/builder"
                     className="px-6 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-primary hover:border-primary transition-all duration-300 font-bold text-xs uppercase tracking-wider text-white"
                 >

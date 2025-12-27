@@ -33,7 +33,7 @@ export function Pricing() {
                         whileHover={{ scale: 1.02, y: -5, transition: { type: "spring", stiffness: 300 } }}
                         className="glass-panel p-10 rounded-3xl relative overflow-hidden group border border-white/5 hover:border-accent/50 transition-colors duration-500 will-change-transform"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
                         <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mb-8 text-accent group-hover:scale-110 transition-transform duration-300">
                             <Zap className="w-8 h-8" />
@@ -77,7 +77,7 @@ export function Pricing() {
                         whileHover={{ scale: 1.05, y: -10, transition: { type: "spring", stiffness: 300 } }}
                         className="glass-panel p-10 rounded-3xl relative overflow-hidden group border border-white/5 hover:border-primary/50 transition-colors duration-500 ring-1 ring-primary/20"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                         <div className="absolute top-0 right-0 px-4 py-2 bg-primary text-xs font-bold uppercase text-white">
                             Best Value
                         </div>
