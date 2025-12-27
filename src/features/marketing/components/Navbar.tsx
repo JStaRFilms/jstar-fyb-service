@@ -34,9 +34,12 @@ export function Navbar() {
                     <Link href="#showcase" className="hover:text-primary transition-colors text-white/80">Showcase</Link>
                 </div>
 
-                <button className="px-6 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-primary hover:border-primary transition-all duration-300 font-bold text-xs uppercase tracking-wider text-white">
+                <Link 
+                    href="/project/builder"
+                    className="px-6 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-primary hover:border-primary transition-all duration-300 font-bold text-xs uppercase tracking-wider text-white"
+                >
                     Start Project
-                </button>
+                </Link>
             </div>
         </nav>
     );

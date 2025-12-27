@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Zap, Crown, Check, Star } from 'lucide-react';
+import Link from 'next/link';
 
 export function Pricing() {
     return (
@@ -59,9 +60,12 @@ export function Pricing() {
                             </li>
                         </ul>
 
-                        <button className="w-full py-4 border border-accent/30 rounded-xl text-accent font-bold uppercase tracking-wider hover:bg-accent hover:text-black transition-all">
+                        <Link
+                            href="/project/builder"
+                            className="w-full py-4 border border-accent/30 rounded-xl text-accent font-bold uppercase tracking-wider hover:bg-accent hover:text-black transition-all flex items-center justify-center"
+                        >
                             Launch Builder
-                        </button>
+                        </Link>
                     </motion.div>
 
                     {/* Option 2: Agency */}
@@ -103,9 +107,12 @@ export function Pricing() {
                             </li>
                         </ul>
 
-                        <button className="w-full py-4 bg-primary rounded-xl font-display font-bold uppercase tracking-wider hover:scale-105 transition-transform shadow-lg shadow-primary/25 text-white">
+                        <Link
+                            href="/project/consult"
+                            className="w-full py-4 bg-primary rounded-xl font-display font-bold uppercase tracking-wider hover:scale-105 transition-transform shadow-lg shadow-primary/25 text-white flex items-center justify-center"
+                        >
                             Consult an Expert
-                        </button>
+                        </Link>
                     </motion.div>
                 </div>
             </div>
