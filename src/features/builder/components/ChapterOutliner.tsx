@@ -10,6 +10,8 @@ import { SkeletonChapter } from "@/components/ui/Skeleton";
 import { DocumentUpload } from "./DocumentUpload";
 import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
 import { ProjectActionCenter } from "./ProjectActionCenter";
+import { ModeSelection } from "./ModeSelection";
+import { ConciergeWaiting } from "./ConciergeWaiting";
 
 // Static placeholder chapters shown before payment (no API calls wasted)
 const PLACEHOLDER_CHAPTERS = [
@@ -19,8 +21,23 @@ const PLACEHOLDER_CHAPTERS = [
 ];
 
 export function ChapterOutliner() {
-    const { data, isPaid, unlockPaywall, updateData } = useBuilderStore();
+    const { data, isPaid, unlockPaywall, updateData, setMode } = useBuilderStore();
     const hasSubmittedRef = useRef(false);
+
+    // Handle unlock - persist to DB then update store
+    const handleUnlock = async () => {
+        if (!data.projectId) {
+            console.error('[ChapterOutliner] No projectId for unlock');
+            return;
+        }
+
+        try {
+            await fetch(`/api/projects/${data.projectId}/unlock`, { method: 'POST' });
+            unlockPaywall();
+        } catch (error) {
+            console.error('[ChapterOutliner] Failed to unlock:', error);
+        }
+    };
 
     const { object, submit, isLoading, error } = useObject({
         api: '/api/generate/outline',
@@ -154,19 +171,33 @@ export function ChapterOutliner() {
                 {/* Pricing Overlay - Show if not paid */}
                 {!isPaid ? (
                     <div className="mt-8">
-                        <PricingOverlay onUnlock={unlockPaywall} />
+                        <PricingOverlay onUnlock={handleUnlock} />
+                    </div>
+                ) : data.mode === null ? (
+                    // Mode not selected yet - show selection
+                    <div className="mt-16">
+                        <ModeSelection
+                            projectId={data.projectId!}
+                            onModeSelected={(mode) => setMode(mode)}
+                        />
+                    </div>
+                ) : data.mode === "CONCIERGE" ? (
+                    // Concierge mode - show waiting view
+                    <div className="mt-16">
+                        <ConciergeWaiting projectId={data.projectId!} status={data.status} />
                     </div>
                 ) : (
-                    <div className="mt-16">
-                        <ProjectActionCenter />
-                    </div>
-                )}
-
-                {/* Document Upload Section */}
-                {data.projectId && (
-                    <div className="mt-16">
-                        <DocumentUpload projectId={data.projectId} />
-                    </div>
+                    // DIY mode - show action center + document upload
+                    <>
+                        <div className="mt-16">
+                            <ProjectActionCenter />
+                        </div>
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <DocumentUpload projectId={data.projectId} />
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </>

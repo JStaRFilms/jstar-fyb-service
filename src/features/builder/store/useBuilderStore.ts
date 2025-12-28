@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
 export type BuilderStep = 'TOPIC' | 'ABSTRACT' | 'OUTLINE' | 'PAYWALL';
+export type ProjectMode = 'DIY' | 'CONCIERGE' | null;
+export type ProjectStatus = 'OUTLINE_GENERATED' | 'RESEARCH_IN_PROGRESS' | 'RESEARCH_COMPLETE' | 'WRITING_IN_PROGRESS' | 'PROJECT_COMPLETE';
 
 interface ProjectData {
     projectId: string | null;
@@ -8,6 +10,8 @@ interface ProjectData {
     twist: string;
     abstract: string;
     outline: any[]; // define stricter type later
+    mode: ProjectMode;
+    status: ProjectStatus;
 }
 
 interface BuilderState {
@@ -21,6 +25,7 @@ interface BuilderState {
     updateData: (data: Partial<ProjectData>) => void;
     setGenerating: (isGenerating: boolean) => void;
     unlockPaywall: () => void;
+    setMode: (mode: ProjectMode) => void;
     hydrateFromChat: () => boolean;
     clearChatData: () => void;
 }
@@ -34,7 +39,9 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         topic: '',
         twist: '',
         abstract: '',
-        outline: []
+        outline: [],
+        mode: null,
+        status: 'OUTLINE_GENERATED'
     },
     isGenerating: false,
     isPaid: false,
@@ -46,6 +53,9 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     })),
     setGenerating: (isGenerating) => set({ isGenerating }),
     unlockPaywall: () => set({ isPaid: true }),
+    setMode: (mode) => set((state) => ({
+        data: { ...state.data, mode }
+    })),
 
     // Hydrate topic/twist from localStorage (set by chat handoff)
     hydrateFromChat: () => {
@@ -87,7 +97,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     clearChatData: () => {
         localStorage.removeItem(CHAT_HANDOFF_KEY);
         set({
-            data: { projectId: null, topic: '', twist: '', abstract: '', outline: [] },
+            data: { projectId: null, topic: '', twist: '', abstract: '', outline: [], mode: null, status: 'OUTLINE_GENERATED' },
             isFromChat: false,
             step: 'TOPIC'
         });
