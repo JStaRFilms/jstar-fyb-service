@@ -33,7 +33,10 @@ export async function POST(req: Request) {
         // Find the payment
         const payment = await prisma.payment.findUnique({
             where: { reference: reference },
-            include: { project: true }
+            include: {
+                project: true,
+                user: true
+            }
         });
 
         if (!payment) {
@@ -58,6 +61,21 @@ export async function POST(req: Request) {
                 data: { isUnlocked: true }
             })
         ]);
+
+        // Send Email Receipt
+        try {
+            const { EmailService } = await import('@/services/email.service');
+            await EmailService.sendPaymentReceipt({
+                email: payment.user.email,
+                name: payment.user.name || 'Student',
+                amount: payment.amount,
+                reference: payment.reference,
+                projectTopic: payment.project.topic,
+                date: new Date()
+            });
+        } catch (err) {
+            console.error('[Verify] Failed to send receipt email:', err);
+        }
 
         return NextResponse.json({ success: true });
 

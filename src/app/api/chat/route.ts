@@ -63,13 +63,10 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validation = chatSchema.safeParse(body);
 
-        // Debug validation failures
         if (!validation.success) {
             console.error('[Chat API] Validation failed:', JSON.stringify(validation.error.format(), null, 2));
-            return new Response(
-                JSON.stringify({ error: 'Invalid request format', details: validation.error.issues }),
-                { status: 400, headers: { 'Content-Type': 'application/json' } }
-            );
+            console.error('[Chat API] Request Body:', JSON.stringify(body, null, 2));
+            return new Response(JSON.stringify({ error: 'Invalid input', details: validation.error }), { status: 400 });
         }
 
         const { messages, conversationId, anonymousId } = validation.data;

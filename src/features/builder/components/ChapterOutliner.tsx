@@ -12,6 +12,9 @@ import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
 import { ProjectActionCenter } from "./ProjectActionCenter";
 import { ModeSelection } from "./ModeSelection";
 import { ConciergeWaiting } from "./ConciergeWaiting";
+import { ChapterGenerator } from "./ChapterGenerator";
+import { UpsellBridge } from "./UpsellBridge";
+import { ProjectAssistant } from "./ProjectAssistant";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -275,6 +278,25 @@ export function ChapterOutliner() {
                         <div className="mt-16">
                             <ProjectActionCenter />
                         </div>
+
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <ProjectAssistant projectId={data.projectId} />
+                            </div>
+                        )}
+
+                        {/* Phase 2: Post-Payment Chapter Generation */}
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <ChapterGenerator projectId={data.projectId} />
+                            </div>
+                        )}
+
+                        {/* Phase 6: Upsell Bridge */}
+                        <div className="mt-20 mb-10">
+                            <UpsellBridge />
+                        </div>
+
                         {data.projectId && (
                             <div className="mt-16">
                                 <DocumentUpload projectId={data.projectId} />
