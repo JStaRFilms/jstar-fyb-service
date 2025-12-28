@@ -211,7 +211,7 @@ export async function saveLeadAction(params: SaveLeadParams) {
 
         const data = validation.data;
 
-        const lead = await (prisma.lead as any).upsert({
+        const lead = await prisma.lead.upsert({
             where: { whatsapp: data.whatsapp },
             update: {
                 department: data.department,

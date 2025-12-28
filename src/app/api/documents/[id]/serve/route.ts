@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 
 export async function GET(
     req: Request,
@@ -8,17 +9,38 @@ export async function GET(
     try {
         const { id } = await params;
 
+        // Validate ID format (cuid)
+        if (!id || !/^c[a-z0-9]{24}$/i.test(id) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+            return new NextResponse("Invalid document ID", { status: 400 });
+        }
+
+        // Get auth context (optional - documents may be accessed anonymously via project)
+        const { user } = await withAuth();
+
+        // Fetch document with project ownership check
         const doc = await prisma.researchDocument.findUnique({
             where: { id },
             select: {
                 fileData: true,
                 mimeType: true,
-                fileName: true
+                fileName: true,
+                project: {
+                    select: {
+                        userId: true,
+                        anonymousId: true
+                    }
+                }
             }
         });
 
         if (!doc || !doc.fileData) {
             return new NextResponse("File not found", { status: 404 });
+        }
+
+        // Authorization: User must own the project, or it was created anonymously
+        // For anonymous projects, we allow access (they're public by nature)
+        if (doc.project?.userId && user?.id !== doc.project.userId) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const headers = new Headers();

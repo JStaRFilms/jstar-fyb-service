@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { cookies } from "next/headers";
 import { z } from "zod";
 
 const createProjectSchema = z.object({
@@ -9,18 +11,36 @@ const createProjectSchema = z.object({
     abstract: z.string().min(1)
 });
 
+// Helper to get or create anonymous ID
+async function getAnonymousId(): Promise<string> {
+    const cookieStore = await cookies();
+    let anonymousId = cookieStore.get('anonymous_id')?.value;
+
+    if (!anonymousId) {
+        anonymousId = `anon_${crypto.randomUUID()}`;
+        // Note: Cookie will be set by client, we just generate the ID
+    }
+    return anonymousId;
+}
+
 export async function createProjectAction(input: z.infer<typeof createProjectSchema>) {
     try {
         const { topic, twist, abstract } = createProjectSchema.parse(input);
 
-        // Create the project
+        // Get authenticated user (if any)
+        const { user } = await withAuth();
+
+        // For anonymous users, use anonymousId
+        const anonymousId = user ? null : await getAnonymousId();
+
+        // Create the project with ownership
         const project = await prisma.project.create({
             data: {
                 topic,
                 twist: twist || "",
                 abstract,
-                // userId: ... (would come from auth)
-                // anonymousId: ... (if tracking anonymously)
+                userId: user?.id || null,
+                anonymousId: anonymousId,
             }
         });
 

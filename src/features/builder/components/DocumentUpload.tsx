@@ -19,6 +19,23 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
 
     const handleUpload = async () => {
         if (!file && !link) return;
+
+        // Client-side validation for file uploads
+        if (mode === "upload" && file) {
+            const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+            const ACCEPTED_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+
+            if (file.size > MAX_FILE_SIZE) {
+                alert("File exceeds 4MB limit. Please upload a smaller file.");
+                return;
+            }
+
+            if (!ACCEPTED_TYPES.includes(file.type)) {
+                alert("Only PDF and DOCX files are allowed.");
+                return;
+            }
+        }
+
         setIsUploading(true);
 
         const formData = new FormData();
@@ -36,7 +53,10 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                 body: formData,
             });
 
-            if (!res.ok) throw new Error("Upload failed");
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({ error: "Upload failed" }));
+                throw new Error(error.error || "Upload failed");
+            }
 
             const data = await res.json();
 
@@ -52,7 +72,7 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
 
         } catch (error) {
             console.error("Upload error:", error);
-            alert("Failed to upload document");
+            alert(error instanceof Error ? error.message : "Failed to upload document");
         } finally {
             setIsUploading(false);
         }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 import { z } from "zod";
 
 const createMessageSchema = z.object({
@@ -7,14 +8,38 @@ const createMessageSchema = z.object({
     content: z.string().min(1)
 });
 
+// Helper to verify project ownership
+async function verifyProjectOwnership(projectId: string, userId?: string) {
+    const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { userId: true, anonymousId: true }
+    });
+
+    if (!project) return { exists: false, authorized: false };
+
+    // Owner check: matches userId OR is anonymous project
+    const isOwner = project.userId ? project.userId === userId : true;
+    return { exists: true, authorized: isOwner };
+}
+
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
-        const body = await req.json();
+        const { user } = await withAuth();
 
+        // Authorization check
+        const { exists, authorized } = await verifyProjectOwnership(id, user?.id);
+        if (!exists) {
+            return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+        if (!authorized) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const body = await req.json();
         const validation = createMessageSchema.safeParse(body);
         if (!validation.success) {
             return NextResponse.json({ error: "Invalid message" }, { status: 400 });
@@ -42,6 +67,16 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
+        const { user } = await withAuth();
+
+        // Authorization check
+        const { exists, authorized } = await verifyProjectOwnership(id, user?.id);
+        if (!exists) {
+            return NextResponse.json({ error: "Project not found" }, { status: 404 });
+        }
+        if (!authorized) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         const messages = await prisma.projectMessage.findMany({
             where: { projectId: id },

@@ -66,11 +66,13 @@ export async function POST(req: Request) {
         // Debug validation failures
         if (!validation.success) {
             console.error('[Chat API] Validation failed:', JSON.stringify(validation.error.format(), null, 2));
-            console.error('[Chat API] Request Body:', JSON.stringify(body, null, 2));
-            // We continue anyway to not break the UI, but saving will fail later.
+            return new Response(
+                JSON.stringify({ error: 'Invalid request format', details: validation.error.issues }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
         }
 
-        const { messages, conversationId, anonymousId } = body;
+        const { messages, conversationId, anonymousId } = validation.data;
 
         // Cast to unknown first to satisfy strict type overlap checks for UIMessage
         const modelMessages = convertToModelMessages(messages as unknown as UIMessage[]);

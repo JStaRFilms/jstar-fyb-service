@@ -26,6 +26,11 @@ export async function POST(
     try {
         const { id } = await params;
 
+        // Validate ID format (cuid or uuid)
+        if (!id || (!/^c[a-z0-9]{24}$/i.test(id) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
+            return NextResponse.json({ error: "Invalid document ID format" }, { status: 400 });
+        }
+
         // Get the document
         const doc = await prisma.researchDocument.findUnique({
             where: { id },
@@ -45,7 +50,7 @@ export async function POST(
 
         // Call Gemini with the PDF
         const result = await generateObject({
-            model: google("gemini-2.0-flash-exp"),
+            model: google("gemini-2.5-flash"),
             schema: extractionSchema,
             messages: [
                 {
