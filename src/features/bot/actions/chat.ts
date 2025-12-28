@@ -7,17 +7,16 @@ import { z } from 'zod';
 // Input validation schema
 const saveConversationSchema = z.object({
     conversationId: z.string().uuid().optional(),
-    anonymousId: z.string().uuid().optional(),
+    anonymousId: z.string().optional(), // Relaxed to allow empty string during initialization
     userId: z.string().uuid().optional(),
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant', 'system']),
-        content: z.union([z.string(), z.array(z.any())]), // CoreMessage content can be string | Part[]
+        content: z.union([z.string(), z.array(z.any())]),
     })).min(1, 'Messages array cannot be empty'),
 }).refine(
     (data) => {
-        // Either conversationId is provided, OR at least one identifier (anonymousId/userId)
         const hasConversationId = !!data.conversationId;
-        const hasIdentifier = !!data.anonymousId || !!data.userId;
+        const hasIdentifier = (!!data.anonymousId && data.anonymousId.trim() !== "") || !!data.userId;
         return hasConversationId || hasIdentifier;
     },
     { message: 'Either conversationId or at least one of anonymousId/userId must be provided' }
@@ -141,7 +140,36 @@ export async function saveConversation({
 export async function getConversation(conversationId: string) {
     return await prisma.conversation.findUnique({
         where: { id: conversationId },
-        include: { messages: true }
+        include: {
+            messages: {
+                orderBy: { createdAt: 'asc' }
+            }
+        }
+    });
+}
+
+export async function getLatestConversation({
+    anonymousId,
+    userId
+}: {
+    anonymousId?: string;
+    userId?: string;
+}) {
+    if (!anonymousId && !userId) return null;
+
+    return await prisma.conversation.findFirst({
+        where: {
+            OR: [
+                { userId: userId || undefined },
+                { anonymousId: anonymousId || undefined }
+            ]
+        },
+        include: {
+            messages: {
+                orderBy: { createdAt: 'asc' }
+            }
+        },
+        orderBy: { updatedAt: 'desc' }
     });
 }
 
@@ -155,5 +183,60 @@ export async function mergeAnonymousConversations(anonymousId: string, userId: s
     } catch (error) {
         console.error('Failed to merge chats:', error);
         return { success: false, error };
+    }
+}
+// -----------------------------------------------------------------------------
+// LEAD CAPTURE
+// -----------------------------------------------------------------------------
+
+const saveLeadSchema = z.object({
+    whatsapp: z.string().min(10, 'Invalid WhatsApp number'),
+    department: z.string(),
+    topic: z.string(),
+    twist: z.string(),
+    complexity: z.number().min(1).max(5),
+    anonymousId: z.string().uuid().optional(),
+    userId: z.string().uuid().optional(),
+});
+
+export type SaveLeadParams = z.infer<typeof saveLeadSchema>;
+
+export async function saveLeadAction(params: SaveLeadParams) {
+    try {
+        const validation = saveLeadSchema.safeParse(params);
+        if (!validation.success) {
+            console.error('[saveLead] Validation failed:', validation.error);
+            return { success: false, error: 'Invalid lead data' };
+        }
+
+        const data = validation.data;
+
+        const lead = await (prisma.lead as any).upsert({
+            where: { whatsapp: data.whatsapp },
+            update: {
+                department: data.department,
+                topic: data.topic,
+                twist: data.twist,
+                complexity: data.complexity,
+                userId: data.userId,
+                anonymousId: data.anonymousId,
+                status: 'NEW', // Reset status if they re-engage? 
+            },
+            create: {
+                whatsapp: data.whatsapp,
+                department: data.department,
+                topic: data.topic,
+                twist: data.twist,
+                complexity: data.complexity,
+                userId: data.userId,
+                anonymousId: data.anonymousId,
+            },
+        });
+
+        console.log('[saveLead] Success:', lead.id);
+        return { success: true, leadId: lead.id };
+    } catch (error) {
+        console.error('[saveLead] Unexpected error:', error);
+        return { success: false, error: 'Failed to save lead information' };
     }
 }

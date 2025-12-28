@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
+import { saveLeadAction } from "../actions/chat";
 
 export interface Message {
     id: string;
@@ -17,32 +18,76 @@ export interface ConfirmedTopic {
     twist: string;
 }
 
-export function useChatFlow() {
+export function useChatFlow(userId?: string) {
     const router = useRouter();
     const [state, setState] = useState<ChatState>("INITIAL");
     const [complexity, setComplexity] = useState<1 | 2 | 3 | 4 | 5>(1);
-    const [anonymousId, setAnonymousId] = useState<string>("");
-    const [inputText, setInputText] = useState("");
+    const [conversationId, setConversationId] = useState<string | undefined>();
+    const [anonymousId, setAnonymousId] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("jstar_anonymous_id") || "";
+        }
+        return "";
+    });
     const [confirmedTopic, setConfirmedTopic] = useState<ConfirmedTopic | null>(null);
 
-    // Initialize Anonymous ID
+    // Initialize Anonymous ID if still empty
     useEffect(() => {
-        let id = localStorage.getItem("jstar_anonymous_id");
-        if (!id) {
-            id = crypto.randomUUID();
-            localStorage.setItem("jstar_anonymous_id", id);
+        if (!anonymousId) {
+            let id = localStorage.getItem("jstar_anonymous_id");
+            if (!id) {
+                id = crypto.randomUUID();
+                localStorage.setItem("jstar_anonymous_id", id);
+            }
+            setAnonymousId(id);
         }
-        setAnonymousId(id);
-    }, []);
+    }, [anonymousId]);
 
-    const { messages: aiMessages, sendMessage, status, error, regenerate } = useChat();
+    // Standard AI SDK useChat - Using any cast for options to bypass strict lint if needed
+    // Using any cast for result to handle the sendMessage vs append typing
+    const {
+        messages: aiMessages,
+        sendMessage,
+        status,
+        error,
+        regenerate,
+        setMessages
+    } = useChat({
+        body: {
+            conversationId,
+            anonymousId,
+        }
+    } as any) as any;
+
+    // Sync initial messages if we found a conversation
+    const hasSyncedHistory = useRef(false);
+    useEffect(() => {
+        if (!hasSyncedHistory.current && anonymousId) {
+            const syncHistory = async () => {
+                const { getLatestConversation } = await import("../actions/chat");
+                const latest = await getLatestConversation({ anonymousId, userId });
+                if (latest && latest.messages.length > 0) {
+                    setConversationId(latest.id);
+                    // Match UIMessage structure with required parts array
+                    setMessages(latest.messages.map(m => ({
+                        id: m.id,
+                        role: m.role as any,
+                        content: m.content as string,
+                        parts: [{ type: 'text' as const, text: m.content as string }],
+                        createdAt: new Date(m.createdAt)
+                    })));
+                }
+                hasSyncedHistory.current = true;
+            };
+            syncHistory();
+        }
+    }, [anonymousId, userId, setMessages]);
 
     const isLoading = status === 'streaming' || status === 'submitted';
 
-    // Transform AI SDK messages to our UI format and filter out empty ones
+    // Transform AI SDK messages to our UI format
     const messages: Message[] = aiMessages
         .map((m: any) => {
-            // Extract text from parts array or use content directly
             let textContent = '';
             if (m.parts) {
                 const textPart = m.parts.find((p: any) => p.type === 'text');
@@ -59,26 +104,16 @@ export function useChatFlow() {
                 timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'
             };
         })
-        .filter(m => m.content && (typeof m.content === 'string' ? m.content.trim() : true)); // Filter empty messages
+        .filter((m: any) => m.content && (typeof m.content === 'string' ? m.content.trim() : true));
 
-    // Watch for setComplexity tool calls and update complexity meter
+    // Watch for setComplexity tool calls
     useEffect(() => {
-        for (const m of aiMessages) {
+        for (const m of aiMessages as any[]) {
             if (m.parts) {
                 for (const part of m.parts as any[]) {
-                    // Check for setComplexity tool call (either from input or result)
                     if (part.type === 'tool-invocation' && part.toolName === 'setComplexity') {
                         const level = part.args?.level || part.result?.level;
                         if (level >= 1 && level <= 5) {
-                            console.log('[Complexity] Tool called with level:', level);
-                            setComplexity(level as 1 | 2 | 3 | 4 | 5);
-                        }
-                    }
-                    // Also check for tool-setComplexity part type (AI SDK v5 format)
-                    if (part.type?.includes('setComplexity')) {
-                        const level = part.input?.level || part.result?.level || part.args?.level;
-                        if (level >= 1 && level <= 5) {
-                            console.log('[Complexity] Tool detected with level:', level);
                             setComplexity(level as 1 | 2 | 3 | 4 | 5);
                         }
                     }
@@ -87,22 +122,19 @@ export function useChatFlow() {
         }
     }, [aiMessages]);
 
-    // Watch for confirmTopic tool calls → update state (but don't auto-redirect)
+    // Watch for confirmTopic tool calls
     useEffect(() => {
-        for (const m of aiMessages) {
+        for (const m of aiMessages as any[]) {
             if (m.parts) {
                 for (const part of m.parts as any[]) {
-                    // Check for confirmTopic tool invocation (AI SDK v5 format)
                     const isConfirmTopic =
                         (part.type === 'tool-invocation' && part.toolName === 'confirmTopic') ||
-                        (part.type?.includes('confirmTopic')) ||
                         (part.toolName === 'confirmTopic');
 
                     if (isConfirmTopic) {
-                        const topic = part.args?.topic || part.result?.topic || part.input?.topic;
-                        const twist = part.args?.twist || part.result?.twist || part.input?.twist;
+                        const topic = part.args?.topic || part.result?.topic;
+                        const twist = part.args?.twist || part.result?.twist;
                         if (topic && !confirmedTopic) {
-                            console.log('[Chat Handoff] Topic confirmed:', { topic, twist });
                             setConfirmedTopic({ topic, twist: twist || '' });
                             setState("CLOSING");
                         }
@@ -112,16 +144,32 @@ export function useChatFlow() {
         }
     }, [aiMessages, confirmedTopic]);
 
-    // Auto-greet
-    const hasInitialized = useRef(false);
-    useEffect(() => {
-        if (!hasInitialized.current && anonymousId) {
-            hasInitialized.current = true;
-            // Future: Load initial messages or trigger greeting
-        }
-    }, [anonymousId]);
-
     const handleUserMessage = async (text: string) => {
+        if (state === "CLOSING") {
+            const cleanText = text.replace(/[\s-]/g, '');
+            const isPhoneNumber = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/im.test(cleanText);
+
+            if (isPhoneNumber && confirmedTopic) {
+                setState("ANALYZING");
+                const result = await saveLeadAction({
+                    whatsapp: text.trim(),
+                    topic: confirmedTopic.topic,
+                    twist: confirmedTopic.twist,
+                    complexity: complexity,
+                    department: "Computer Science",
+                    anonymousId: anonymousId,
+                    userId: userId,
+                });
+
+                if (result.success) {
+                    setState("COMPLETED");
+                    return;
+                } else {
+                    setState("CLOSING");
+                }
+            }
+        }
+
         setState("ANALYZING");
         await sendMessage({ text });
         setState("PROPOSAL");
@@ -134,7 +182,6 @@ export function useChatFlow() {
         } else if (action === "simplify") {
             setComplexity(prev => Math.max(1, prev - 1) as any);
             sendMessage({ text: "That's too complex. Make it simpler." });
-            // Reset confirmed topic if user wants to change
             setConfirmedTopic(null);
         } else if (action === "harder") {
             setComplexity(prev => Math.min(5, prev + 1) as any);
@@ -143,7 +190,6 @@ export function useChatFlow() {
         }
     };
 
-    // Manual proceed to builder (reliable trigger)
     const proceedToBuilder = () => {
         if (confirmedTopic) {
             localStorage.setItem('jstar_confirmed_topic', JSON.stringify({

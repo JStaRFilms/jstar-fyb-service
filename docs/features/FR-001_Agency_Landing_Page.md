@@ -13,25 +13,33 @@ Create a high-impact, "sexy" landing page to build trust and convert visitors. T
 - `src/features/marketing/components/Hero.tsx`:
     - Needs `framer-motion` for 3D/floating effects.
     - Countdown timer logic.
-- `src/features/marketing/components/Pricing.tsx`:
-    - interactive hover states for cards.
-- `src/features/marketing/components/StickyCTA.tsx`:
-    - Listens to scroll position to appear/disappear.
+- `src/features/marketing/components/Navbar.tsx`:
+    - Floating navigation with blur effect.
+    - NEW: Added direct "Agency" funnel link.
+- `src/features/marketing/components/Footer.tsx`:
+    - NEW: Added "Full Agency Service" CTA.
+
+### Assets
+- `public/images/jay-portrait.png`: High-end portrait of the Lead Architect, used for agency branding.
 
 ## Logic & Data Flow
 - **Data**: Static content for the MVP. No database fetch required yet.
 - **Interactivity**:
     - **Countdown**: Client-side calculation.
     - **Scroll**: Sticky CTA triggers on scroll threshold.
-    - **Navigation**: Links to `/project/chat` (FR-002) and `/project/build` (FR-004).
+    - **Navigation**: 
+        - SaaS Path: Links to `/auth/register` -> `/project/builder`.
+        - Agency Path: Links to `/project/consult` (Jay's Page).
+    - **Portraits**: Grayscale-to-color hover effects on Jay's imagery.
 
 ## Database Schema
 No changes required.
 
 ## Implementation Steps
-1. [ ] **Setup**: Create `src/features/marketing` folder structure.
-2. [ ] **Hero Section**: Implement with text gradients, "sexy" typography, and countdown.
-3. [ ] **Pricing Section**: Implement card layout with hover effects.
-4. [ ] **Project Gallery**: Implement grid of sample projects (placeholders).
-5. [ ] **Sticky CTA**: Implement bottom-right floating button.
-6. [ ] **Page Assembly**: Combine all into `src/app/(marketing)/page.tsx`.
+1. [x] **Setup**: Create `src/features/marketing` folder structure.
+2. [x] **Hero Section**: Implement with text gradients, "sexy" typography, and countdown.
+3. [x] **Pricing Section**: Implement card layout with hover effects.
+4. [x] **Project Gallery**: Implement grid of sample projects (placeholders).
+5. [x] **Sticky CTA**: Implement bottom-right floating button.
+6. [x] **Accessibility**: Added "Agency" links across Hero, Navbar, and Footer for funnel clarity.
+7. [x] **Page Assembly**: Combine all into `src/app/(marketing)/page.tsx`.

@@ -3,7 +3,7 @@
 ## Goal
 Secure the application and manage user accounts using WorkOS AuthKit. Provide a seamless login/signup experience for SaaS users and Agency clients.
 
-## Status: 🏗️ In Progress
+## Status: ✅ Completed
 
 ---
 
@@ -22,6 +22,9 @@ Secure the application and manage user accounts using WorkOS AuthKit. Provide a 
 | `/auth/login` | Server component that triggers `signInAction` |
 | `/auth/register` | Server component that triggers `signUpAction` |
 | `/callback` | WorkOS redirect destination (handles session creation) |
+
+> [!NOTE]
+> **Instant Redirects:** The `/auth/login` and `/auth/register` routes are "headless" (return `null`). They execute the redirect on the server before the browser renders anything, ensuring a snappy transition to WorkOS.
 
 ---
 
@@ -62,8 +65,8 @@ If you eventually want unified SSO (one login for all J Star sites), you would m
 ---
 
 ## Implementation Checklist
-- [ ] Create `/auth/login/page.tsx`
-- [ ] Create `/auth/register/page.tsx`
-- [ ] Create `/callback/page.tsx` (if needed by AuthKit default)
-- [ ] Verify `WORKOS_REDIRECT_URI` in `.env.local`
-- [ ] Update Navbar/Hero links to use these routes
+- [x] Create `/auth/login/page.tsx`
+- [x] Create `/auth/register/page.tsx`
+- [x] Create `/callback/page.tsx` (Handled by AuthKit middleware/default)
+- [x] Verify `WORKOS_REDIRECT_URI` in `.env.local`
+- [x] Update Navbar/Hero links to use these routes

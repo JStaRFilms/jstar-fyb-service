@@ -1,26 +1,69 @@
 ---
-description: Intelligent completion workflow with timeline tracking
+description: Intelligent end-of-work workflow that auto-detects what you completed
 ---
-# Workflow: Smart Complete
+// turbo-all
+
+# Workflow: Smart Complete (Intelligent)
 
 ## Usage
 User: "/smart_complete I finished [description]"
 
-## Agent Steps
+## Steps
 
-### 1. Scan
-Run the `complete` command via the appropriate script (`.ps1` or `.sh`).
+### 1. Scan Completion Candidates (Scripted)
+**PowerShell:**
+```powershell
+.\scripts\smart-ops.ps1 complete
+```
 
-### 2. Match
-Identify the issue number that matches the user's description.
+**Bash:**
+```bash
+./scripts/smart-ops.sh complete
+```
 
-### 3. Execution
-Run:
-`.../smart-ops.[ps1|sh] close [Number] "Completed via Smart Ops"`
+### 2. Match Work to Issues
+Match user's completed work description to active issues:
+- **If exact match found:** Proceed to close
+- **If partial match:** Ask for clarification
+- **If no match:** Ask user to specify issue number
 
-### 4. Project Cleanup (If using Projects)
-If the user provides a Project Item ID, run:
-`.../smart-ops.[ps1|sh] done [ItemID]`
+### 3. Duration Tracking
+Calculate actual duration vs estimated:
+- **Start Date:** When issue was created/started
+- **Target Date:** The original estimate
+- **Completion Date:** Today
 
-### 5. Report
-State that the issue is closed and logged as complete.
+Report variance:
+- ⏱️ **Early:** Completed X days ahead of target
+- ✅ **On-time:** Completed on target date
+- ⚠️ **Late:** Completed X days after target
+
+### 4. Execution
+**PowerShell:**
+```powershell
+.\scripts\smart-ops.ps1 close [number] "Completed in X days (estimated: Y days)"
+```
+
+**Bash:**
+```bash
+./scripts/smart-ops.sh close [number] "Completed in X days (estimated: Y days)"
+```
+
+### 5. Project Board Cleanup (If applicable)
+If using GitHub Projects, also move the item to Done:
+**PowerShell:**
+```powershell
+.\scripts\smart-ops.ps1 done [item_id]
+```
+
+**Bash:**
+```bash
+./scripts/smart-ops.sh done [item_id]
+```
+
+### 6. Confirmation
+Tell the user:
+- ✅ Issue #XX closed
+- 📅 Started: YYYY-MM-DD
+- 🏁 Completed: YYYY-MM-DD
+- ⏱️ Duration: X days (Target was Y days)

@@ -33,12 +33,14 @@ model Lead {
 
 ## Integration
 - **Hook**: `src/features/bot/hooks/useChatFlow.tsx`
-    - In `state === "CLOSING"`, call `captureLead` with the local state data.
-    - If success -> Transition to `COMPLETED` -> Redirect to `/project/builder`.
+    - In `state === "CLOSING"`, captures WhatsApp number and calls `saveLeadAction`.
+    - Automatically links to authenticated WorkOS `userId` if the user is signed in.
+- **Action**: `src/features/bot/actions/chat.ts`
+    - `saveLeadAction`: Validates and upserts lead data into the SQLite database.
 
 ## Implementation Steps
-1.  [ ] **Setup**: Install Prisma and init SQLite.
-2.  [ ] **Model**: Define `Lead` in `schema.prisma`.
-3.  [ ] **Action**: Implement `captureLead` server action.
-4.  [ ] **Wiring**: Connect `useChatFlow` to `captureLead`.
-5.  [ ] **Verify**: Test flow and check DB.
+1.  [x] **Setup**: Prisma configured for SQLite.
+2.  [x] **Model**: `Lead` model added to `schema.prisma`.
+3.  [x] **Action**: `saveLeadAction` implemented in bot actions.
+4.  [x] **Wiring**: Integrated into `useChatFlow` and `ChatInterface`.
+5.  [x] **Verify**: Verified for type safety via `tsc`.

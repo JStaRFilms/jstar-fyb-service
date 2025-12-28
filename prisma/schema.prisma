@@ -14,13 +14,15 @@ model Lead {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   
-  whatsapp  String   @unique
-  department String
-  topic     String   // The original idea
-  twist     String   // The AI generated twist
-  complexity Int
+  whatsapp    String   @unique
+  department  String
+  topic       String   // The original idea
+  twist       String   // The AI generated twist
+  complexity  Int
   
-  status    String   @default("NEW") // NEW, CONTACTED, SOLD
+  status      String   @default("NEW") // NEW, CONTACTED, SOLD
+  userId      String?  // WorkOS User ID
+  anonymousId String?  // Local Storage ID
 }
 
 model Conversation {

@@ -16,12 +16,10 @@ import { mergeAnonymousConversations } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
-    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow();
+    const { user } = useAuth();
+    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    // Auth & Persistence
-    const { user } = useAuth();
 
     useEffect(() => {
         const anonymousId = localStorage.getItem("jstar_anonymous_id");

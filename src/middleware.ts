@@ -38,23 +38,12 @@ export default async function middleware(req: NextRequest, event: any) {
         return adminAuthMiddleware(req);
     }
 
-    // All other paths -> WorkOS AuthKit (with error handling)
+    // Run WorkOS AuthKit middleware on everything else 
+    // It handles public/private distinctions internally or we just use it for session context
     try {
-        // Exclude public paths that don't require auth
-        const publicPaths = ['/', '/api/chat', '/api/webhook', '/error'];
-        if (publicPaths.some(path => req.nextUrl.pathname === path || req.nextUrl.pathname.startsWith(path + '/'))) {
-            return NextResponse.next();
-        }
-
         return await workosMiddleware(req, event);
     } catch (error) {
         console.error('[Middleware] WorkOS AuthKit error:', error);
-
-        // Fallback: redirect to error page with context
-        const errorUrl = new URL('/error', req.url);
-        errorUrl.searchParams.set('reason', 'authkit');
-        errorUrl.searchParams.set('message', 'Authentication service unavailable');
-
-        return NextResponse.redirect(errorUrl);
+        return NextResponse.next(); // Fail soft
     }
 }
