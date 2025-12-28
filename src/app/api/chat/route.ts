@@ -2,6 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { convertToModelMessages, streamText, tool, UIMessage, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { saveConversation } from '@/features/bot/actions/chat';
+import { SYSTEM_PROMPT } from '@/features/bot/prompts/system';
 
 // Validate environment variables
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -62,13 +63,12 @@ export async function POST(req: Request) {
         const body = await req.json();
         const validation = chatSchema.safeParse(body);
 
-        /* Temporarily bypass to debug 400
+        // Debug validation failures
         if (!validation.success) {
             console.error('[Chat API] Validation failed:', JSON.stringify(validation.error.format(), null, 2));
             console.error('[Chat API] Request Body:', JSON.stringify(body, null, 2));
-            return new Response(JSON.stringify({ error: 'Invalid input', details: validation.error }), { status: 400 });
+            // We continue anyway to not break the UI, but saving will fail later.
         }
-        */
 
         const { messages, conversationId, anonymousId } = body;
 
@@ -77,57 +77,31 @@ export async function POST(req: Request) {
 
         const result = await streamTextWithRetry({
             // FIX 1: Use Llama 3.3 70B (Best for Tool Calling on Groq)
-            model: groq('moonshotai/kimi-k2-instruct-0905'),
+            model: groq('moonshotai/kimi-k2-instruct'),
 
             // FIX 2: Enable multi-step (Crucial for tools to execute properly)
             stopWhen: stepCountIs(5),
 
-            system: `You are **Jay**, the Lead Project Architect at **J Star Projects**.
-
-## CRITICAL - TOOL TRIGGER (READ FIRST):
-- **IF user accepts a topic** (e.g., "I accept", "let's go", "sounds good", "I like it", "yes", "proceed"):
-  1. DO NOT just say "Great". 
-  2. **IMMEDIATELY call the \`confirmTopic\` tool**.
-  3. Extract the confirmed Title and the Twist from the conversation context.
-
-## YOUR VIBE:
-- You are a "Senior Dev" talking to a junior/final year student.
-- **Tone:** Confident, knowledgeable, slightly street-smart ("Tech Bro" energy). Use occasional Nigerian tech slang (e.g., "Omo," "No wahala," "Standard stuff," "Ship it").
-- **Style:** Short. Punchy. Markdown heavy. Never write long essays.
-
-## YOUR MISSION:
-1. **Critique & Upgrade:** If their idea is boring (e.g., "Library Management System"), highlight the competition and suggest a "J Star Twist" (e.g., "Add RFID Tracking + SMS Alerts"). Be a partner in their success.
-2. **Check Feasibility:** Use the \`setComplexity\` tool to show them the technical depth required.
-3. **SELL THE SERVICE:** Your goal is to get them to buy a J Star Dev Package by proving your expertise.
-
-## J STAR PRICING (Reference Only - Quote when asked):
-- **Basic (₦120k):** Code + Database + Setup. (Good for simple apps).
-- **Standard (₦200k):** The "Sweet Spot". Includes Chapter 3 & 4 Writeup + Mock Defense. (Push this one).
-- **Premium (₦320k):** Full Documentation (Ch 1-5) + Slides + Priority Support. (The "Soft Life" package).
-
-## SALES STRATEGY:
-- **Phase 1 (The Hook):** Get them excited about a complex topic.
-- **Phase 2 (The Reality Check):** "This topic is a guaranteed 'A', but the code logic is complex. You don't want to fail the defense."
-- **Phase 3 (The Close):** "Honestly, for this kind of system, you need our **Standard Tier**. We handle the Chapter 3 & 4 technical writing so you can just focus on presenting."
-
-## RULES:
-- **NEVER** write the full code for them in the chat. You are a consultant, not a free code generator.
-- **ALWAYS** use the \`setComplexity\` tool early in the conversation to visually show difficulty.
-- **ALWAYS** use \`suggestTopics\` if they seem confused about what to build.
-- **HANDLE HESITATION:** If they ask why you need their WhatsApp number, explain that it's for John (the Lead dev) to send them a detailed quote and technical breakdown. It's the "fast track" to ship.
-- **CONTEXT MATTERS:** You have a long memory. Use previous mentions of their goals to personalize your advice.
-- If they agree to proceed or ask for payment, tell them to click the "Get Started" button or ask for their WhatsApp number so the Lead Dev (John) can DM them.`,
+            system: SYSTEM_PROMPT,
             messages: modelMessages,
             tools: {
                 suggestTopics: tool({
-                    description: 'Suggest 3 unique project topics with "J Star Twists". Use this when helping them pick a topic.',
+                    description: `MANDATORY tool for suggesting project topics. You MUST call this tool when presenting topic options.
+TRIGGER: After learning the user's department/course.
+SYNTAX: suggestTopics({ topics: [{ title: "...", twist: "...", difficulty: "Safe Bet" | "Insane Mode" }] })
+POSITIVE: User says "I study Computer Science" → Call suggestTopics with 2 options.
+NEGATIVE: Never write topics as plain text. If you want to suggest topics, you MUST use this tool.`,
                     inputSchema: z.object({
                         topics: z.array(z.object({
                             title: z.string(),
-                            twist: z.string().describe('The feature that makes it special (e.g. AI, Biometrics)'),
-                            difficulty: z.enum(['Medium', 'Hard', 'Insane']),
+                            twist: z.string().describe('The feature that makes it special'),
+                            difficulty: z.enum(['Safe Bet', 'Insane Mode']),
                         })),
                     }),
+                    execute: async ({ topics }) => {
+                        console.log('[TOOL CALL] suggestTopics:', JSON.stringify(topics, null, 2));
+                        return { topics, suggested: true };
+                    },
                 }),
                 setComplexity: tool({
                     description: 'Updates the visual complexity meter (1-5). Use this IMMEDIATELY after they propose a topic to show them how hard it is.',
@@ -136,14 +110,15 @@ export async function POST(req: Request) {
                         reason: z.string().describe('Short punchy reason (e.g. "Requires complex API integration")'),
                     }),
                     execute: async ({ level, reason }) => {
+                        console.log('[TOOL CALL] setComplexity:', { level, reason });
                         return { level, reason, updated: true };
                     },
                 }),
-                // ADDED: A tool to check pricing if they ask explicitly
                 getPricing: tool({
-                    description: 'Get the current J Star pricing tiers. Use this if the user asks "How much?"',
+                    description: 'Get the current J Star pricing tiers.',
                     inputSchema: z.object({}),
                     execute: async () => {
+                        console.log('[TOOL CALL] getPricing: Fetching pricing tiers');
                         return {
                             basic: "₦120,000",
                             standard: "₦200,000",
@@ -151,28 +126,72 @@ export async function POST(req: Request) {
                         };
                     }
                 }),
-                // ADDED: Confirm topic for Chat → Builder handoff
+                measureConviction: tool({
+                    description: 'Internal tool to track user interest (0-100). Call this when user shows interest or hesitation.',
+                    inputSchema: z.object({
+                        score: z.number().min(0).max(100).describe('Estimated conviction score based on user sentiment'),
+                        reason: z.string().describe('Why you gave this score'),
+                    }),
+                    execute: async ({ score, reason }) => {
+                        console.log('[TOOL CALL] measureConviction:', { score, reason });
+                        return { score, reason, tracked: true };
+                    }
+                }),
+                requestContactInfo: tool({
+                    description: `MANDATORY tool to collect user's WhatsApp number.
+TRIGGER: When user agrees to a topic and seems ready to proceed.
+SYNTAX: requestContactInfo({ reason: "To send the architecture specs" })
+POSITIVE: User says "ok let's do this" → Call requestContactInfo.
+NEGATIVE: Never say "drop your WhatsApp" or "send me your number" in plain text. You MUST use this tool.`,
+                    inputSchema: z.object({
+                        reason: z.string().describe('Context for asking (e.g. "To send architecture")'),
+                    }),
+                    execute: async ({ reason }) => {
+                        console.log('[TOOL CALL] requestContactInfo:', { reason });
+                        return { reason, requesting: true };
+                    }
+                }),
                 confirmTopic: tool({
-                    description: 'CRITICAL: Call this IMMEDIATELY when user accepts a topic. Trigger words: "I accept", "yes", "let\'s go", "sounds good", "proceed", "that works". Extract the topic title and unique twist/feature, then call this tool. This redirects user to the Project Builder.',
+                    description: `MANDATORY tool to finalize the topic after getting WhatsApp.
+TRIGGER: After user provides their phone number (e.g. "08012345678").
+SYNTAX: confirmTopic({ topic: "Project Title", twist: "The unique angle" })
+POSITIVE: User shares phone → Call confirmTopic with the agreed topic.
+NEGATIVE: Never end conversation or say "we're done" without calling this tool.`,
                     inputSchema: z.object({
                         topic: z.string().describe('The confirmed project topic title'),
-                        twist: z.string().describe('The unique angle, feature, or innovation that makes it special'),
+                        twist: z.string().describe('The unique angle/twist'),
                     }),
                     execute: async ({ topic, twist }) => {
+                        console.log('[TOOL CALL] confirmTopic:', { topic, twist });
                         return { topic, twist, confirmed: true };
                     }
                 })
             },
             onFinish: async ({ text, toolCalls }) => {
+                // Debug: Log what we received from the client
+                console.log('[Chat API] onFinish - conversationId:', conversationId, 'anonymousId:', anonymousId);
+
+                // Early exit if we don't have a valid identifier
+                const hasValidId = (anonymousId && anonymousId.trim() !== "") || conversationId;
+                if (!hasValidId) {
+                    console.warn('[Chat API] Skipping save: No valid anonymousId or conversationId');
+                    return;
+                }
+
                 if (text) {
-                    await saveConversation({
-                        conversationId,
-                        anonymousId,
-                        messages: [
-                            ...modelMessages,
-                            { role: 'assistant', content: text }
-                        ]
-                    });
+                    try {
+                        await saveConversation({
+                            conversationId,
+                            anonymousId,
+                            messages: [
+                                ...modelMessages,
+                                { role: 'assistant', content: text }
+                            ]
+                        });
+                    } catch (saveError) {
+                        // Don't let save errors break the stream
+                        console.error('[Chat API] Save failed:', saveError);
+                    }
                 }
             },
         });

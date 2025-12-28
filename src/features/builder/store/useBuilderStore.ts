@@ -70,7 +70,6 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
                     data: { ...get().data, topic, twist: twist || '' },
                     isFromChat: true
                 });
-                console.log('[Builder] Hydrated from chat:', { topic, twist });
                 return true;
             }
             return false;
@@ -89,6 +88,5 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
             isFromChat: false,
             step: 'TOPIC'
         });
-        console.log('[Builder] Chat data cleared');
     }
 }));

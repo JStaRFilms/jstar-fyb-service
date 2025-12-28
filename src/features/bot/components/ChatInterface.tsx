@@ -17,7 +17,7 @@ import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
     const { user } = useAuth();
-    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, proceedToBuilder } = useChatFlow(user?.id);
+    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -127,17 +127,85 @@ export function ChatInterface() {
                                     timestamp={msg.timestamp}
                                 />
                                 {/* Render Tool Invocations (Proposals) */}
-                                {msg.role === 'ai' && msg.toolInvocations?.map((tool: any) => {
-                                    if (tool.toolName === 'suggestTopics' && tool.state === 'result') {
+                                {msg.role === 'ai' && msg.toolInvocations?.map((tool: any, idx: number) => {
+                                    // Vercel AI SDK structure:
+                                    // - type: "tool-suggestTopics" (name embedded)
+                                    // - state: "output-available" 
+                                    // - data in input/output
+
+                                    if (tool.type === 'tool-suggestTopics' && tool.state === 'output-available') {
+                                        const topics = tool.output?.topics || tool.input?.topics;
                                         return (
-                                            <div key={tool.toolCallId} className="ml-0 md:ml-14 animate-in fade-in slide-in-from-bottom-2">
+                                            <div key={tool.toolCallId || `tool-${idx}`} className="ml-0 md:ml-14 animate-in fade-in slide-in-from-bottom-2">
                                                 <ProposalCard
-                                                    topics={tool.result.topics}
-                                                    onAccept={(topic) => handleAction("accept")}
+                                                    topics={topics}
+                                                    onAccept={(topic) => handleSelectTopic(topic)}
                                                 />
                                             </div>
                                         );
                                     }
+
+                                    // Handle requestContactInfo - Show WhatsApp request card
+                                    if (tool.type === 'tool-requestContactInfo' && tool.state === 'output-available') {
+                                        const reason = tool.output?.reason || tool.input?.reason || 'To proceed with your project';
+                                        return (
+                                            <motion.div
+                                                key={tool.toolCallId || `tool-contact-${idx}`}
+                                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                transition={{ duration: 0.4, ease: 'easeOut' }}
+                                                className="ml-0 md:ml-14 max-w-md"
+                                            >
+                                                <div className="bg-gradient-to-br from-primary/20 to-accent/10 border border-primary/30 rounded-2xl p-5 shadow-lg shadow-primary/5">
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                                                                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.468a.75.75 0 00.942.942l4.434-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.137 0-4.146-.569-5.879-1.56l-.41-.252-4.26 1.437 1.437-4.26-.252-.41A9.935 9.935 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-display font-bold text-white">Ready to lock it in! 🔐</h3>
+                                                            <p className="text-xs text-gray-400">{reason}</p>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm text-gray-300 mb-3">
+                                                        Drop your WhatsApp number below and I'll send you the full breakdown. 👇
+                                                    </p>
+                                                    <form
+                                                        onSubmit={(e) => {
+                                                            e.preventDefault();
+                                                            const form = e.target as HTMLFormElement;
+                                                            const input = form.elements.namedItem('whatsapp') as HTMLInputElement;
+                                                            if (input.value.trim()) {
+                                                                handleUserMessage(input.value.trim());
+                                                                input.value = '';
+                                                            }
+                                                        }}
+                                                        className="flex gap-2"
+                                                    >
+                                                        <div className="flex-1 relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary">📲</span>
+                                                            <input
+                                                                type="tel"
+                                                                name="whatsapp"
+                                                                placeholder="+234 812 345 6789"
+                                                                className="w-full bg-dark/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-primary/50 transition-all"
+                                                                autoComplete="tel"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            type="submit"
+                                                            className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg transition-all hover:scale-105 shadow-lg shadow-primary/20"
+                                                        >
+                                                            Send
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    }
+
                                     return null;
                                 })}
                             </div>
