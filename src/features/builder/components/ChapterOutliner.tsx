@@ -1,7 +1,7 @@
 'use client';
 
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock, ShieldCheck, Check, Loader2, RefreshCw } from "lucide-react";
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
@@ -13,7 +13,7 @@ import { ProjectActionCenter } from "./ProjectActionCenter";
 import { ModeSelection } from "./ModeSelection";
 import { ConciergeWaiting } from "./ConciergeWaiting";
 import { useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Static placeholder chapters shown before payment (no API calls wasted)
 const PLACEHOLDER_CHAPTERS = [
@@ -27,8 +27,34 @@ export function ChapterOutliner() {
     const hasSubmittedRef = useRef(false);
     const { data: session } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
-    // Handle unlock - persist to DB then update store
+    // Handle payment verification on return
+    useEffect(() => {
+        const reference = searchParams.get('reference');
+        if (reference && !isPaid && !isVerifyingPayment) {
+            setIsVerifyingPayment(true);
+            fetch('/api/pay/verify', {
+                method: 'POST',
+                body: JSON.stringify({ reference })
+            })
+                .then(res => res.json())
+                .then(resData => {
+                    if (resData.success) {
+                        unlockPaywall();
+                        // Clean URL
+                        window.history.replaceState({}, '', '/project/builder');
+                    } else {
+                        console.error('Payment verification failed', resData);
+                        alert(`Payment failed: ${resData.error || 'Unknown error'}`);
+                    }
+                })
+                .finally(() => setIsVerifyingPayment(false));
+        }
+    }, [searchParams, isPaid]);
+
+    // Handle unlock - Initialize Paystack
     const handleUnlock = async () => {
         if (!data.projectId) {
             console.error('[ChapterOutliner] No projectId for unlock');
@@ -37,17 +63,30 @@ export function ChapterOutliner() {
 
         // Enforce Auth BEFORE Payment/Unlock
         if (!session) {
-            // Redirect to register, passing current URL as callback (or generic builder URL)
-            // We use the store to persist state, so simple redirect is fine
+            // Persist state via store (handled by persist middleware), just redirect
             router.push('/auth/register?callbackUrl=/project/builder');
             return;
         }
 
         try {
-            await fetch(`/api/projects/${data.projectId}/unlock`, { method: 'POST' });
-            unlockPaywall();
+            // Call API to initialize transaction
+            const res = await fetch('/api/pay/initialize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: data.projectId })
+            });
+
+            const result = await res.json();
+
+            if (result.url) {
+                // Redirect user to Paystack
+                window.location.href = result.url;
+            } else {
+                alert(result.error || "Failed to initialize payment. Please try again.");
+            }
         } catch (error) {
-            console.error('[ChapterOutliner] Failed to unlock:', error);
+            console.error('[ChapterOutliner] Failed to init payment:', error);
+            alert("Connection error. Please try again.");
         }
     };
 
@@ -84,8 +123,6 @@ export function ChapterOutliner() {
     useEffect(() => {
         const claimProject = async () => {
             if (session?.user && data.projectId) {
-                // We optimistically try to claim ownership of this project
-                // This covers the case where they just created it anonymously
                 try {
                     const res = await fetch(`/api/projects/${data.projectId}/claim`, {
                         method: 'POST'
@@ -94,7 +131,6 @@ export function ChapterOutliner() {
                         console.log('[ChapterOutliner] Project claimed successfully');
                     }
                 } catch (e) {
-                    // Silently fail if already claimed or not allowed
                     console.warn('[ChapterOutliner] Failed to claim project', e);
                 }
             }
@@ -131,6 +167,17 @@ export function ChapterOutliner() {
                     <RefreshCw className="w-4 h-4" />
                     Retry Generation
                 </button>
+            </div>
+        );
+    }
+
+    // Verify Loading State
+    if (isVerifyingPayment) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 text-center">
+                <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-2">Verifying Payment...</h2>
+                <p className="text-gray-400">Please wait while we confirm your transaction.</p>
             </div>
         );
     }
