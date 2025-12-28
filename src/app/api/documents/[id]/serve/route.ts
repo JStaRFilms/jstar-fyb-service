@@ -25,7 +25,7 @@ export async function GET(
         headers.set("Content-Type", doc.mimeType || "application/octet-stream");
         headers.set("Content-Disposition", `inline; filename="${doc.fileName}"`);
 
-        return new NextResponse(doc.fileData, {
+        return new NextResponse(Buffer.from(doc.fileData), {
             status: 200,
             headers,
         });
