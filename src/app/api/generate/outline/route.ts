@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     const { topic, abstract } = validation.data;
 
     const result = streamObject({
-        model: groq('llama3-70b-8192'), // Valid Groq model
+        model: groq('openai/gpt-oss-120b'), // Valid Groq model
         schema: outlineSchema,
         system: `You are an expert academic curriculum designer.
     Create a 5-chapter distinction-grade project outline based on the verified abstract.

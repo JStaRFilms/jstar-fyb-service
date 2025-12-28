@@ -35,6 +35,7 @@ model Conversation {
   title       String? // Auto-generated summary
 }
 
+
 model Message {
   id             String       @id @default(cuid())
   conversationId String
@@ -42,4 +43,62 @@ model Message {
   role           String       // 'user' | 'assistant'
   content        String
   createdAt      DateTime     @default(now())
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String?
+  anonymousId String?
+
+  topic       String
+  twist       String?
+  abstract    String?
+
+  // Status flags
+  isUnlocked       Boolean @default(false) // Has paid for full project
+  outlineGenerated Boolean @default(false)
+
+  // Relations
+  documents   ResearchDocument[]
+  outline     ChapterOutline?
+}
+
+model ResearchDocument {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // File Info
+  fileUrl     String
+  fileName    String
+  fileType    String // e.g. "pdf"
+
+  // Extraction Status
+  status      String   @default("PENDING") // PENDING, PROCESSED, FAILED
+
+  // Extracted Metadata (for "Human-in-the-Loop" / NotebookLM)
+  title        String?
+  author       String?
+  year         String?
+  objective    String?
+  motivation   String?
+  methodology  String?
+  contribution String?
+  limitations  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChapterOutline {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  content   String   // JSON or Markdown of the outline
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
