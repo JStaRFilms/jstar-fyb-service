@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getCurrentUser } from "@/lib/auth-server";
 
 export async function GET(
     req: Request,
@@ -15,7 +15,7 @@ export async function GET(
         }
 
         // Get auth context (optional - documents may be accessed anonymously via project)
-        const { user } = await withAuth();
+        const user = await getCurrentUser();
 
         // Fetch document with project ownership check
         const doc = await prisma.researchDocument.findUnique({

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getCurrentUser } from "@/lib/auth-server";
 import { Prisma } from "@prisma/client";
 
 export async function POST(
@@ -9,7 +9,7 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const { user } = await withAuth();
+        const user = await getCurrentUser();
 
         // First check if project exists and user owns it
         const existing = await prisma.project.findUnique({

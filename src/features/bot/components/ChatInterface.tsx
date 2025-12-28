@@ -11,12 +11,13 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useSession } from "@/lib/auth-client";
 import { mergeAnonymousConversations } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
-    const { user } = useAuth();
+    const { data: session } = useSession();
+    const user = session?.user;
     const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -80,7 +81,7 @@ export function ChatInterface() {
                     {user ? (
                         <div className="flex items-center gap-3 pl-3 border-l border-white/10">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold ring-2 ring-white/10">
-                                {user.firstName?.charAt(0) || "U"}
+                                {user.name?.charAt(0) || "U"}
                             </div>
                             <button
                                 onClick={() => signOutAction()}

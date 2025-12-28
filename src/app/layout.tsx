@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Outfit, Space_Grotesk } from "next/font/google";
-import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -28,9 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${outfit.variable} ${spaceGrotesk.variable} font-sans antialiased bg-dark`}>
-        <AuthKitProvider>
-          {children}
-        </AuthKitProvider>
+        {children}
       </body>
     </html>
   );

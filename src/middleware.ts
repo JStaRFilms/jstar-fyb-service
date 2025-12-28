@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 
 export const config = {
     matcher: [
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        // Match all paths except static files
+        '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
     ],
 };
 
@@ -28,22 +28,13 @@ const adminAuthMiddleware = (req: NextRequest) => {
     });
 };
 
-const workosMiddleware = authkitMiddleware({
-    redirectUri: process.env.WORKOS_REDIRECT_URI || 'http://localhost:3000/callback'
-});
-
-export default async function middleware(req: NextRequest, event: any) {
+export default async function middleware(req: NextRequest) {
     // Admin Path -> Basic Auth
     if (req.nextUrl.pathname.startsWith('/admin')) {
         return adminAuthMiddleware(req);
     }
 
-    // Run WorkOS AuthKit middleware on everything else 
-    // It handles public/private distinctions internally or we just use it for session context
-    try {
-        return await workosMiddleware(req, event);
-    } catch (error) {
-        console.error('[Middleware] WorkOS AuthKit error:', error);
-        return NextResponse.next(); // Fail soft
-    }
+    // All other routes are public by default
+    // Better Auth handles its own session management via cookies
+    return NextResponse.next();
 }

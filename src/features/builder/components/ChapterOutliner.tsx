@@ -12,6 +12,8 @@ import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
 import { ProjectActionCenter } from "./ProjectActionCenter";
 import { ModeSelection } from "./ModeSelection";
 import { ConciergeWaiting } from "./ConciergeWaiting";
+import { useSession } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 // Static placeholder chapters shown before payment (no API calls wasted)
 const PLACEHOLDER_CHAPTERS = [
@@ -23,11 +25,21 @@ const PLACEHOLDER_CHAPTERS = [
 export function ChapterOutliner() {
     const { data, isPaid, unlockPaywall, updateData, setMode } = useBuilderStore();
     const hasSubmittedRef = useRef(false);
+    const { data: session } = useSession();
+    const router = useRouter();
 
     // Handle unlock - persist to DB then update store
     const handleUnlock = async () => {
         if (!data.projectId) {
             console.error('[ChapterOutliner] No projectId for unlock');
+            return;
+        }
+
+        // Enforce Auth BEFORE Payment/Unlock
+        if (!session) {
+            // Redirect to register, passing current URL as callback (or generic builder URL)
+            // We use the store to persist state, so simple redirect is fine
+            router.push('/auth/register?callbackUrl=/project/builder');
             return;
         }
 
@@ -66,6 +78,31 @@ export function ChapterOutliner() {
             submit({ topic: data.topic, abstract: data.abstract });
         }
     }, [data.abstract, data.topic, data.outline?.length, submit, isLoading]);
+
+    // PROJECT CLAIMING LOGIC (Lazy Auth)
+    // If user is logged in, but project might be anonymous, try to claim it
+    useEffect(() => {
+        const claimProject = async () => {
+            if (session?.user && data.projectId) {
+                // We optimistically try to claim ownership of this project
+                // This covers the case where they just created it anonymously
+                try {
+                    const res = await fetch(`/api/projects/${data.projectId}/claim`, {
+                        method: 'POST'
+                    });
+                    if (res.ok) {
+                        console.log('[ChapterOutliner] Project claimed successfully');
+                    }
+                } catch (e) {
+                    // Silently fail if already claimed or not allowed
+                    console.warn('[ChapterOutliner] Failed to claim project', e);
+                }
+            }
+        };
+        claimProject();
+    }, [session?.user, data.projectId]);
+
+
     // Truncate abstract for preview
     const abstractPreview = data.abstract
         ? data.abstract.slice(0, 180) + '...'

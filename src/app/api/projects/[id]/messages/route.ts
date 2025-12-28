@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { getCurrentUser } from "@/lib/auth-server";
 import { z } from "zod";
 
 const createMessageSchema = z.object({
@@ -28,7 +28,7 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const { user } = await withAuth();
+        const user = await getCurrentUser();
 
         // Authorization check
         const { exists, authorized } = await verifyProjectOwnership(id, user?.id);
@@ -67,7 +67,7 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const { user } = await withAuth();
+        const user = await getCurrentUser();
 
         // Authorization check
         const { exists, authorized } = await verifyProjectOwnership(id, user?.id);
