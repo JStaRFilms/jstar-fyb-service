@@ -25,7 +25,6 @@ export function ChapterOutliner() {
         onFinish: ({ object }) => {
             if (object?.chapters) {
                 updateData({ outline: object.chapters });
-                console.log('[ChapterOutliner] Outline saved to store:', object.chapters);
             }
         },
         onError: (err) => {
@@ -37,7 +36,6 @@ export function ChapterOutliner() {
     useEffect(() => {
         if (isPaid && data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length) {
             hasSubmittedRef.current = true;
-            console.log('[ChapterOutliner] Payment confirmed, generating real outline...');
             submit({ topic: data.topic, abstract: data.abstract });
         }
     }, [isPaid, data.abstract, data.topic, data.outline?.length, submit]);
