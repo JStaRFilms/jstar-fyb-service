@@ -7,6 +7,11 @@ import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
 import ReactMarkdown from 'react-markdown';
 import { SkeletonChapter } from "@/components/ui/Skeleton";
+import { DocumentUpload } from "./DocumentUpload";
+import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
+import { ProjectActionCenter } from "./ProjectActionCenter";
+import { ModeSelection } from "./ModeSelection";
+import { ConciergeWaiting } from "./ConciergeWaiting";
 
 // Static placeholder chapters shown before payment (no API calls wasted)
 const PLACEHOLDER_CHAPTERS = [
@@ -16,8 +21,23 @@ const PLACEHOLDER_CHAPTERS = [
 ];
 
 export function ChapterOutliner() {
-    const { data, isPaid, unlockPaywall, updateData } = useBuilderStore();
+    const { data, isPaid, unlockPaywall, updateData, setMode } = useBuilderStore();
     const hasSubmittedRef = useRef(false);
+
+    // Handle unlock - persist to DB then update store
+    const handleUnlock = async () => {
+        if (!data.projectId) {
+            console.error('[ChapterOutliner] No projectId for unlock');
+            return;
+        }
+
+        try {
+            await fetch(`/api/projects/${data.projectId}/unlock`, { method: 'POST' });
+            unlockPaywall();
+        } catch (error) {
+            console.error('[ChapterOutliner] Failed to unlock:', error);
+        }
+    };
 
     const { object, submit, isLoading, error } = useObject({
         api: '/api/generate/outline',
@@ -32,22 +52,20 @@ export function ChapterOutliner() {
         }
     });
 
-    // ONLY trigger generation AFTER payment (save API calls!)
-    useEffect(() => {
-        if (isPaid && data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length) {
-            hasSubmittedRef.current = true;
-            submit({ topic: data.topic, abstract: data.abstract });
-        }
-    }, [isPaid, data.abstract, data.topic, data.outline?.length, submit]);
-
-    // Use streamed chapters after payment, otherwise placeholders
-    // Show placeholders until real content starts streaming in
+    // Use streamed chapters immediately
     const streamedChapters = object?.chapters || [];
-    const displayChapters = isPaid
-        ? (streamedChapters.length > 0 ? streamedChapters : data.outline || [])
-        : PLACEHOLDER_CHAPTERS;
+    // If we have streamed chapters, use them. Else if we have stored outline, use that.
+    const displayChapters = streamedChapters.length > 0 ? streamedChapters : (data.outline || []);
     const displayTitle = object?.title || data.topic || "Project Title";
 
+    // Trigger generation automatically if we have topic/abstract but no outline yet
+    useEffect(() => {
+        if (data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length && !isLoading) {
+            hasSubmittedRef.current = true;
+            console.log('[ChapterOutliner] Generating free outline...');
+            submit({ topic: data.topic, abstract: data.abstract });
+        }
+    }, [data.abstract, data.topic, data.outline?.length, submit, isLoading]);
     // Truncate abstract for preview
     const abstractPreview = data.abstract
         ? data.abstract.slice(0, 180) + '...'
@@ -120,14 +138,13 @@ export function ChapterOutliner() {
                 {/* Content Panel - glass-panel */}
                 <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-b-2xl border-t-0 relative overflow-hidden min-h-[280px]">
 
-                    {/* Show static placeholders when locked, streaming content after payment */}
-                    <div className={`space-y-6 ${!isPaid ? 'blur-[8px] select-none pointer-events-none opacity-50' : ''}`}>
+                    {/* Show streamed content immediately */}
+                    <div className="space-y-6">
                         {displayChapters.length > 0 ? (
                             displayChapters.map((chapter, i) => (
                                 <div
                                     key={i}
                                     className={`animate-wipe-reveal animate-wipe-delay-${i + 1}`}
-                                    style={{ opacity: 0 }} // Start hidden, animation reveals
                                 >
                                     <h3 className="font-bold text-lg mb-2">
                                         Chapter {i + 1}: {chapter?.title || 'Loading...'}
@@ -142,29 +159,45 @@ export function ChapterOutliner() {
                             [...Array(3)].map((_, i) => (
                                 <SkeletonChapter key={i} />
                             ))
-                        ) : null}
+                        ) : (
+                            <div className="text-gray-500 text-center py-10">
+                                Waiting for content...
+                            </div>
+                        )}
                     </div>
-
-                    {/* Paywall Overlay - positioned near top */}
-                    {!isPaid && (
-                        <div className="absolute inset-0 bg-gradient-to-b from-dark/90 via-dark/70 to-dark/50 flex flex-col items-center justify-start pt-8 z-10 px-6 text-center">
-                            <Lock className="w-12 h-12 text-primary mb-4" />
-                            <h3 className="text-2xl font-display font-bold mb-2">Unlock Full Project</h3>
-                            <p className="text-gray-400 text-sm mb-6 max-w-sm">Get the complete 5-chapter source code, documentation, and implementation guide.</p>
-
-                            <button
-                                onClick={unlockPaywall}
-                                className="w-full max-w-xs py-4 bg-primary rounded-xl font-display font-bold uppercase tracking-wide shadow-[0_0_30px_rgba(139,92,246,0.4)] animate-pulse hover:scale-105 transition-transform"
-                            >
-                                Pay ₦15,000 to Unlock
-                            </button>
-                            <p className="mt-4 text-xs text-gray-500 flex items-center gap-2">
-                                <ShieldCheck className="w-3 h-3" /> Secured by Paystack
-                            </p>
-                        </div>
-                    )}
                 </div>
 
+                {/* Pricing Overlay - Show if not paid */}
+                {!isPaid ? (
+                    <div className="mt-8">
+                        <PricingOverlay onUnlock={handleUnlock} />
+                    </div>
+                ) : data.mode === null ? (
+                    // Mode not selected yet - show selection
+                    <div className="mt-16">
+                        <ModeSelection
+                            projectId={data.projectId!}
+                            onModeSelected={(mode) => setMode(mode)}
+                        />
+                    </div>
+                ) : data.mode === "CONCIERGE" ? (
+                    // Concierge mode - show waiting view
+                    <div className="mt-16">
+                        <ConciergeWaiting projectId={data.projectId!} status={data.status} />
+                    </div>
+                ) : (
+                    // DIY mode - show action center + document upload
+                    <>
+                        <div className="mt-16">
+                            <ProjectActionCenter />
+                        </div>
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <DocumentUpload projectId={data.projectId} />
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
         </>
     );

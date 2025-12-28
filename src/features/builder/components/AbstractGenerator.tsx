@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCompletion } from '@ai-sdk/react';
 import ReactMarkdown from 'react-markdown';
 import { SkeletonText } from "@/components/ui/Skeleton";
+import { createProjectAction } from "@/features/builder/actions/createProject";
 
 export function AbstractGenerator() {
     const { data, updateData, setStep } = useBuilderStore();
@@ -47,9 +48,23 @@ export function AbstractGenerator() {
         setRefineInput("");
     };
 
-    const handleApprove = () => {
-        updateData({ abstract: completion });
-        setStep('OUTLINE');
+    const handleApprove = async () => {
+        setIsPreviewMode(true);
+
+        // Save to DB
+        const res = await createProjectAction({
+            topic: data.topic,
+            twist: data.twist,
+            abstract: completion
+        });
+
+        if (res.success && res.projectId) {
+            updateData({ abstract: completion, projectId: res.projectId });
+            setStep('OUTLINE');
+        } else {
+            alert("Failed to create project. Please try again.");
+            setIsPreviewMode(false);
+        }
     };
 
     return (

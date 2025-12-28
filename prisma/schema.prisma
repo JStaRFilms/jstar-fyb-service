@@ -57,13 +57,19 @@ model Project {
   twist       String?
   abstract    String?
 
-  // Status flags
+  // Workflow fields
+  mode             String  @default("DIY") // DIY, CONCIERGE
+  status           String  @default("OUTLINE_GENERATED") // OUTLINE_GENERATED, RESEARCH_IN_PROGRESS, RESEARCH_COMPLETE, WRITING_IN_PROGRESS, PROJECT_COMPLETE
+  assignedTo       String? // Admin user ID (for Concierge mode)
+  
+  // Legacy status flags (kept for backwards compat)
   isUnlocked       Boolean @default(false) // Has paid for full project
   outlineGenerated Boolean @default(false)
 
   // Relations
   documents   ResearchDocument[]
   outline     ChapterOutline?
+  messages    ProjectMessage[]
 }
 
 model ResearchDocument {
@@ -72,7 +78,9 @@ model ResearchDocument {
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // File Info
-  fileUrl     String
+  fileUrl     String?  // Optional: URL if linked externally
+  fileData    Bytes?   // Optional: Binary data if uploaded directly
+  mimeType    String?  // Required if fileData is present
   fileName    String
   fileType    String // e.g. "pdf"
 
@@ -101,4 +109,15 @@ model ChapterOutline {
   content   String   // JSON or Markdown of the outline
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ProjectMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  role      String   // "customer" | "admin"
+  content   String
+  
+  createdAt DateTime @default(now())
 }
