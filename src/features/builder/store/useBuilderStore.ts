@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type BuilderStep = 'TOPIC' | 'ABSTRACT' | 'OUTLINE' | 'PAYWALL';
 
 interface ProjectData {
+    projectId: string | null;
     topic: string;
     twist: string;
     abstract: string;
@@ -29,6 +30,7 @@ const CHAT_HANDOFF_KEY = 'jstar_confirmed_topic';
 export const useBuilderStore = create<BuilderState>((set, get) => ({
     step: 'TOPIC',
     data: {
+        projectId: null,
         topic: '',
         twist: '',
         abstract: '',
@@ -85,7 +87,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     clearChatData: () => {
         localStorage.removeItem(CHAT_HANDOFF_KEY);
         set({
-            data: { topic: '', twist: '', abstract: '', outline: [] },
+            data: { projectId: null, topic: '', twist: '', abstract: '', outline: [] },
             isFromChat: false,
             step: 'TOPIC'
         });
