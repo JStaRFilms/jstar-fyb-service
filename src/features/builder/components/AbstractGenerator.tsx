@@ -141,7 +141,7 @@ export function AbstractGenerator() {
                 </div>
 
                 {/* Content Area */}
-                <div className="p-4 md:p-8 bg-gradient-to-b from-transparent to-black/20 min-h-[200px] md:min-h-[350px]">
+                <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-b from-transparent to-black/20 min-h-[200px] md:min-h-[350px]">
                     {isLoading || isPreviewMode ? (
                         <div className="prose prose-invert prose-lg max-w-none font-serif leading-relaxed prose-headings:font-display prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white">
                             {completion ? (

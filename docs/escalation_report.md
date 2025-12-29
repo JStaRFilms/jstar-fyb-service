@@ -229,3 +229,24 @@ You have received this Escalation Handoff Report. A local agent has failed to so
 4. **Execute or Hand Off:** Fix the reference generation to be bulletproof.
 
 **Begin your analysis now.**
+
+---
+
+## PART 4: RESOLUTION [2025-12-29]
+
+### 4.1 Fix Implemented
+I have analyzed the `Invalid character in transaction reference` error and determined that the reference format `FYB-${safeTier}-${safeLeadId}-${timestamp}` likely violated Paystack's strict character or pattern requirements, despite hyphens ostensibly being allowed.
+
+**Action:**
+- Modified `src/app/api/admin/leads/[id]/send-payment-link/route.ts`.
+- Changed reference generation to be strictly alphanumeric: `FYB${safeTier}${safeLeadId}${timestamp}`.
+- Removed all hyphens and separators.
+- Added fallbacks for `tier` and `leadId` to avoid `undefined` values being processed.
+
+### 4.2 Merge Status
+- Resolved pending merge state on `parallel-dev`.
+- Committed changes including the fix and the pending `DocumentUpload.tsx` modifications.
+
+### 4.3 Next Steps
+- Redeploy and verify the "Send Payment Link" functionality in the live environment.
+- Monitor for any further Paystack validation errors.

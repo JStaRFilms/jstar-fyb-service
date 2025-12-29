@@ -47,9 +47,10 @@ export async function POST(
         // Sanitize characters: Only alphanumeric, dash, dot, =, _ allowed. 
         // We replace any other char with empty string, but IDs are usually safe.
         // Format: FYB-TIER-LEADIDSHORT-TIMESTAMP
-        const safeTier = tier.toUpperCase().replace(/[^A-Z0-9]/g, '');
-        const safeLeadId = leadId.slice(0, 8).replace(/[^a-zA-Z0-9]/g, '');
-        const reference = `FYB-${safeTier}-${safeLeadId}-${timestamp}`;
+        const safeTier = (tier || "UNKNOWN").toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const safeLeadId = (leadId || "UNKNOWN").slice(0, 8).replace(/[^a-zA-Z0-9]/g, '');
+        // Use strictly alphanumeric reference to prevent "Invalid character" errors
+        const reference = `FYB${safeTier}${safeLeadId}${timestamp}`;
 
         // 4. Initialize Paystack
         const paymentData = await PaystackService.initializePayment({
