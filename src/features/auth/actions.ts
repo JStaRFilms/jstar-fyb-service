@@ -1,22 +1,20 @@
 'use server';
 
-import { getSignInUrl, getSignUpUrl, signOut } from '@workos-inc/authkit-nextjs';
 import { redirect } from 'next/navigation';
 
+// Better Auth handles sign-in/sign-up via client-side authClient.signIn/signUp
+// These server actions are now just redirects to the auth pages
+
 export async function signInAction() {
-    const url = await getSignInUrl();
-    redirect(url);
+    redirect('/login');
 }
 
 export async function signUpAction() {
-    const url = await getSignUpUrl();
-    redirect(url);
+    redirect('/signup');
 }
 
 export async function signOutAction() {
-    await signOut();
-    // Redirect happens automatically or we can force it
-    // signOut() usually handles it or returns void? 
-    // In AuthKit Next.js, signOut simply clears session.
+    // Better Auth signOut is handled client-side via authClient.signOut()
+    // This server action just redirects after clearing session
     redirect('/');
 }

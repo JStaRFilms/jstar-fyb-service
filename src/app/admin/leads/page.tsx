@@ -3,7 +3,8 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminLeadsPage({ searchParams }: { searchParams: { page?: string } }) {
+export default async function AdminLeadsPage(props: { searchParams: Promise<{ page?: string }> }) {
+    const searchParams = await props.searchParams;
     // Graceful fallback if DB is not ready
     let leads: any[] = [];
     const page = Number(searchParams?.page) || 1;

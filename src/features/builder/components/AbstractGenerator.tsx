@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCompletion } from '@ai-sdk/react';
 import ReactMarkdown from 'react-markdown';
 import { SkeletonText } from "@/components/ui/Skeleton";
+import { createProjectAction } from "@/features/builder/actions/createProject";
 
 export function AbstractGenerator() {
     const { data, updateData, setStep } = useBuilderStore();
@@ -41,15 +42,50 @@ export function AbstractGenerator() {
         }
     }, []);
 
+    // Fetch stored abstract if we have a project ID and no abstract yet
+    useEffect(() => {
+        const fetchStoredAbstract = async () => {
+            if (data.projectId && !data.abstract && !isLoading) {
+                try {
+                    const response = await fetch(`/api/projects/${data.projectId}/abstract`);
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.abstract) {
+                            updateData({ abstract: result.abstract });
+                            setCompletion(result.abstract);
+                        }
+                    }
+                } catch (error) {
+                    console.error('[AbstractGenerator] Failed to fetch stored abstract:', error);
+                }
+            }
+        };
+        fetchStoredAbstract();
+    }, [data.projectId, data.abstract, isLoading]);
+
     const handleRefine = () => {
         if (!refineInput) return;
         complete("", { body: { topic: data.topic, twist: data.twist, instruction: refineInput } });
         setRefineInput("");
     };
 
-    const handleApprove = () => {
-        updateData({ abstract: completion });
-        setStep('OUTLINE');
+    const handleApprove = async () => {
+        setIsPreviewMode(true);
+
+        // Save to DB
+        const res = await createProjectAction({
+            topic: data.topic,
+            twist: data.twist,
+            abstract: completion
+        });
+
+        if (res.success && res.projectId) {
+            updateData({ abstract: completion, projectId: res.projectId });
+            setStep('OUTLINE');
+        } else {
+            alert("Failed to create project. Please try again.");
+            setIsPreviewMode(false);
+        }
     };
 
     return (

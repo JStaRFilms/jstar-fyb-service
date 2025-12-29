@@ -4,7 +4,7 @@ import { Check } from "lucide-react";
 interface Topic {
     title: string;
     twist: string;
-    difficulty: "Medium" | "Hard" | "Insane";
+    difficulty: "Safe Bet" | "Insane Mode";
 }
 
 interface ProposalCardProps {
@@ -15,14 +15,9 @@ interface ProposalCardProps {
 export function ProposalCard({ topics, onAccept }: ProposalCardProps) {
     if (!topics || topics.length === 0) return null;
 
-    // For now, let's assume single topic logic or show all 3?
-    // The previous flow showed one "Twist".
-    // The new tool returns 3. Let's show a carousel or list.
-    // User asked for "Suggestions pop up properly".
-
     return (
         <div className="flex flex-col gap-4 w-full max-w-xl">
-            <div className="text-sm text-gray-400 mb-2">I've analyzed your request. Here are 3 twisted angles:</div>
+            <div className="text-sm text-gray-400 mb-2">Here are 2 distinct paths for you:</div>
             {topics.map((topic, i) => (
                 <motion.div
                     key={i}
@@ -35,8 +30,7 @@ export function ProposalCard({ topics, onAccept }: ProposalCardProps) {
                     <div className="flex justify-between items-start mb-2">
                         <h3 className="font-bold text-lg text-white group-hover:text-primary transition-colors">{topic.twist}</h3>
                         <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-black/20 border border-white/5 
-                            ${topic.difficulty === 'Insane' ? 'text-red-400 border-red-900/30' :
-                                topic.difficulty === 'Hard' ? 'text-yellow-400 border-yellow-900/30' : 'text-green-400 border-green-900/30'}`}>
+                            ${topic.difficulty === 'Insane Mode' ? 'text-red-400 border-red-900/30' : 'text-blue-400 border-blue-900/30'}`}>
                             {topic.difficulty}
                         </span>
                     </div>

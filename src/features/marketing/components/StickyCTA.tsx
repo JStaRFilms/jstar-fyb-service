@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export function StickyCTA() {
     const [isVisible, setIsVisible] = useState(false);
@@ -41,14 +42,16 @@ export function StickyCTA() {
                         <span className="text-sm font-bold text-white">Have a question?</span>
                     </motion.div>
 
-                    <motion.button
-                        whileHover={{ scale: 1.2, rotate: 10 }}
-                        whileTap={{ scale: 0.9 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                        className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 animate-pulse-glow"
-                    >
-                        <MessageSquare className="w-8 h-8 text-white" />
-                    </motion.button>
+                    <Link href="/chat">
+                        <motion.button
+                            whileHover={{ scale: 1.2, rotate: 10 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                            className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 animate-pulse-glow"
+                        >
+                            <MessageSquare className="w-8 h-8 text-white" />
+                        </motion.button>
+                    </Link>
                 </motion.div>
             )}
         </AnimatePresence>

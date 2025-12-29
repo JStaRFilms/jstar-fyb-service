@@ -2,30 +2,72 @@
 
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useEffect, useRef } from "react";
-import { Lock, ShieldCheck, Check, Loader2, RefreshCw } from "lucide-react";
+import { Check, Loader2, RefreshCw } from "lucide-react";
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
-import ReactMarkdown from 'react-markdown';
-import { SkeletonChapter } from "@/components/ui/Skeleton";
-
-// Static placeholder chapters shown before payment (no API calls wasted)
-const PLACEHOLDER_CHAPTERS = [
-    { title: "Introduction", content: "Background of study, problem statement, research objectives, and scope of the project." },
-    { title: "Literature Review", content: "Analysis of existing systems, theoretical framework, and critical evaluation of related work." },
-    { title: "Methodology", content: "System analysis, design methodology, data flow diagrams, and implementation plan." },
-];
+import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
+import { ProjectActionCenter } from "./ProjectActionCenter";
+import { ModeSelection } from "./ModeSelection";
+import { ConciergeWaiting } from "./ConciergeWaiting";
+import { ChapterGenerator } from "./ChapterGenerator";
+import { UpsellBridge } from "./UpsellBridge";
+import { ProjectAssistant } from "./ProjectAssistant";
+import { DocumentUpload } from "./DocumentUpload";
+import { OutlinePreview } from "./OutlinePreview";
+import { usePaymentVerification } from "../hooks/usePaymentVerification";
+import { useSession } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 export function ChapterOutliner() {
-    const { data, isPaid, unlockPaywall, updateData } = useBuilderStore();
+    const { data, isPaid, unlockPaywall, updateData, setMode } = useBuilderStore();
     const hasSubmittedRef = useRef(false);
+    const { data: session } = useSession();
+    const router = useRouter();
+
+    // Payment verification hook (handles ?reference= URL param)
+    const { isVerifying } = usePaymentVerification(isPaid, unlockPaywall);
+
+    // Handle unlock - Initialize Paystack
+    const handleUnlock = async () => {
+        if (!data.projectId) {
+            console.error('[ChapterOutliner] No projectId for unlock');
+            return;
+        }
+
+        // Enforce Auth BEFORE Payment/Unlock
+        if (!session) {
+            router.push('/auth/register?callbackUrl=/project/builder');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/pay/initialize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: data.projectId })
+            });
+
+            const result = await res.json();
+
+            if (result.url) {
+                window.location.href = result.url;
+            } else {
+                alert(result.error || "Failed to initialize payment. Please try again.");
+            }
+        } catch (error) {
+            console.error('[ChapterOutliner] Failed to init payment:', error);
+            alert("Connection error. Please try again.");
+        }
+    };
 
     const { object, submit, isLoading, error } = useObject({
         api: '/api/generate/outline',
         schema: outlineSchema,
         onFinish: ({ object }) => {
             if (object?.chapters) {
-                updateData({ outline: object.chapters });
-                console.log('[ChapterOutliner] Outline saved to store:', object.chapters);
+                // Map AI response format to store format
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                updateData({ outline: object.chapters as any });
             }
         },
         onError: (err) => {
@@ -33,35 +75,74 @@ export function ChapterOutliner() {
         }
     });
 
-    // ONLY trigger generation AFTER payment (save API calls!)
+    // Use streamed chapters immediately
+    const streamedChapters = object?.chapters || [];
+    const displayChapters = streamedChapters.length > 0 ? streamedChapters : (data.outline || []);
+    const displayTitle = object?.title || data.topic || "Project Title";
+    const abstractPreview = data.abstract ? data.abstract.slice(0, 180) + '...' : "Loading abstract...";
+    const isStreaming = isPaid && isLoading;
+
+    // Fetch stored outline if we have a project ID and no outline yet
     useEffect(() => {
-        if (isPaid && data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length) {
+        const fetchStoredOutline = async () => {
+            if (data.projectId && !data.outline?.length && !isLoading) {
+                try {
+                    const response = await fetch(`/api/projects/${data.projectId}/outline`);
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.outline) {
+                            updateData({ outline: result.outline });
+                        }
+                    }
+                } catch (error) {
+                    console.error('[ChapterOutliner] Failed to fetch stored outline:', error);
+                }
+            }
+        };
+        fetchStoredOutline();
+    }, [data.projectId, data.outline?.length, isLoading, updateData]);
+
+    // Trigger generation automatically if we have topic/abstract but no outline yet
+    useEffect(() => {
+        if (data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length && !isLoading) {
             hasSubmittedRef.current = true;
-            console.log('[ChapterOutliner] Payment confirmed, generating real outline...');
+            console.log('[ChapterOutliner] Generating free outline...');
             submit({ topic: data.topic, abstract: data.abstract });
         }
-    }, [isPaid, data.abstract, data.topic, data.outline?.length, submit]);
+    }, [data.abstract, data.topic, data.outline?.length, submit, isLoading]);
 
-    // Use streamed chapters after payment, otherwise placeholders
-    // Show placeholders until real content starts streaming in
-    const streamedChapters = object?.chapters || [];
-    const displayChapters = isPaid
-        ? (streamedChapters.length > 0 ? streamedChapters : data.outline || [])
-        : PLACEHOLDER_CHAPTERS;
-    const displayTitle = object?.title || data.topic || "Project Title";
-
-    // Truncate abstract for preview
-    const abstractPreview = data.abstract
-        ? data.abstract.slice(0, 180) + '...'
-        : "Loading abstract...";
+    // Project claiming logic (Lazy Auth)
+    useEffect(() => {
+        const claimProject = async () => {
+            if (session?.user && data.projectId) {
+                try {
+                    const res = await fetch(`/api/projects/${data.projectId}/claim`, { method: 'POST' });
+                    if (res.ok) {
+                        console.log('[ChapterOutliner] Project claimed successfully');
+                    }
+                } catch (e) {
+                    console.warn('[ChapterOutliner] Failed to claim project', e);
+                }
+            }
+        };
+        claimProject();
+    }, [session?.user, data.projectId]);
 
     const handleRetry = () => {
         hasSubmittedRef.current = false;
         submit({ topic: data.topic, abstract: data.abstract });
     };
 
-    // Check if we're actively streaming content after payment
-    const isStreaming = isPaid && isLoading;
+    // Verify Loading State
+    if (isVerifying) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 text-center">
+                <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-2">Verifying Payment...</h2>
+                <p className="text-gray-400">Please wait while we confirm your transaction.</p>
+            </div>
+        );
+    }
 
     // Error state (only after payment)
     if (isPaid && error && (!object?.chapters || object.chapters.length === 0)) {
@@ -105,68 +186,58 @@ export function ChapterOutliner() {
 
             {/* The Content */}
             <div className="relative">
+                <OutlinePreview
+                    displayTitle={displayTitle}
+                    abstractPreview={abstractPreview}
+                    displayChapters={displayChapters}
+                    isStreaming={isStreaming}
+                />
 
-                {/* Visible Teaser - glass-panel */}
-                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-t-2xl border-b border-white/5">
-                    <span className="text-xs font-mono text-accent uppercase tracking-wider mb-2 block">Project Title</span>
-                    <h2 className="text-xl font-bold leading-tight">{displayTitle}</h2>
-
-                    <div className="mt-6">
-                        <span className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2 block">Abstract Preview</span>
-                        <div className="text-gray-300 leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
-                            <ReactMarkdown>{abstractPreview}</ReactMarkdown>
-                        </div>
+                {/* Pricing Overlay - Show if not paid */}
+                {!isPaid ? (
+                    <div className="mt-8">
+                        <PricingOverlay onUnlock={handleUnlock} />
                     </div>
-                </div>
-
-                {/* Content Panel - glass-panel */}
-                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-b-2xl border-t-0 relative overflow-hidden min-h-[280px]">
-
-                    {/* Show static placeholders when locked, streaming content after payment */}
-                    <div className={`space-y-6 ${!isPaid ? 'blur-[8px] select-none pointer-events-none opacity-50' : ''}`}>
-                        {displayChapters.length > 0 ? (
-                            displayChapters.map((chapter, i) => (
-                                <div
-                                    key={i}
-                                    className={`animate-wipe-reveal animate-wipe-delay-${i + 1}`}
-                                    style={{ opacity: 0 }} // Start hidden, animation reveals
-                                >
-                                    <h3 className="font-bold text-lg mb-2">
-                                        Chapter {i + 1}: {chapter?.title || 'Loading...'}
-                                    </h3>
-                                    <p className="text-gray-400 text-sm">
-                                        {chapter?.content || 'Generating content...'}
-                                    </p>
-                                </div>
-                            ))
-                        ) : isStreaming ? (
-                            // Skeleton while waiting for first chapter
-                            [...Array(3)].map((_, i) => (
-                                <SkeletonChapter key={i} />
-                            ))
-                        ) : null}
+                ) : data.mode === null ? (
+                    <div className="mt-16">
+                        <ModeSelection
+                            projectId={data.projectId!}
+                            onModeSelected={(mode) => setMode(mode)}
+                        />
                     </div>
-
-                    {/* Paywall Overlay - positioned near top */}
-                    {!isPaid && (
-                        <div className="absolute inset-0 bg-gradient-to-b from-dark/90 via-dark/70 to-dark/50 flex flex-col items-center justify-start pt-8 z-10 px-6 text-center">
-                            <Lock className="w-12 h-12 text-primary mb-4" />
-                            <h3 className="text-2xl font-display font-bold mb-2">Unlock Full Project</h3>
-                            <p className="text-gray-400 text-sm mb-6 max-w-sm">Get the complete 5-chapter source code, documentation, and implementation guide.</p>
-
-                            <button
-                                onClick={unlockPaywall}
-                                className="w-full max-w-xs py-4 bg-primary rounded-xl font-display font-bold uppercase tracking-wide shadow-[0_0_30px_rgba(139,92,246,0.4)] animate-pulse hover:scale-105 transition-transform"
-                            >
-                                Pay ₦15,000 to Unlock
-                            </button>
-                            <p className="mt-4 text-xs text-gray-500 flex items-center gap-2">
-                                <ShieldCheck className="w-3 h-3" /> Secured by Paystack
-                            </p>
+                ) : data.mode === "CONCIERGE" ? (
+                    <div className="mt-16">
+                        <ConciergeWaiting projectId={data.projectId!} status={data.status} />
+                    </div>
+                ) : (
+                    <>
+                        <div className="mt-16">
+                            <ProjectActionCenter />
                         </div>
-                    )}
-                </div>
 
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <ProjectAssistant projectId={data.projectId} />
+                            </div>
+                        )}
+
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <ChapterGenerator projectId={data.projectId} />
+                            </div>
+                        )}
+
+                        <div className="mt-20 mb-10">
+                            <UpsellBridge />
+                        </div>
+
+                        {data.projectId && (
+                            <div className="mt-16">
+                                <DocumentUpload projectId={data.projectId} />
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
         </>
     );

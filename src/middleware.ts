@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 
 export const config = {
     matcher: [
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        // Match all paths except static files
+        '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
     ],
 };
 
@@ -28,33 +28,13 @@ const adminAuthMiddleware = (req: NextRequest) => {
     });
 };
 
-const workosMiddleware = authkitMiddleware({
-    redirectUri: process.env.WORKOS_REDIRECT_URI || 'http://localhost:3000/callback'
-});
-
-export default async function middleware(req: NextRequest, event: any) {
+export default async function middleware(req: NextRequest) {
     // Admin Path -> Basic Auth
     if (req.nextUrl.pathname.startsWith('/admin')) {
         return adminAuthMiddleware(req);
     }
 
-    // All other paths -> WorkOS AuthKit (with error handling)
-    try {
-        // Exclude public paths that don't require auth
-        const publicPaths = ['/', '/api/chat', '/api/webhook', '/error'];
-        if (publicPaths.some(path => req.nextUrl.pathname === path || req.nextUrl.pathname.startsWith(path + '/'))) {
-            return NextResponse.next();
-        }
-
-        return await workosMiddleware(req, event);
-    } catch (error) {
-        console.error('[Middleware] WorkOS AuthKit error:', error);
-
-        // Fallback: redirect to error page with context
-        const errorUrl = new URL('/error', req.url);
-        errorUrl.searchParams.set('reason', 'authkit');
-        errorUrl.searchParams.set('message', 'Authentication service unavailable');
-
-        return NextResponse.redirect(errorUrl);
-    }
+    // All other routes are public by default
+    // Better Auth handles its own session management via cookies
+    return NextResponse.next();
 }

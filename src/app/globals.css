@@ -123,3 +123,21 @@ body {
 .animate-wipe-delay-5 {
   animation-delay: 1.2s;
 }
+
+/* Paywall blur effect for locked content */
+.blur-content {
+  filter: blur(8px);
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Gradual reveal for paywall overlay */
+.paywall-gradient {
+  background: linear-gradient(
+    to top,
+    var(--color-bg) 0%,
+    var(--color-bg) 20%,
+    transparent 100%
+  );
+}

@@ -6,21 +6,86 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  // directUrl = env("DATABASE_URL_UNPOOLED") // Optional for production with Neon
 }
+
+// ============================================
+// Better Auth Tables
+// ============================================
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  
+  projects      Project[]
+  payments      Payment[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ============================================
+// Application Tables
+// ============================================
 
 model Lead {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   
-  whatsapp  String   @unique
-  department String
-  topic     String   // The original idea
-  twist     String   // The AI generated twist
-  complexity Int
+  whatsapp    String   @unique
+  department  String
+  topic       String   // The original idea
+  twist       String   // The AI generated twist
+  complexity  Int
   
-  status    String   @default("NEW") // NEW, CONTACTED, SOLD
+  status      String   @default("NEW") // NEW, CONTACTED, SOLD
+  userId      String?  // WorkOS User ID
+  anonymousId String?  // Local Storage ID
 }
 
 model Conversation {
@@ -33,6 +98,7 @@ model Conversation {
   title       String? // Auto-generated summary
 }
 
+
 model Message {
   id             String       @id @default(cuid())
   conversationId String
@@ -40,4 +106,141 @@ model Message {
   role           String       // 'user' | 'assistant'
   content        String
   createdAt      DateTime     @default(now())
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String?
+  anonymousId String?
+
+  topic       String
+  twist       String?
+  abstract    String?
+
+  // Workflow fields
+  mode             String  @default("DIY") // DIY, CONCIERGE
+  status           String  @default("OUTLINE_GENERATED") // OUTLINE_GENERATED, RESEARCH_IN_PROGRESS, RESEARCH_COMPLETE, WRITING_IN_PROGRESS, PROJECT_COMPLETE
+  assignedTo       String? // Admin user ID (for Concierge mode)
+  
+  // Legacy status flags (kept for backwards compat)
+  isUnlocked       Boolean @default(false) // Has paid for full project
+  outlineGenerated Boolean @default(false)
+
+  // Enhanced Progress Tracking
+  progressPercentage Int     @default(0) // 0-100
+  contentProgress    Json?   // JSON object tracking content generation progress
+  documentProgress   Json?   // JSON object tracking document processing
+  aiGenerationStatus Json?   // JSON object tracking AI generation status
+  timeTracking       Json?   // JSON object tracking time spent on each phase
+  milestones         Json?   // JSON array of milestone completions
+  estimatedCompletion DateTime? // Estimated completion date
+  actualCompletion   DateTime? // Actual completion date
+
+  // Relations
+  documents   ResearchDocument[]
+  outline     ChapterOutline?
+  messages    ProjectMessage[]
+  conversations ProjectConversation[]
+  user        User?   @relation(fields: [userId], references: [id])
+  payments    Payment[]
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  amount          Float
+  currency        String   @default("NGN")
+  status          String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  reference       String   @unique
+  gatewayResponse String? // JSON string
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ResearchDocument {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // File Info
+  fileUrl     String?  // Optional: URL if linked externally
+  fileData    Bytes?   // Optional: Binary data if uploaded directly
+  mimeType    String?  // Required if fileData is present
+  fileName    String
+  fileType    String // e.g. "pdf"
+
+  // Extraction Status
+  status      String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  processedAt DateTime?
+
+  // Extracted Metadata (for "Human-in-the-Loop" / NotebookLM)
+  title        String?
+  author       String?
+  year         String?
+  documentType String?
+  category     String?
+  objective    String?
+  motivation   String?
+  methodology  String?
+  contribution String?
+  limitations  String?
+
+  // Enhanced Content Fields
+  keywords     String? // JSON array of keywords
+  themes       String? // JSON array of themes
+  summary      String?
+  insights     String? // JSON array of insights
+  extractedContent String?
+  aiInsights   String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ChapterOutline {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  content   String   // JSON or Markdown of the outline
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectMessage {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  role      String   // "customer" | "admin"
+  content   String
+  
+  createdAt DateTime @default(now())
+}
+
+model ProjectConversation {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  ProjectChatMessage[]
+}
+
+model ProjectChatMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  conversation   ProjectConversation @relation(fields: [conversationId], references: [id])
+  role           String   // 'user' | 'assistant'
+  content        String
+  createdAt      DateTime @default(now())
 }

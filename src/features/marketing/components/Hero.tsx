@@ -117,12 +117,27 @@ export function Hero() {
                     transition={{ type: "spring", stiffness: 100, damping: 12, delay: 0.8 }}
                     className="flex flex-col md:flex-row gap-6 justify-center items-center"
                 >
-                    <button className="px-10 py-5 bg-primary rounded-xl font-display font-bold tracking-wide uppercase hover:scale-105 transition-transform duration-300 glow-box w-full md:w-auto text-white">
+                    <Link
+                        href="/auth/register"
+                        className="px-10 py-5 bg-primary rounded-xl font-display font-bold tracking-wide uppercase hover:scale-105 transition-transform duration-300 glow-box w-full md:w-auto text-white flex items-center justify-center"
+                    >
                         Get Started Now
-                    </button>
-                    <button className="px-10 py-5 glass-panel rounded-xl font-display font-bold tracking-wide uppercase hover:bg-white/10 transition-colors w-full md:w-auto border-white/10">
+                    </Link>
+                    <Link
+                        href="#showcase"
+                        className="px-10 py-5 glass-panel rounded-xl font-display font-bold tracking-wide uppercase hover:bg-white/10 transition-colors w-full md:w-auto border border-white/10 flex items-center justify-center text-white"
+                    >
                         See Examples
-                    </button>
+                    </Link>
+                </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.2 }}
+                    className="mt-8 text-sm text-gray-500 font-medium"
+                >
+                    Looking for the <Link href="/project/consult" className="text-primary hover:underline underline-offset-4">Full Agency Service?</Link>
                 </motion.div>
             </div>
 

@@ -2,6 +2,9 @@ import { streamObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { outlineSchema } from '@/features/builder/schemas/outlineSchema';
 import { z } from 'zod';
+import { BuilderAiService } from '@/features/builder/services/builderAiService';
+import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth-server';
 
 // Validate environment variables
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -36,25 +39,104 @@ export async function POST(req: Request) {
 
     const { topic, abstract } = validation.data;
 
-    const result = streamObject({
-        model: groq('llama3-70b-8192'), // Valid Groq model
-        schema: outlineSchema,
-        system: `You are an expert academic curriculum designer.
-    Create a 5-chapter distinction-grade project outline based on the verified abstract.
-    
-    Topic: ${topic}
-    Abstract: ${abstract}
-    
-    The chapters should strictly follow standard structure:
-    1. Introduction
-    2. Literature Review
-    3. Methodology
-    4. Implementation/Results
-    5. Conclusion/Evaluation
-    
-    Ensure the content descriptions are specific to the project's domain (e.g., if blockchain, mention consensus algorithms; if AI, mention model training).`,
-        prompt: "Generate the project outline structure.",
-    });
+    try {
+        // Use the new Builder AI service to generate outline with context
+        const outlineTopics = await BuilderAiService.generateOutline(topic);
 
-    return result.toTextStreamResponse();
+        const result = streamObject({
+            model: groq('openai/gpt-oss-120b'), // Valid Groq model
+            schema: outlineSchema,
+            system: `You are an expert academic curriculum designer.
+        Create a 5-chapter distinction-grade project outline based on the verified abstract.
+        
+        Topic: ${topic}
+        Abstract: ${abstract}
+        
+        Context from similar projects: ${outlineTopics.join(', ')}
+        
+        The chapters should strictly follow standard structure:
+        1. Introduction
+        2. Literature Review
+        3. Methodology
+        4. Implementation/Results
+        5. Conclusion/Evaluation
+        
+        Ensure the content descriptions are specific to the project's domain (e.g., if blockchain, mention consensus algorithms; if AI, mention model training).
+        
+        Use the context from similar projects to make the outline more relevant and data-driven.`,
+            prompt: "Generate the project outline structure with enhanced context.",
+        });
+
+        // Store the outline in the database
+        const outlineData = await result.object;
+        if (outlineData?.chapters) {
+            try {
+                // Check if we have a project context (for authenticated users)
+                const user = await getCurrentUser();
+                if (user) {
+                    // Find existing project or create a new one
+                    let project = await prisma.project.findFirst({
+                        where: {
+                            topic: topic,
+                            userId: user.id
+                        }
+                    });
+
+                    if (!project) {
+                        // Create new project
+                        project = await prisma.project.create({
+                            data: {
+                                topic: topic,
+                                abstract: abstract,
+                                userId: user.id
+                            }
+                        });
+                    }
+
+                    // Create or update the chapter outline
+                    await prisma.chapterOutline.upsert({
+                        where: { projectId: project.id },
+                        update: {
+                            content: JSON.stringify(outlineData.chapters),
+                            updatedAt: new Date()
+                        },
+                        create: {
+                            projectId: project.id,
+                            content: JSON.stringify(outlineData.chapters)
+                        }
+                    });
+                }
+            } catch (dbError) {
+                console.error('[GenerateOutline] Failed to store outline in database:', dbError);
+                // Continue with the response even if database storage fails
+            }
+        }
+
+        return result.toTextStreamResponse();
+    } catch (error) {
+        console.error('[GenerateOutline] Error using Builder AI service:', error);
+
+        // Fallback to original implementation
+        const result = streamObject({
+            model: groq('openai/gpt-oss-120b'),
+            schema: outlineSchema,
+            system: `You are an expert academic curriculum designer.
+        Create a 5-chapter distinction-grade project outline based on the verified abstract.
+        
+        Topic: ${topic}
+        Abstract: ${abstract}
+        
+        The chapters should strictly follow standard structure:
+        1. Introduction
+        2. Literature Review
+        3. Methodology
+        4. Implementation/Results
+        5. Conclusion/Evaluation
+        
+        Ensure the content descriptions are specific to the project's domain (e.g., if blockchain, mention consensus algorithms; if AI, mention model training).`,
+            prompt: "Generate the project outline structure.",
+        });
+
+        return result.toTextStreamResponse();
+    }
 }
