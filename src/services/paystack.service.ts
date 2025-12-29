@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createHmac } from 'crypto';
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -63,5 +64,11 @@ export const PaystackService = {
 
         // Return the full transaction data
         return { success: true, data: data.data };
+    },
+
+    verifyWebhookSignature(body: string, signature: string): boolean {
+        if (!PAYSTACK_SECRET) return false;
+        const hash = createHmac('sha512', PAYSTACK_SECRET).update(body).digest('hex');
+        return hash === signature;
     }
 };
