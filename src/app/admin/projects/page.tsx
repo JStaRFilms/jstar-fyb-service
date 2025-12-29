@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 
+// Force dynamic rendering to prevent static build failures
+export const dynamic = 'force-dynamic';
+
 async function getProjects() {
     return prisma.project.findMany({
         where: {

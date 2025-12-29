@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { Download, Search, CheckCircle, XCircle, Clock } from "lucide-react";
 
+// Force dynamic rendering to prevent static build failures
+export const dynamic = 'force-dynamic';
+
 // Admin check helper
 async function checkAdmin() {
     const user = await getCurrentUser();
@@ -119,8 +122,8 @@ export default async function AdminPaymentsPage() {
                                         </td>
                                         <td className="p-4 text-center">
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${payment.status === 'SUCCESS' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                    payment.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                                                        'bg-red-500/10 text-red-400 border-red-500/20'
+                                                payment.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                                                    'bg-red-500/10 text-red-400 border-red-500/20'
                                                 }`}>
                                                 {payment.status === 'SUCCESS' && <CheckCircle className="w-3 h-3" />}
                                                 {payment.status === 'PENDING' && <Clock className="w-3 h-3" />}

@@ -2,6 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { AdminProjectDetail } from "@/features/admin/components/AdminProjectDetail";
 
+// Force dynamic rendering to prevent static build failures
+export const dynamic = 'force-dynamic';
+
 async function getProject(id: string) {
     return prisma.project.findUnique({
         where: { id },
