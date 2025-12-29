@@ -39,7 +39,7 @@ export function TopicSelector() {
     };
 
     return (
-        <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-2xl p-8">
+        <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-8">
             <h2 className="text-2xl font-display font-bold mb-2 text-white">Project Foundation</h2>
             <p className="text-gray-400 mb-6 text-sm">Define the core subject and the unique innovative angle.</p>
 
