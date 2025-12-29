@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { PaymentReceiptEmail } from '@/emails/PaymentReceipt';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = 'J-Star Projects <noreply@jstarstudios.com>'; // Or 'onboarding@resend.dev' for testing
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'J-Star Projects <onboarding@resend.dev>';
 
 interface SendReceiptParams {
     email: string;

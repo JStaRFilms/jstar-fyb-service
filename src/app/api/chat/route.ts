@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
         const result = await streamTextWithRetry({
             // FIX 1: Use Llama 3.3 70B (Best for Tool Calling on Groq)
-            model: groq('moonshotai/kimi-k2-instruct'),
+            model: groq('moonshotai/kimi-k2-instruct-0905'),
 
             // FIX 2: Enable multi-step (Crucial for tools to execute properly)
             stopWhen: stepCountIs(5),

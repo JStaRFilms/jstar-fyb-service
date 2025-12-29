@@ -3,14 +3,23 @@
 
 import { useChat } from '@ai-sdk/react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function ProjectAssistant({ projectId }: { projectId: string }) {
     const chatHelpers: any = useChat({
         api: `/api/projects/${projectId}/chat`,
+        onError: (e) => {
+            console.error('[ProjectAssistant] Chat error:', e);
+            alert('Failed to send message: ' + e.message);
+        },
+        onFinish: (message) => {
+            console.log('[ProjectAssistant] Stream finished:', message);
+        }
     });
-    const { messages, input, handleInputChange, handleSubmit, isLoading } = chatHelpers;
+    // Destructure what we can, and fallback manually
+    const { messages, isLoading, append } = chatHelpers;
 
+    const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -18,6 +27,26 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    const handleSend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = input;
+        console.log('[ProjectAssistant] Sending message:', userMessage);
+        setInput(''); // Clear input immediately
+
+        try {
+            await append({
+                role: 'user',
+                content: userMessage,
+            });
+            console.log('[ProjectAssistant] Append successful');
+        } catch (err) {
+            console.error('[ProjectAssistant] Append failed:', err);
+            alert('Failed to send message');
+        }
+    };
 
     return (
         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col h-[600px] w-full">
@@ -40,7 +69,7 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
                     </div>
                 )}
 
-                {messages.map(m => (
+                {messages.map((m: any) => (
                     <div key={m.id} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
                             }`}>
@@ -66,11 +95,11 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="p-4 border-t border-white/10 bg-white/5">
+            <form onSubmit={handleSend} className="p-4 border-t border-white/10 bg-white/5">
                 <div className="flex gap-2">
                     <input
                         value={input}
-                        onChange={handleInputChange}
+                        onChange={(e) => setInput(e.target.value)}
                         placeholder="Ask about your project..."
                         className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-2 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
                     />
