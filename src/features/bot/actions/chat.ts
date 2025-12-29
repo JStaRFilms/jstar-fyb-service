@@ -157,12 +157,26 @@ export async function getLatestConversation({
 }) {
     if (!anonymousId && !userId) return null;
 
+    // Data Isolation: Never mix authenticated and anonymous sessions
+    // If userId is provided, ONLY return that user's conversations
+    // This prevents data leakage between sessions
+    if (userId) {
+        return await prisma.conversation.findFirst({
+            where: { userId },
+            include: {
+                messages: {
+                    orderBy: { createdAt: 'asc' }
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
+        });
+    }
+
+    // Anonymous session: only return anonymous conversations
     return await prisma.conversation.findFirst({
         where: {
-            OR: [
-                { userId: userId || undefined },
-                { anonymousId: anonymousId || undefined }
-            ]
+            anonymousId,
+            userId: null // Ensure we don't return merged conversations
         },
         include: {
             messages: {

@@ -51,9 +51,20 @@ async function streamTextWithRetry(
     throw lastError || new Error('All retry attempts failed');
 }
 
+// Input validation schema with security limits
+const MAX_MESSAGE_LENGTH = 10000; // Prevent excessively long inputs
+const MAX_MESSAGES = 50; // Limit history size per request
+
 const chatSchema = z.object({
-    messages: z.array(z.any()).min(1),
-    conversationId: z.string().optional(),
+    messages: z.array(z.object({
+        role: z.enum(['user', 'assistant', 'system']),
+        content: z.union([
+            z.string().max(MAX_MESSAGE_LENGTH),
+            z.array(z.any())
+        ]),
+        parts: z.array(z.any()).optional()
+    })).min(1).max(MAX_MESSAGES),
+    conversationId: z.string().uuid().optional(),
     anonymousId: z.string().optional()
 });
 

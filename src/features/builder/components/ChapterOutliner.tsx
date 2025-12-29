@@ -1,13 +1,10 @@
 'use client';
 
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
-import { useEffect, useRef, useState } from "react";
-import { Lock, ShieldCheck, Check, Loader2, RefreshCw } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Check, Loader2, RefreshCw } from "lucide-react";
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
-import ReactMarkdown from 'react-markdown';
-import { SkeletonChapter } from "@/components/ui/Skeleton";
-import { DocumentUpload } from "./DocumentUpload";
 import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
 import { ProjectActionCenter } from "./ProjectActionCenter";
 import { ModeSelection } from "./ModeSelection";
@@ -15,47 +12,20 @@ import { ConciergeWaiting } from "./ConciergeWaiting";
 import { ChapterGenerator } from "./ChapterGenerator";
 import { UpsellBridge } from "./UpsellBridge";
 import { ProjectAssistant } from "./ProjectAssistant";
+import { DocumentUpload } from "./DocumentUpload";
+import { OutlinePreview } from "./OutlinePreview";
+import { usePaymentVerification } from "../hooks/usePaymentVerification";
 import { useSession } from "@/lib/auth-client";
-import { useRouter, useSearchParams } from "next/navigation";
-
-// Static placeholder chapters shown before payment (no API calls wasted)
-const PLACEHOLDER_CHAPTERS = [
-    { title: "Introduction", content: "Background of study, problem statement, research objectives, and scope of the project." },
-    { title: "Literature Review", content: "Analysis of existing systems, theoretical framework, and critical evaluation of related work." },
-    { title: "Methodology", content: "System analysis, design methodology, data flow diagrams, and implementation plan." },
-];
+import { useRouter } from "next/navigation";
 
 export function ChapterOutliner() {
     const { data, isPaid, unlockPaywall, updateData, setMode } = useBuilderStore();
     const hasSubmittedRef = useRef(false);
     const { data: session } = useSession();
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
-    // Handle payment verification on return
-    useEffect(() => {
-        const reference = searchParams.get('reference');
-        if (reference && !isPaid && !isVerifyingPayment) {
-            setIsVerifyingPayment(true);
-            fetch('/api/pay/verify', {
-                method: 'POST',
-                body: JSON.stringify({ reference })
-            })
-                .then(res => res.json())
-                .then(resData => {
-                    if (resData.success) {
-                        unlockPaywall();
-                        // Clean URL
-                        window.history.replaceState({}, '', '/project/builder');
-                    } else {
-                        console.error('Payment verification failed', resData);
-                        alert(`Payment failed: ${resData.error || 'Unknown error'}`);
-                    }
-                })
-                .finally(() => setIsVerifyingPayment(false));
-        }
-    }, [searchParams, isPaid]);
+    // Payment verification hook (handles ?reference= URL param)
+    const { isVerifying } = usePaymentVerification(isPaid, unlockPaywall);
 
     // Handle unlock - Initialize Paystack
     const handleUnlock = async () => {
@@ -66,13 +36,11 @@ export function ChapterOutliner() {
 
         // Enforce Auth BEFORE Payment/Unlock
         if (!session) {
-            // Persist state via store (handled by persist middleware), just redirect
             router.push('/auth/register?callbackUrl=/project/builder');
             return;
         }
 
         try {
-            // Call API to initialize transaction
             const res = await fetch('/api/pay/initialize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -82,7 +50,6 @@ export function ChapterOutliner() {
             const result = await res.json();
 
             if (result.url) {
-                // Redirect user to Paystack
                 window.location.href = result.url;
             } else {
                 alert(result.error || "Failed to initialize payment. Please try again.");
@@ -98,7 +65,9 @@ export function ChapterOutliner() {
         schema: outlineSchema,
         onFinish: ({ object }) => {
             if (object?.chapters) {
-                updateData({ outline: object.chapters });
+                // Map AI response format to store format
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                updateData({ outline: object.chapters as any });
             }
         },
         onError: (err) => {
@@ -108,9 +77,10 @@ export function ChapterOutliner() {
 
     // Use streamed chapters immediately
     const streamedChapters = object?.chapters || [];
-    // If we have streamed chapters, use them. Else if we have stored outline, use that.
     const displayChapters = streamedChapters.length > 0 ? streamedChapters : (data.outline || []);
     const displayTitle = object?.title || data.topic || "Project Title";
+    const abstractPreview = data.abstract ? data.abstract.slice(0, 180) + '...' : "Loading abstract...";
+    const isStreaming = isPaid && isLoading;
 
     // Fetch stored outline if we have a project ID and no outline yet
     useEffect(() => {
@@ -130,7 +100,7 @@ export function ChapterOutliner() {
             }
         };
         fetchStoredOutline();
-    }, [data.projectId, data.outline?.length, isLoading]);
+    }, [data.projectId, data.outline?.length, isLoading, updateData]);
 
     // Trigger generation automatically if we have topic/abstract but no outline yet
     useEffect(() => {
@@ -141,15 +111,12 @@ export function ChapterOutliner() {
         }
     }, [data.abstract, data.topic, data.outline?.length, submit, isLoading]);
 
-    // PROJECT CLAIMING LOGIC (Lazy Auth)
-    // If user is logged in, but project might be anonymous, try to claim it
+    // Project claiming logic (Lazy Auth)
     useEffect(() => {
         const claimProject = async () => {
             if (session?.user && data.projectId) {
                 try {
-                    const res = await fetch(`/api/projects/${data.projectId}/claim`, {
-                        method: 'POST'
-                    });
+                    const res = await fetch(`/api/projects/${data.projectId}/claim`, { method: 'POST' });
                     if (res.ok) {
                         console.log('[ChapterOutliner] Project claimed successfully');
                     }
@@ -161,19 +128,21 @@ export function ChapterOutliner() {
         claimProject();
     }, [session?.user, data.projectId]);
 
-
-    // Truncate abstract for preview
-    const abstractPreview = data.abstract
-        ? data.abstract.slice(0, 180) + '...'
-        : "Loading abstract...";
-
     const handleRetry = () => {
         hasSubmittedRef.current = false;
         submit({ topic: data.topic, abstract: data.abstract });
     };
 
-    // Check if we're actively streaming content after payment
-    const isStreaming = isPaid && isLoading;
+    // Verify Loading State
+    if (isVerifying) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 text-center">
+                <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-2">Verifying Payment...</h2>
+                <p className="text-gray-400">Please wait while we confirm your transaction.</p>
+            </div>
+        );
+    }
 
     // Error state (only after payment)
     if (isPaid && error && (!object?.chapters || object.chapters.length === 0)) {
@@ -190,17 +159,6 @@ export function ChapterOutliner() {
                     <RefreshCw className="w-4 h-4" />
                     Retry Generation
                 </button>
-            </div>
-        );
-    }
-
-    // Verify Loading State
-    if (isVerifyingPayment) {
-        return (
-            <div className="flex flex-col items-center justify-center py-32 text-center">
-                <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                <h2 className="text-2xl font-bold text-white mb-2">Verifying Payment...</h2>
-                <p className="text-gray-400">Please wait while we confirm your transaction.</p>
             </div>
         );
     }
@@ -228,51 +186,12 @@ export function ChapterOutliner() {
 
             {/* The Content */}
             <div className="relative">
-
-                {/* Visible Teaser - glass-panel */}
-                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-t-2xl border-b border-white/5">
-                    <span className="text-xs font-mono text-accent uppercase tracking-wider mb-2 block">Project Title</span>
-                    <h2 className="text-xl font-bold leading-tight">{displayTitle}</h2>
-
-                    <div className="mt-6">
-                        <span className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2 block">Abstract Preview</span>
-                        <div className="text-gray-300 leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
-                            <ReactMarkdown>{abstractPreview}</ReactMarkdown>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Content Panel - glass-panel */}
-                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-b-2xl border-t-0 relative overflow-hidden min-h-[280px]">
-
-                    {/* Show streamed content immediately */}
-                    <div className="space-y-6">
-                        {displayChapters.length > 0 ? (
-                            displayChapters.map((chapter, i) => (
-                                <div
-                                    key={i}
-                                    className={`animate-wipe-reveal animate-wipe-delay-${i + 1}`}
-                                >
-                                    <h3 className="font-bold text-lg mb-2">
-                                        Chapter {i + 1}: {chapter?.title || 'Loading...'}
-                                    </h3>
-                                    <p className="text-gray-400 text-sm">
-                                        {chapter?.content || 'Generating content...'}
-                                    </p>
-                                </div>
-                            ))
-                        ) : isStreaming ? (
-                            // Skeleton while waiting for first chapter
-                            [...Array(3)].map((_, i) => (
-                                <SkeletonChapter key={i} />
-                            ))
-                        ) : (
-                            <div className="text-gray-500 text-center py-10">
-                                Waiting for content...
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <OutlinePreview
+                    displayTitle={displayTitle}
+                    abstractPreview={abstractPreview}
+                    displayChapters={displayChapters}
+                    isStreaming={isStreaming}
+                />
 
                 {/* Pricing Overlay - Show if not paid */}
                 {!isPaid ? (
@@ -280,7 +199,6 @@ export function ChapterOutliner() {
                         <PricingOverlay onUnlock={handleUnlock} />
                     </div>
                 ) : data.mode === null ? (
-                    // Mode not selected yet - show selection
                     <div className="mt-16">
                         <ModeSelection
                             projectId={data.projectId!}
@@ -288,12 +206,10 @@ export function ChapterOutliner() {
                         />
                     </div>
                 ) : data.mode === "CONCIERGE" ? (
-                    // Concierge mode - show waiting view
                     <div className="mt-16">
                         <ConciergeWaiting projectId={data.projectId!} status={data.status} />
                     </div>
                 ) : (
-                    // DIY mode - show action center + document upload
                     <>
                         <div className="mt-16">
                             <ProjectActionCenter />
@@ -305,14 +221,12 @@ export function ChapterOutliner() {
                             </div>
                         )}
 
-                        {/* Phase 2: Post-Payment Chapter Generation */}
                         {data.projectId && (
                             <div className="mt-16">
                                 <ChapterGenerator projectId={data.projectId} />
                             </div>
                         )}
 
-                        {/* Phase 6: Upsell Bridge */}
                         <div className="mt-20 mb-10">
                             <UpsellBridge />
                         </div>

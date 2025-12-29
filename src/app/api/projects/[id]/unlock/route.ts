@@ -21,8 +21,13 @@ export async function POST(
             return NextResponse.json({ error: "Project not found" }, { status: 404 });
         }
 
-        // Authorization: only owner can unlock
-        if (existing.userId && existing.userId !== user?.id) {
+        // Authorization: Must be authenticated AND own the project
+        // Anonymous projects (userId = null) cannot be unlocked via this endpoint
+        if (!user?.id) {
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
+        if (!existing.userId || existing.userId !== user.id) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

@@ -4,9 +4,12 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Database provider from environment (default: postgresql for production safety)
+const dbProvider = (process.env.DATABASE_PROVIDER || "postgresql") as "sqlite" | "postgresql" | "mysql";
+
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
-        provider: "sqlite",
+        provider: dbProvider,
     }),
     emailAndPassword: {
         enabled: true,

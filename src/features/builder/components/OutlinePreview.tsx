@@ -1,0 +1,78 @@
+'use client';
+
+import ReactMarkdown from 'react-markdown';
+import { SkeletonChapter } from '@/components/ui/Skeleton';
+
+interface Chapter {
+    title?: string;
+    content?: string;
+}
+
+interface OutlinePreviewProps {
+    displayTitle: string;
+    abstractPreview: string;
+    displayChapters: (Chapter | undefined)[];
+    isStreaming: boolean;
+}
+
+/**
+ * Displays the project outline preview with title, abstract, and chapter list.
+ * Handles streaming skeleton states during generation.
+ */
+export function OutlinePreview({
+    displayTitle,
+    abstractPreview,
+    displayChapters,
+    isStreaming
+}: OutlinePreviewProps) {
+    return (
+        <>
+            {/* Visible Teaser - glass-panel */}
+            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-t-2xl border-b border-white/5">
+                <span className="text-xs font-mono text-accent uppercase tracking-wider mb-2 block">
+                    Project Title
+                </span>
+                <h2 className="text-xl font-bold leading-tight">{displayTitle}</h2>
+
+                <div className="mt-6">
+                    <span className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-2 block">
+                        Abstract Preview
+                    </span>
+                    <div className="text-gray-300 leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown>{abstractPreview}</ReactMarkdown>
+                    </div>
+                </div>
+            </div>
+
+            {/* Content Panel - glass-panel */}
+            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 p-6 rounded-b-2xl border-t-0 relative overflow-hidden min-h-[280px]">
+                <div className="space-y-6">
+                    {displayChapters.length > 0 ? (
+                        displayChapters.map((chapter, i) => (
+                            <div
+                                key={i}
+                                className={`animate-wipe-reveal animate-wipe-delay-${i + 1}`}
+                            >
+                                <h3 className="font-bold text-lg mb-2">
+                                    Chapter {i + 1}: {chapter?.title || 'Loading...'}
+                                </h3>
+                                <p className="text-gray-400 text-sm">
+                                    {chapter?.content || 'Generating content...'}
+                                </p>
+                            </div>
+                        ))
+                    ) : isStreaming ? (
+                        // Skeleton while waiting for first chapter
+                        [...Array(3)].map((_, i) => (
+                            <SkeletonChapter key={i} />
+                        ))
+                    ) : (
+                        <div className="text-gray-500 text-center py-10">
+                            Waiting for content...
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
+    );
+}

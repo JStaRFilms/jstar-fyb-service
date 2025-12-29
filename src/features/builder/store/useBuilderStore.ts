@@ -5,12 +5,21 @@ export type BuilderStep = 'TOPIC' | 'ABSTRACT' | 'OUTLINE' | 'PAYWALL';
 export type ProjectMode = 'DIY' | 'CONCIERGE' | null;
 export type ProjectStatus = 'OUTLINE_GENERATED' | 'RESEARCH_IN_PROGRESS' | 'RESEARCH_COMPLETE' | 'WRITING_IN_PROGRESS' | 'PROJECT_COMPLETE';
 
+// Type-safe outline structure
+export interface OutlineSection {
+    id: string;
+    title: string;
+    description?: string;
+    order: number;
+    subsections?: OutlineSection[];
+}
+
 interface ProjectData {
     projectId: string | null;
     topic: string;
     twist: string;
     abstract: string;
-    outline: any[]; // define stricter type later
+    outline: OutlineSection[];
     mode: ProjectMode;
     status: ProjectStatus;
 }
