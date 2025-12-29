@@ -55,18 +55,19 @@ async function streamTextWithRetry(
 const MAX_MESSAGE_LENGTH = 10000; // Prevent excessively long inputs
 const MAX_MESSAGES = 50; // Limit history size per request
 
+// AI SDK v5 message format: uses `parts` array, content is optional/deprecated
 const chatSchema = z.object({
     messages: z.array(z.object({
+        id: z.string().optional(),
         role: z.enum(['user', 'assistant', 'system']),
-        content: z.union([
-            z.string().max(MAX_MESSAGE_LENGTH),
-            z.array(z.any())
-        ]),
-        parts: z.array(z.any()).optional()
+        content: z.string().max(MAX_MESSAGE_LENGTH).optional(), // Optional in v5
+        parts: z.array(z.any()).optional(), // Primary format in v5
     })).min(1).max(MAX_MESSAGES),
     conversationId: z.string().uuid().optional(),
-    anonymousId: z.string().optional()
-});
+    anonymousId: z.string().optional(),
+    id: z.string().optional(), // Conversation ID from useChat
+    trigger: z.string().optional(), // AI SDK internal
+}).passthrough(); // Allow additional fields from AI SDK
 
 export async function POST(req: Request) {
     try {

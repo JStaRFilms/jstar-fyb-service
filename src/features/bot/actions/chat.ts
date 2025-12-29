@@ -209,8 +209,9 @@ const saveLeadSchema = z.object({
     topic: z.string(),
     twist: z.string(),
     complexity: z.number().min(1).max(5),
-    anonymousId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    // Allow any string for these IDs - convert empty to undefined
+    anonymousId: z.string().optional().transform(val => val && val.trim() !== '' ? val : undefined),
+    userId: z.string().optional().transform(val => val && val.trim() !== '' ? val : undefined),
 });
 
 export type SaveLeadParams = z.infer<typeof saveLeadSchema>;
@@ -224,6 +225,7 @@ export async function saveLeadAction(params: SaveLeadParams) {
         }
 
         const data = validation.data;
+
 
         const lead = await prisma.lead.upsert({
             where: { whatsapp: data.whatsapp },

@@ -212,16 +212,57 @@ export function useChatFlow(userId?: string) {
         const detectedPhone = detectPhoneNumber(text);
 
         if (detectedPhone) {
-            // We have a phone number! Always attempt to save as lead.
+            // We have a phone number! Extract topic and save as lead.
             console.log("[useChatFlow] Phone detected, triggering lead capture:", detectedPhone);
 
             try {
-                await saveLeadAction({
-                    whatsapp: detectedPhone,
+                // Build message history for extraction
+                const messageHistory = aiMessages.map((m: any) => {
+                    let content = '';
+                    if (m.parts) {
+                        const textPart = m.parts.find((p: any) => p.type === 'text');
+                        content = textPart?.text || '';
+                    } else if (typeof m.content === 'string') {
+                        content = m.content;
+                    }
+                    return { role: m.role, content };
+                }).filter((m: any) => m.content);
+
+                // Call extraction API to get structured topic data
+                let extractedData = {
                     topic: confirmedTopic?.topic || "Pending AI Confirmation",
                     twist: confirmedTopic?.twist || "Pending Twist",
+                    department: "Computer Science",
                     complexity: complexity,
-                    department: "Computer Science", // Default, could be enhanced
+                };
+
+                try {
+                    const extractRes = await fetch('/api/extract-topic', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: messageHistory }),
+                    });
+                    if (extractRes.ok) {
+                        const extracted = await extractRes.json();
+                        extractedData = {
+                            topic: extracted.topic || extractedData.topic,
+                            twist: extracted.twist || extractedData.twist,
+                            department: extracted.department || extractedData.department,
+                            complexity: extracted.complexity || extractedData.complexity,
+                        };
+                        console.log("[useChatFlow] Extracted topic:", extractedData);
+                    }
+                } catch (extractError) {
+                    console.warn("[useChatFlow] Extraction failed, using defaults:", extractError);
+                }
+
+                // Save lead with extracted data
+                await saveLeadAction({
+                    whatsapp: detectedPhone,
+                    topic: extractedData.topic,
+                    twist: extractedData.twist,
+                    complexity: extractedData.complexity,
+                    department: extractedData.department,
                     anonymousId: anonymousId,
                     userId: userId,
                 });
@@ -240,6 +281,7 @@ export function useChatFlow(userId?: string) {
             }
             return;
         }
+
 
         // ==============================================
         // Default Behavior (No phone detected)
