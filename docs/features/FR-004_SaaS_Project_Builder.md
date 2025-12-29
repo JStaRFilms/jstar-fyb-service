@@ -130,7 +130,7 @@ export const outlineSchema = z.object({
 ### Smart Paywall (API Call Optimization)
 
 > [!IMPORTANT]
-> **Generation only triggers AFTER payment** to save API costs and prevent hackers.
+> **Generation only triggers AFTER payment** to save API costs and prevent hackers. Unlocking is handled automatically via Paystack Webhooks (see [FR-007: Payment Infrastructure](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service-agent-webhooks/docs/features/FR-007_Payment_Infrastructure.md)).
 
 #### Flow:
 1. **Before Payment**: Shows 3 static placeholder chapters (blurred)
