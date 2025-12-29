@@ -167,7 +167,9 @@ useEffect(() => {
 
 ---
 
-## Retry Logic
+## Retry Logic & Error Handling
+
+For AI-specific retry logic, see the pattern below. For global application error handling and custom error classes (e.g., `ApiError`), see `docs/features/App_Stability_and_Error_Handling.md`.
 
 ```typescript
 const MAX_RETRIES = 3;
