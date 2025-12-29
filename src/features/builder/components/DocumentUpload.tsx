@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Upload, Link as LinkIcon, FileText, Loader2, Trash2, CheckCircle, XCircle, Eye, Sparkles } from "lucide-react";
 import { useBuilderStore } from "../store/useBuilderStore";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { ResearchDocument } from "@prisma/client";
 
 export function DocumentUpload({ projectId }: { projectId: string }) {
     const [mode, setMode] = useState<"upload" | "link">("upload");
@@ -12,6 +14,7 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
     const [isExtracting, setIsExtracting] = useState(false);
     const [documents, setDocuments] = useState<any[]>([]);
     const [extractionStatus, setExtractionStatus] = useState<Record<string, string>>({});
+    const [selectedDocument, setSelectedDocument] = useState<ResearchDocument | null>(null);
 
     // Fetch existing documents
     useEffect(() => {
@@ -261,10 +264,7 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
 
                                     {doc.status === "PROCESSED" && (
                                         <button
-                                            onClick={() => {
-                                                // Show extracted content
-                                                alert(`Title: ${doc.title || 'N/A'}\n\nSummary: ${doc.summary || 'N/A'}`);
-                                            }}
+                                            onClick={() => setSelectedDocument(doc)}
                                             className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
                                         >
                                             <Eye className="w-3 h-3" />
@@ -283,6 +283,12 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                 <p><strong>Note:</strong> Documents are automatically processed to extract metadata, content, and insights for AI content generation.</p>
                 <p className="mt-1">Processed documents become available as context for chapter generation and research assistance.</p>
             </div>
+            {/* Document Preview Modal */}
+            <DocumentPreviewModal
+                researchDoc={selectedDocument}
+                isOpen={!!selectedDocument}
+                onClose={() => setSelectedDocument(null)}
+            />
         </div>
     );
 }
