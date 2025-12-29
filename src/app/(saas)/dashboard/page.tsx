@@ -8,25 +8,36 @@ import { getCurrentUser } from "@/lib/auth-server";
 export default async function DashboardPage() {
     const user = await getCurrentUser();
 
-    // Fetch user projects (ensure this matches your schema)
-    // For now, we'll assume the mockup data structure or fetch real data if schema allows
-    // const projects = await prisma.project.findMany({ where: { userId: user?.id } });
+    const projects = await prisma.project.findMany({
+        where: { userId: user?.id },
+        orderBy: { updatedAt: 'desc' },
+        include: {
+            documents: {
+                select: {
+                    id: true,
+                    projectId: true,
+                    fileName: true,
+                    fileType: true,
+                    fileUrl: true,
+                    status: true,
+                    title: true, // Useful for metadata
+                    processedAt: true,
+                    // Exclude fileData (Bytes) to avoid serialization error
+                }
+            }
+        }
+    });
 
-    // Placeholder for when we have real data connection
-    const hasProjects = true;
-    const mockProject = {
-        topic: "Fake News Detector",
-        abstract: "Blockchain-Based Fake News Detection System using SHA-256 Hashing Algorithm",
-        status: "GENERATING",
-        progressPercentage: 60
-    };
+    const hasProjects = projects.length > 0;
+    // For now, we take the most recent project as the active one
+    const activeProject = projects[0];
 
     return (
         <>
             {hasProjects ? (
                 <>
-                    <ProjectCard project={mockProject} />
-                    <ResourceDownloads />
+                    <ProjectCard project={activeProject} />
+                    <ResourceDownloads documents={activeProject.documents} />
                     <UpsellBanner />
                 </>
             ) : (

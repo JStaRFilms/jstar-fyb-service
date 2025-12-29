@@ -35,10 +35,15 @@ const ResourceCard = ({ type, filename, size, status, downloadUrl }: ResourceCar
                     </p>
                 </div>
             </div>
-            {status === "ready" ? (
-                <button className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+            {status === "ready" && downloadUrl ? (
+                <a
+                    href={downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                >
                     <Download className="w-4 h-4 text-gray-400" />
-                </button>
+                </a>
             ) : (
                 <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
             )}
@@ -46,26 +51,34 @@ const ResourceCard = ({ type, filename, size, status, downloadUrl }: ResourceCar
     );
 };
 
-export const ResourceDownloads = () => {
+import { ResearchDocument } from "@prisma/client";
+
+// Define a partial type for what we actually need
+type DashboardDocument = Pick<ResearchDocument, "id" | "fileType" | "fileName" | "status" | "fileUrl">;
+
+export const ResourceDownloads = ({ documents }: { documents: DashboardDocument[] | undefined }) => {
     return (
         <div>
             <h3 className="text-lg font-bold font-display mb-4 flex items-center gap-2">
                 <DownloadCloud className="w-5 h-5 text-accent" /> Resources
             </h3>
             <div className="space-y-3">
-                <ResourceCard
-                    type="DOC"
-                    filename="Project_Abstract.docx"
-                    size="12 KB"
-                    status="ready"
-                    downloadUrl="#"
-                />
-                <ResourceCard
-                    type="PDF"
-                    filename="Full_Source_Code.zip"
-                    size=""
-                    status="compiling"
-                />
+                {documents && documents.length > 0 ? (
+                    documents.map((doc) => (
+                        <ResourceCard
+                            key={doc.id}
+                            type={doc.fileType === "pdf" ? "PDF" : "DOC"}
+                            filename={doc.fileName}
+                            size="N/A" // Size not in schema yet
+                            status={doc.status === "PROCESSED" ? "ready" : "compiling"}
+                            downloadUrl={doc.fileUrl || "#"}
+                        />
+                    ))
+                ) : (
+                    <div className="p-4 rounded-xl glass-panel text-center text-gray-500 text-sm">
+                        No resources available yet.
+                    </div>
+                )}
             </div>
         </div>
     );

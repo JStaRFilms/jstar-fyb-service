@@ -35,26 +35,57 @@ const TimelineStep = ({ label, subLabel, status, stepNumber }: TimelineStepProps
 };
 
 export const StatusTimeline = ({ status, progress }: { status: string; progress: number }) => {
-    // Map project status to timeline steps
-    const steps = [
-        { label: "Topic Approved", status: "completed" },
-        { label: "Payment Verified", status: "completed" },
-        {
-            label: "Generating...",
-            subLabel: "Estimated time: 2 mins",
-            status: status === "GENERATING" ? "current" : (progress > 0 ? "completed" : "pending"),
-            stepNumber: 3
+    /**
+     * Prisma Project Status values:
+     * - OUTLINE_GENERATED (default)
+     * - RESEARCH_IN_PROGRESS
+     * - RESEARCH_COMPLETE
+     * - WRITING_IN_PROGRESS
+     * - PROJECT_COMPLETE
+     */
+
+    // Map statuses to step states
+    const getStepStatus = (step: "topic" | "payment" | "generation"): "completed" | "current" | "pending" => {
+        // Topic and Payment are always completed if user is on dashboard
+        if (step === "topic" || step === "payment") return "completed";
+
+        // Generation step logic
+        const inProgressStatuses = ["RESEARCH_IN_PROGRESS", "WRITING_IN_PROGRESS"];
+        const completedStatuses = ["RESEARCH_COMPLETE", "PROJECT_COMPLETE"];
+
+        if (completedStatuses.includes(status)) return "completed";
+        if (inProgressStatuses.includes(status)) return "current";
+        return "pending"; // OUTLINE_GENERATED or unknown
+    };
+
+    const getGenerationLabel = (): string => {
+        switch (status) {
+            case "RESEARCH_IN_PROGRESS": return "Researching...";
+            case "WRITING_IN_PROGRESS": return "Writing Content...";
+            case "RESEARCH_COMPLETE": return "Research Complete";
+            case "PROJECT_COMPLETE": return "Generation Complete";
+            default: return "Waiting to Start";
         }
-    ];
+    };
+
+    const getGenerationSubLabel = (): string | undefined => {
+        switch (status) {
+            case "RESEARCH_IN_PROGRESS": return "AI is gathering sources...";
+            case "WRITING_IN_PROGRESS": return "AI is writing chapters...";
+            case "RESEARCH_COMPLETE":
+            case "PROJECT_COMPLETE": return "Ready";
+            default: return undefined;
+        }
+    };
 
     return (
         <div className="space-y-4 mb-8">
-            <TimelineStep label="Topic Approved" subLabel="Dec 14, 2025" status="completed" />
-            <TimelineStep label="Payment Verified" subLabel="₦15,000 paid" status="completed" />
+            <TimelineStep label="Topic Approved" subLabel="Checked" status={getStepStatus("topic")} />
+            <TimelineStep label="Payment Verified" subLabel="Paid" status={getStepStatus("payment")} />
             <TimelineStep
-                label="Generating Chapter 1..."
-                subLabel={status === "GENERATING" ? "Estimated time: 2 mins" : undefined}
-                status={status === "GENERATING" ? "current" : "pending"}
+                label={getGenerationLabel()}
+                subLabel={getGenerationSubLabel()}
+                status={getStepStatus("generation")}
                 stepNumber={3}
             />
         </div>
