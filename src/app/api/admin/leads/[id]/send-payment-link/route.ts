@@ -11,9 +11,10 @@ const sendPaymentBodySchema = z.object({
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
     try {
+        const params = await props.params;
         const leadId = params.id;
         const body = await req.json();
         const { amount, tier } = sendPaymentBodySchema.parse(body);
@@ -42,7 +43,13 @@ export async function POST(
         }
 
         // 3. Generate Reference
-        const reference = `FYB-${tier.toUpperCase()}-${leadId.slice(0, 8)}-${Date.now()}`;
+        const timestamp = Date.now();
+        // Sanitize characters: Only alphanumeric, dash, dot, =, _ allowed. 
+        // We replace any other char with empty string, but IDs are usually safe.
+        // Format: FYB-TIER-LEADIDSHORT-TIMESTAMP
+        const safeTier = tier.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const safeLeadId = leadId.slice(0, 8).replace(/[^a-zA-Z0-9]/g, '');
+        const reference = `FYB-${safeTier}-${safeLeadId}-${timestamp}`;
 
         // 4. Initialize Paystack
         const paymentData = await PaystackService.initializePayment({
