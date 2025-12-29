@@ -16,18 +16,43 @@ const PRICING_TIERS = {
 export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
     const [loading, setLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef<HTMLButtonElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Calculate dropdown position when opened
+    useEffect(() => {
+        if (isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom + 8, // 8px gap
+                left: rect.right - 224, // 224px = w-56 dropdown width, align right
+            });
+        }
+    }, [isOpen]);
 
     // Close dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            if (
+                dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                buttonRef.current && !buttonRef.current.contains(event.target as Node)
+            ) {
                 setIsOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // Close on scroll (since it's fixed position)
+    useEffect(() => {
+        if (isOpen) {
+            const handleScroll = () => setIsOpen(false);
+            window.addEventListener("scroll", handleScroll, true);
+            return () => window.removeEventListener("scroll", handleScroll, true);
+        }
+    }, [isOpen]);
 
     const handleGenerateLink = async (key: keyof typeof PRICING_TIERS) => {
         setLoading(true);
@@ -51,7 +76,6 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
             // Success - Copy to clipboard
             await navigator.clipboard.writeText(data.authorizationUrl);
             alert(`✅ Link for ${tier.label} copied to clipboard!`);
-            // Optionally open in new tab: window.open(data.authorizationUrl, "_blank");
         } catch (error) {
             alert("❌ Error generating link");
             console.error(error);
@@ -61,8 +85,9 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
     };
 
     return (
-        <div className="relative inline-block" ref={dropdownRef}>
+        <>
             <button
+                ref={buttonRef}
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={loading}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-white/5 border border-primary/20 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
@@ -76,8 +101,13 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
                 <ChevronDown className="h-3 w-3" />
             </button>
 
+            {/* Portal-like fixed dropdown */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-[#0f0c29] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+                <div
+                    ref={dropdownRef}
+                    className="fixed w-56 bg-[#0f0c29] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+                    style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                >
                     {Object.entries(PRICING_TIERS).map(([key, tier]) => (
                         <button
                             key={key}
@@ -90,6 +120,7 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
                     ))}
                 </div>
             )}
-        </div>
+        </>
     );
 }
+

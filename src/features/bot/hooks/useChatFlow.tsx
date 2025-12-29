@@ -179,96 +179,92 @@ export function useChatFlow(userId?: string) {
         }
     }, [aiMessages, state]);
 
-    const handleUserMessage = async (text: string) => {
-        // If we are in CLOSING state, we expect a phone number
-        if (state === "CLOSING") {
-            const cleanText = text.replace(/[\s-]/g, '');
-            // Simple phone regex or loose check
-            const isPhoneNumber = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/im.test(cleanText);
-
-            if (isPhoneNumber) {
-                // We'll tentatively use the last known complexity/topic if available, 
-                // but really we just want to save the lead. 
-                // However, the AI hasn't CONFIRMED the topic yet formally via tool in this flow usually, 
-                // OR it has discussed it. 
-                // We will try to save what we have. API allows empty topic/twist if needed but schema says required.
-                // We'll pass placeholders if needed or rely on what AI context has.
-                // Actually, let's just save the Lead with the text as the "Topic" or "Context" if missing?
-                // No, the schema requires topic/twist.
-                // We should probably rely on the AI to confirm the topic AFTER getting the phone number.
-
-                // HACK: Pass "Pending" if not yet confirmed, or try to extract from local state if we tracked it?
-                // For now, let's assume the flow: AI Pitched -> AI asked for Phone -> User provided Phone.
-                // We don't have the topic in a structured variable yet unless `suggestTopics` saved it?
-                // `suggestTopics` doesn't save selection.
-
-                // Workaround: We will send the phone number to the AI first.
-                // The AI will see the phone number, then it will call `confirmTopic`.
-                // We can save the lead *inside* the `confirmTopic` tool? 
-                // No, existing architecture: `saveLeadAction` is separate.
-
-                // Let's call safeLeadAction with "Pending extraction" and update it later?
-                // Or just send message and let AI handle the data extraction via `confirmTopic`?
-
-                // BETTER PLAN: 
-                // 1. Send message to AI: "My number is [number]".
-                // 2. AI sees it, calls `confirmTopic(topic, twist)`.
-                // 3. We intercept `confirmTopic`.
-                // 4. We call `saveLeadAction` with the extracted topic/twist AND the phone number we just saw?
-                // Complexity: The phone number was in the user message.
-
-                // SIMPLER PLAN (Current implementation):
-                // We try to save the lead now. If we don't have topic, we just pass "From Chat".
-
-                try {
-                    const result = await saveLeadAction({
-                        whatsapp: text.trim(),
-                        topic: confirmedTopic?.topic || "Pending AI Confirmation",
-                        twist: confirmedTopic?.twist || "Pending Twist",
-                        complexity: complexity,
-                        department: "Computer Science",
-                        anonymousId: anonymousId,
-                        userId: userId,
-                    });
-
-                    // Send the phone number to the AI regardless of save success (so conversation continues)
-                    await sendMessage({ text: `My WhatsApp number is ${text}` });
-                } catch (err) {
-                    console.error("Error in closing flow:", err);
-                    // Force state reset if error
-                    setState("PROPOSAL");
-                }
-                return;
+    // ==============================================
+    // Phone Number Detection Utility
+    // ==============================================
+    // Robust regex to detect phone numbers with:
+    // - Optional country code (+234, +1, etc.)
+    // - Spaces, dashes, parentheses
+    // - Nigerian format (0803..., 234803...)
+    // - Minimum 10 digits to avoid false positives
+    const detectPhoneNumber = (text: string): string | null => {
+        const cleanedText = text.replace(/[\s\-().]/g, '');
+        // Match international or local phone patterns
+        const phoneRegex = /^\+?\d{10,15}$/;
+        if (phoneRegex.test(cleanedText)) {
+            return cleanedText; // Return cleaned number
+        }
+        // Try to extract phone from longer text (e.g., "My number is 08012345678")
+        const extractMatch = text.match(/(?:\+?\d[\d\s\-().]{9,17}\d)/);
+        if (extractMatch) {
+            const extracted = extractMatch[0].replace(/[\s\-().]/g, '');
+            if (extracted.length >= 10 && extracted.length <= 15) {
+                return extracted;
             }
         }
+        return null;
+    };
 
-        // Default behavior
+    const handleUserMessage = async (text: string) => {
+        // ==============================================
+        // UNIVERSAL PHONE DETECTION (Works in ANY state)
+        // ==============================================
+        const detectedPhone = detectPhoneNumber(text);
+
+        if (detectedPhone) {
+            // We have a phone number! Always attempt to save as lead.
+            console.log("[useChatFlow] Phone detected, triggering lead capture:", detectedPhone);
+
+            try {
+                await saveLeadAction({
+                    whatsapp: detectedPhone,
+                    topic: confirmedTopic?.topic || "Pending AI Confirmation",
+                    twist: confirmedTopic?.twist || "Pending Twist",
+                    complexity: complexity,
+                    department: "Computer Science", // Default, could be enhanced
+                    anonymousId: anonymousId,
+                    userId: userId,
+                });
+
+                // Transition to CLOSING if not already there
+                if (state !== "CLOSING" && state !== "COMPLETED") {
+                    setState("CLOSING");
+                }
+
+                // Send the message to AI so flow continues naturally
+                await sendMessage({ text: `My WhatsApp number is ${text}` });
+            } catch (err) {
+                console.error("[useChatFlow] Lead save failed:", err);
+                // Still send to AI so user isn't stuck
+                await sendMessage({ text });
+            }
+            return;
+        }
+
+        // ==============================================
+        // Default Behavior (No phone detected)
+        // ==============================================
         try {
             if (state === "INITIAL") {
                 setState("ANALYZING");
             } else {
-                // If not initial, likely staying in current state context until response? 
-                // Actually keep it simple, if we are typing, we are "Analyzing" response next
                 setState("ANALYZING");
             }
 
             await sendMessage({ text });
         } catch (err) {
             console.error("Message failed:", err);
-            // Don't leave UI in ANALYZING (disabled) state
             setState("PROPOSAL");
         } finally {
-            // Only reset to PROPOSAL if we're still in ANALYZING state.
-            // Don't override CLOSING or COMPLETED states set by tool handlers.
             setState((currentState) => {
                 if (currentState === "ANALYZING") {
                     return "PROPOSAL";
                 }
-                // Keep CLOSING, COMPLETED, or any other state set by tools
                 return currentState;
             });
         }
     };
+
 
     const handleAction = (action: "accept" | "simplify" | "harder") => {
         // These serve as quick replies
