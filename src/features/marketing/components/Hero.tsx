@@ -73,7 +73,7 @@ export function Hero() {
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ type: "spring", stiffness: 70, damping: 15, delay: 0.2 }}
-                    className="text-6xl md:text-8xl font-display font-bold leading-tight mb-8"
+                    className="text-4xl md:text-6xl lg:text-8xl font-display font-bold leading-tight mb-6 md:mb-8"
                 >
                     Don't Just Pass.<br />
                     <span className="text-gradient">Dominate.</span>
@@ -94,18 +94,18 @@ export function Hero() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: "spring", stiffness: 100, damping: 10, delay: 0.6 }}
-                    className="flex justify-center gap-4 mb-12"
+                    className="flex justify-center gap-2 md:gap-4 mb-8 md:mb-12"
                 >
-                    <div className="flex flex-col items-center glass-panel px-4 py-2 rounded-lg">
-                        <span className="text-2xl font-bold text-accent">{timeLeft.days}</span>
-                        <span className="text-xs uppercase text-gray-500">Days</span>
+                    <div className="flex flex-col items-center glass-panel px-3 py-2 md:px-4 md:py-2 rounded-lg">
+                        <span className="text-xl md:text-2xl font-bold text-accent">{timeLeft.days}</span>
+                        <span className="text-[10px] md:text-xs uppercase text-gray-500">Days</span>
                     </div>
-                    <div className="flex flex-col items-center glass-panel px-4 py-2 rounded-lg">
-                        <span className="text-2xl font-bold text-accent">{timeLeft.hours}</span>
-                        <span className="text-xs uppercase text-gray-500">Hrs</span>
+                    <div className="flex flex-col items-center glass-panel px-3 py-2 md:px-4 md:py-2 rounded-lg">
+                        <span className="text-xl md:text-2xl font-bold text-accent">{timeLeft.hours}</span>
+                        <span className="text-[10px] md:text-xs uppercase text-gray-500">Hrs</span>
                     </div>
-                    <div className="flex flex-col items-center glass-panel px-4 py-2 rounded-lg">
-                        <span className="text-2xl font-bold text-accent">{timeLeft.minutes}</span>
+                    <div className="flex flex-col items-center glass-panel px-3 py-2 md:px-4 md:py-2 rounded-lg">
+                        <span className="text-xl md:text-2xl font-bold text-accent">{timeLeft.minutes}</span>
                         <span className="text-xs uppercase text-gray-500">Mins</span>
                     </div>
                 </motion.div>
@@ -142,14 +142,16 @@ export function Hero() {
             </div>
 
             {/* Scroll Indicator */}
-            <motion.div
-                animate={{ y: [0, 10, 0], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/50"
-            >
-                <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
-                <ChevronDown className="w-4 h-4" />
-            </motion.div>
+            <div className="absolute bottom-10 left-0 w-full flex justify-center z-10 pointer-events-none">
+                <motion.div
+                    animate={{ y: [0, 10, 0], opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="flex flex-col items-center gap-2 text-white/50"
+                >
+                    <span className="text-[10px] uppercase tracking-[0.2em]">Scroll</span>
+                    <ChevronDown className="w-4 h-4" />
+                </motion.div>
+            </div>
         </section>
     );
 }
