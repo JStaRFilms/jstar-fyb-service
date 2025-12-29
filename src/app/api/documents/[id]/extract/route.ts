@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
 const google = createGoogleGenerativeAI({
@@ -16,7 +16,13 @@ const extractionSchema = z.object({
     motivation: z.string().describe("Why this research was conducted"),
     methodology: z.string().describe("Research methodology used"),
     contribution: z.string().describe("Key contributions or findings"),
-    limitations: z.string().describe("Limitations mentioned in the paper")
+    limitations: z.string().describe("Limitations mentioned in the paper"),
+    documentType: z.string().describe("Type of document (research paper, report, thesis, etc.)"),
+    category: z.string().describe("Academic category or field of study"),
+    keywords: z.array(z.string()).describe("Key terms and concepts from the document"),
+    summary: z.string().describe("Brief summary of the document content"),
+    insights: z.array(z.string()).describe("Key insights and findings"),
+    themes: z.array(z.string()).describe("Major themes and topics covered")
 });
 
 export async function POST(
@@ -34,7 +40,7 @@ export async function POST(
         // Get the document
         const doc = await prisma.researchDocument.findUnique({
             where: { id },
-            select: { fileData: true, mimeType: true, fileName: true }
+            select: { fileData: true, mimeType: true, fileName: true, projectId: true }
         });
 
         if (!doc) {
@@ -48,8 +54,8 @@ export async function POST(
         // Convert to base64 for Gemini
         const base64Data = Buffer.from(doc.fileData).toString("base64");
 
-        // Call Gemini with the PDF
-        const result = await generateObject({
+        // Step 1: Extract structured metadata
+        const metadataResult = await generateObject({
             model: google("gemini-2.5-flash"),
             schema: extractionSchema,
             messages: [
@@ -58,17 +64,31 @@ export async function POST(
                     content: [
                         {
                             type: "text",
-                            text: `Analyze this research paper and extract the following metadata:
-- Title
-- Author(s)
-- Publication Year
-- Objective/Research Question
-- Motivation
-- Methodology
-- Key Contributions
-- Limitations
+                            text: `Analyze this research document and extract comprehensive metadata for academic content generation. Provide:
 
-Be concise but accurate.`
+1. **Document Identification:**
+   - Title
+   - Author(s)
+   - Publication Year
+   - Document Type (research paper, report, thesis, etc.)
+   - Academic Category/Field of Study
+
+2. **Research Context:**
+   - Objective/Research Question
+   - Motivation (why this research was conducted)
+   - Methodology used
+
+3. **Content Analysis:**
+   - Key Contributions/Findings
+   - Limitations mentioned
+   - Key Terms and Concepts (keywords)
+   - Major Themes and Topics covered
+
+4. **Content Summary:**
+   - Brief summary of the document content
+   - Key insights and findings
+
+Be thorough and accurate in your analysis.`
                         },
                         {
                             type: "file",
@@ -80,33 +100,127 @@ Be concise but accurate.`
             ]
         });
 
-        // Update the document with extracted data
+        // Step 2: Extract full text content for AI content generation
+        const contentResult = await generateText({
+            model: google("gemini-2.5-flash"),
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Extract the full text content from this document, preserving the structure and key information. Focus on:
+
+1. **Introduction and Background** - Extract the main concepts and context
+2. **Literature Review** - Key findings and related work
+3. **Methodology** - Detailed approach and techniques used
+4. **Results and Analysis** - Findings, data, and interpretations
+5. **Discussion** - Implications and significance
+6. **Conclusion** - Summary and future work
+
+Provide the extracted content in a structured format that can be used for AI content generation. Include important quotes, statistics, and technical details that would be valuable for creating academic content.`
+                        },
+                        {
+                            type: "file",
+                            data: base64Data,
+                            mediaType: doc.mimeType || "application/pdf"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        // Step 3: Generate AI-ready insights for content generation
+        const insightsResult = await generateText({
+            model: google("gemini-2.5-flash"),
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Based on this research document, generate insights that would be valuable for AI content generation. Provide:
+
+1. **Content Generation Prompts** - Specific prompts that could be used to generate related content
+2. **Knowledge Gaps** - Areas where additional research or explanation would be valuable
+3. **Application Ideas** - How this research could be applied in practical scenarios
+4. **Related Topics** - Other areas of study that connect to this research
+5. **Teaching Points** - Key concepts that would be important for educational content
+
+Format this as structured insights that can guide AI content creation.`
+                        },
+                        {
+                            type: "file",
+                            data: base64Data,
+                            mediaType: doc.mimeType || "application/pdf"
+                        }
+                    ]
+                }
+            ]
+        });
+
+        // Update the document with comprehensive extracted data
         const updated = await prisma.researchDocument.update({
             where: { id },
             data: {
-                title: result.object.title,
-                author: result.object.author,
-                year: result.object.year,
-                objective: result.object.objective,
-                motivation: result.object.motivation,
-                methodology: result.object.methodology,
-                contribution: result.object.contribution,
-                limitations: result.object.limitations,
+                // Basic metadata
+                title: metadataResult.object.title,
+                author: metadataResult.object.author,
+                year: metadataResult.object.year,
+                documentType: metadataResult.object.documentType,
+                category: metadataResult.object.category,
+
+                // Research context
+                objective: metadataResult.object.objective,
+                motivation: metadataResult.object.motivation,
+                methodology: metadataResult.object.methodology,
+
+                // Content analysis
+                contribution: metadataResult.object.contribution,
+                limitations: metadataResult.object.limitations,
+                keywords: JSON.stringify(metadataResult.object.keywords),
+                themes: JSON.stringify(metadataResult.object.themes),
+                insights: JSON.stringify(metadataResult.object.insights),
+
+                // Content and insights
+                summary: metadataResult.object.summary,
+                extractedContent: contentResult.text,
+                aiInsights: insightsResult.text,
                 status: "PROCESSED"
             }
         });
 
-        return NextResponse.json({ success: true, extraction: result.object });
+        // Step 4: Update project status to indicate research documents are available
+        await prisma.project.update({
+            where: { id: doc.projectId },
+            data: {
+                status: "RESEARCH_COMPLETE",
+                updatedAt: new Date()
+            }
+        });
+
+        return NextResponse.json({
+            success: true,
+            extraction: {
+                metadata: metadataResult.object,
+                content: contentResult.text,
+                insights: insightsResult.text
+            }
+        });
 
     } catch (error) {
         console.error("[ExtractDocument] Error:", error);
 
         // Mark as failed
         const { id } = await params;
-        await prisma.researchDocument.update({
-            where: { id },
-            data: { status: "FAILED" }
-        });
+        try {
+            await prisma.researchDocument.update({
+                where: { id },
+                data: { status: "FAILED" }
+            });
+        } catch (updateError) {
+            console.error("[ExtractDocument] Failed to update document status:", updateError);
+        }
 
         return NextResponse.json({ error: "Extraction failed" }, { status: 500 });
     }

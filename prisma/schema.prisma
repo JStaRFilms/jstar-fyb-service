@@ -129,6 +129,16 @@ model Project {
   isUnlocked       Boolean @default(false) // Has paid for full project
   outlineGenerated Boolean @default(false)
 
+  // Enhanced Progress Tracking
+  progressPercentage Int     @default(0) // 0-100
+  contentProgress    Json?   // JSON object tracking content generation progress
+  documentProgress   Json?   // JSON object tracking document processing
+  aiGenerationStatus Json?   // JSON object tracking AI generation status
+  timeTracking       Json?   // JSON object tracking time spent on each phase
+  milestones         Json?   // JSON array of milestone completions
+  estimatedCompletion DateTime? // Estimated completion date
+  actualCompletion   DateTime? // Actual completion date
+
   // Relations
   documents   ResearchDocument[]
   outline     ChapterOutline?
@@ -170,16 +180,27 @@ model ResearchDocument {
 
   // Extraction Status
   status      String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  processedAt DateTime?
 
   // Extracted Metadata (for "Human-in-the-Loop" / NotebookLM)
   title        String?
   author       String?
   year         String?
+  documentType String?
+  category     String?
   objective    String?
   motivation   String?
   methodology  String?
   contribution String?
   limitations  String?
+
+  // Enhanced Content Fields
+  keywords     String? // JSON array of keywords
+  themes       String? // JSON array of themes
+  summary      String?
+  insights     String? // JSON array of insights
+  extractedContent String?
+  aiInsights   String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

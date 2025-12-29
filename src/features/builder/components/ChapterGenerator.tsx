@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BookOpen, Loader2, Download, ChevronDown, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -27,6 +27,41 @@ export function ChapterGenerator({ projectId }: ChapterGeneratorProps) {
     const [chapters, setChapters] = useState<Record<number, GeneratedChapter>>({});
     const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Fetch stored chapters on component mount
+    useEffect(() => {
+        const fetchStoredChapters = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch(`/api/projects/${projectId}/chapters`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.chapters) {
+                        // Convert stored chapters to our format
+                        const storedChapters: Record<number, GeneratedChapter> = {};
+                        Object.entries(result.chapters).forEach(([key, content]) => {
+                            const chapterNumber = parseInt(key.replace('chapter_', ''));
+                            if (chapterNumber >= 1 && chapterNumber <= 5) {
+                                storedChapters[chapterNumber] = {
+                                    number: chapterNumber,
+                                    title: CHAPTER_INFO[chapterNumber - 1].title,
+                                    content: content as string,
+                                    isGenerating: false
+                                };
+                            }
+                        });
+                        setChapters(storedChapters);
+                    }
+                }
+            } catch (error) {
+                console.error('[ChapterGenerator] Failed to fetch stored chapters:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchStoredChapters();
+    }, [projectId]);
 
     const generateChapter = useCallback(async (chapterNumber: number) => {
         setError(null);
@@ -194,8 +229,8 @@ export function ChapterGenerator({ projectId }: ChapterGeneratorProps) {
                                     disabled={!isGenerated}
                                 >
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${isGenerated ? 'bg-green-500/20 text-green-400' :
-                                            isGenerating ? 'bg-primary/20 text-primary' :
-                                                'bg-white/5 text-gray-500'
+                                        isGenerating ? 'bg-primary/20 text-primary' :
+                                            'bg-white/5 text-gray-500'
                                         }`}>
                                         {isGenerating ? (
                                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -237,8 +272,8 @@ export function ChapterGenerator({ projectId }: ChapterGeneratorProps) {
                                         <button
                                             onClick={() => generateChapter(info.number)}
                                             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${isGenerated
-                                                    ? 'border border-white/10 text-gray-400 hover:border-white/20'
-                                                    : 'bg-primary text-white hover:bg-primary/90'
+                                                ? 'border border-white/10 text-gray-400 hover:border-white/20'
+                                                : 'bg-primary text-white hover:bg-primary/90'
                                                 }`}
                                         >
                                             <BookOpen className="w-4 h-4" />

@@ -2,8 +2,10 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, BarChart3 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { ProgressIndicator } from './ProgressIndicator';
 
 export function ProjectAssistant({ projectId }: { projectId: string }) {
     const chatHelpers: any = useChat({
@@ -16,11 +18,18 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
             console.log('[ProjectAssistant] Stream finished:', message);
         }
     });
-    // Destructure what we can, and fallback manually
-    const { messages, isLoading, append } = chatHelpers;
+
+    // Destructure properties - 'append' or 'sendMessage' depending on SDK version
+    const { messages, isLoading, append, sendMessage } = chatHelpers;
+
+    // Identify the correct function to use
+    const sendFunc = append || sendMessage;
 
     const [input, setInput] = useState('');
+    const [showProgress, setShowProgress] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -33,17 +42,24 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
         if (!input.trim() || isLoading) return;
 
         const userMessage = input;
-        console.log('[ProjectAssistant] Sending message:', userMessage);
+
+        // Prevent sending if no function is available
+        if (!sendFunc) {
+            console.error('[ProjectAssistant] No send function (append/sendMessage) found!');
+            alert('Chat initialization error. Please refresh.');
+            return;
+        }
+
         setInput(''); // Clear input immediately
 
         try {
-            await append({
+            await sendFunc({
                 role: 'user',
                 content: userMessage,
             });
-            console.log('[ProjectAssistant] Append successful');
+            // Message sent
         } catch (err) {
-            console.error('[ProjectAssistant] Append failed:', err);
+            console.error('[ProjectAssistant] Send failed:', err);
             alert('Failed to send message');
         }
     };
@@ -51,13 +67,30 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
     return (
         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col h-[600px] w-full">
             {/* Header */}
-            <div className="p-4 border-b border-white/10 bg-white/5 flex items-center gap-2">
-                <Bot className="w-5 h-5 text-purple-400" />
-                <div>
-                    <h3 className="font-bold text-white text-sm">Project Copilot</h3>
-                    <p className="text-xs text-gray-400">Context-aware AI Assistant</p>
+            <div className="p-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-purple-400" />
+                    <div>
+                        <h3 className="font-bold text-white text-sm">Project Copilot</h3>
+                        <p className="text-xs text-gray-400">Context-aware AI Assistant</p>
+                    </div>
                 </div>
+                <button
+                    onClick={() => setShowProgress(!showProgress)}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    title="Show Project Progress"
+                >
+                    <BarChart3 className="w-4 h-4 text-gray-400" />
+                </button>
             </div>
+
+            {/* Progress Section */}
+            {showProgress && (
+                <div className="p-4 border-b border-white/10 bg-white/5">
+                    <h4 className="text-sm font-medium text-gray-300 mb-2">Project Progress</h4>
+                    <ProgressIndicator projectId={projectId} className="w-full" />
+                </div>
+            )}
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
@@ -77,7 +110,18 @@ export function ProjectAssistant({ projectId }: { projectId: string }) {
                         </div>
                         <div className={`max-w-[85%] rounded-2xl p-3 text-sm leading-relaxed ${m.role === 'user' ? 'bg-blue-500/10 text-blue-100 rounded-tr-sm' : 'bg-white/10 text-gray-200 rounded-tl-sm'
                             }`}>
-                            {m.content}
+                            <div className="prose prose-invert prose-sm max-w-none">
+                                {m.parts ? (
+                                    m.parts.map((part: any, i: number) => {
+                                        if (part.type === 'text') {
+                                            return <ReactMarkdown key={i}>{part.text}</ReactMarkdown>;
+                                        }
+                                        return null;
+                                    })
+                                ) : (
+                                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}

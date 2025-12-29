@@ -1,21 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, Link as LinkIcon, FileText, Loader2, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, Link as LinkIcon, FileText, Loader2, Trash2, CheckCircle, XCircle, Eye, Sparkles } from "lucide-react";
 import { useBuilderStore } from "../store/useBuilderStore";
-
-// Mock ID generator for optimistic UI (if we were using it, but we'll stick to simple state for now)
-// In a real app we'd fetch the document list from the API
 
 export function DocumentUpload({ projectId }: { projectId: string }) {
     const [mode, setMode] = useState<"upload" | "link">("upload");
     const [file, setFile] = useState<File | null>(null);
     const [link, setLink] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [documents, setDocuments] = useState<any[]>([]);
+    const [extractionStatus, setExtractionStatus] = useState<Record<string, string>>({});
 
-    // We would fetch this from a useDocuments hook in a real implementation
-    // For now we just track uploads locally to show the UI feedback
-    const [uploads, setUploads] = useState<{ name: string; type: string }[]>([]);
+    // Fetch existing documents
+    useEffect(() => {
+        fetchDocuments();
+    }, [projectId]);
+
+    const fetchDocuments = async () => {
+        try {
+            const res = await fetch(`/api/documents?projectId=${projectId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setDocuments(data.documents || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch documents:", error);
+        }
+    };
 
     const handleUpload = async () => {
         if (!file && !link) return;
@@ -61,20 +74,78 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
             const data = await res.json();
 
             // Add to list
-            setUploads(prev => [...prev, {
-                name: mode === "upload" ? file!.name : link,
-                type: mode === "upload" ? "file" : "link"
+            setDocuments(prev => [...prev, {
+                id: data.doc.id,
+                fileName: mode === "upload" ? file!.name : "External Link",
+                fileType: mode === "upload" ? "file" : "link",
+                status: "PENDING",
+                ...data.doc
             }]);
 
             // Reset
             setFile(null);
             setLink("");
 
+            // Auto-start extraction for file uploads
+            if (mode === "upload" && data.doc.id) {
+                await handleExtract(data.doc.id);
+            }
+
         } catch (error) {
             console.error("Upload error:", error);
             alert(error instanceof Error ? error.message : "Failed to upload document");
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleExtract = async (documentId: string) => {
+        setIsExtracting(true);
+        setExtractionStatus(prev => ({ ...prev, [documentId]: "PROCESSING" }));
+
+        try {
+            const res = await fetch(`/api/documents/${documentId}/extract`, {
+                method: "POST"
+            });
+
+            if (!res.ok) {
+                throw new Error("Extraction failed");
+            }
+
+            const data = await res.json();
+
+            // Update document status
+            setDocuments(prev => prev.map(doc =>
+                doc.id === documentId
+                    ? { ...doc, status: "PROCESSED", ...data.extraction.metadata }
+                    : doc
+            ));
+
+            setExtractionStatus(prev => ({ ...prev, [documentId]: "SUCCESS" }));
+
+        } catch (error) {
+            console.error("Extraction error:", error);
+            setExtractionStatus(prev => ({ ...prev, [documentId]: "FAILED" }));
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case "PROCESSED": return <CheckCircle className="w-4 h-4 text-green-400" />;
+            case "FAILED": return <XCircle className="w-4 h-4 text-red-400" />;
+            case "PROCESSING": return <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />;
+            default: return <Sparkles className="w-4 h-4 text-gray-400" />;
+        }
+    };
+
+    const getStatusText = (status: string) => {
+        switch (status) {
+            case "PROCESSED": return "Processed";
+            case "FAILED": return "Failed";
+            case "PROCESSING": return "Processing...";
+            default: return "Pending Analysis";
         }
     };
 
@@ -147,27 +218,71 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                     {isUploading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                        mode === "upload" ? "Upload File" : "Add Link"
+                        mode === "upload" ? "Upload & Process" : "Add Link"
                     )}
                 </button>
             </div>
 
-            {/* File List */}
-            {uploads.length > 0 && (
-                <div className="space-y-2">
-                    {uploads.map((upload, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+            {/* Document List */}
+            {documents.length > 0 && (
+                <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Uploaded Documents</h4>
+                    {documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
                             <div className="flex items-center gap-3 overflow-hidden">
-                                {upload.type === 'file' ? <FileText className="w-4 h-4 text-blue-400 shrink-0" /> : <LinkIcon className="w-4 h-4 text-purple-400 shrink-0" />}
-                                <span className="text-sm truncate text-gray-300">{upload.name}</span>
+                                {doc.fileType === 'file' ? <FileText className="w-5 h-5 text-blue-400 shrink-0" /> : <LinkIcon className="w-5 h-5 text-purple-400 shrink-0" />}
+                                <div className="min-w-0">
+                                    <span className="text-sm font-medium text-white">{doc.fileName}</span>
+                                    {doc.title && (
+                                        <p className="text-xs text-gray-400 truncate">{doc.title}</p>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">Pending Analysis</span>
+
+                            <div className="flex items-center gap-3">
+                                {/* Status */}
+                                <div className="flex items-center gap-2">
+                                    {getStatusIcon(doc.status)}
+                                    <span className="text-xs text-gray-400">{getStatusText(doc.status)}</span>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-2">
+                                    {doc.status === "PENDING" && (
+                                        <button
+                                            onClick={() => handleExtract(doc.id)}
+                                            disabled={isExtracting}
+                                            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                                        >
+                                            <Sparkles className="w-3 h-3" />
+                                            Process
+                                        </button>
+                                    )}
+
+                                    {doc.status === "PROCESSED" && (
+                                        <button
+                                            onClick={() => {
+                                                // Show extracted content
+                                                alert(`Title: ${doc.title || 'N/A'}\n\nSummary: ${doc.summary || 'N/A'}`);
+                                            }}
+                                            className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
+                                        >
+                                            <Eye className="w-3 h-3" />
+                                            View
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            {/* Processing Info */}
+            <div className="mt-4 text-xs text-gray-500">
+                <p><strong>Note:</strong> Documents are automatically processed to extract metadata, content, and insights for AI content generation.</p>
+                <p className="mt-1">Processed documents become available as context for chapter generation and research assistance.</p>
+            </div>
         </div>
     );
 }

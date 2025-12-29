@@ -112,6 +112,26 @@ export function ChapterOutliner() {
     const displayChapters = streamedChapters.length > 0 ? streamedChapters : (data.outline || []);
     const displayTitle = object?.title || data.topic || "Project Title";
 
+    // Fetch stored outline if we have a project ID and no outline yet
+    useEffect(() => {
+        const fetchStoredOutline = async () => {
+            if (data.projectId && !data.outline?.length && !isLoading) {
+                try {
+                    const response = await fetch(`/api/projects/${data.projectId}/outline`);
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.outline) {
+                            updateData({ outline: result.outline });
+                        }
+                    }
+                } catch (error) {
+                    console.error('[ChapterOutliner] Failed to fetch stored outline:', error);
+                }
+            }
+        };
+        fetchStoredOutline();
+    }, [data.projectId, data.outline?.length, isLoading]);
+
     // Trigger generation automatically if we have topic/abstract but no outline yet
     useEffect(() => {
         if (data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length && !isLoading) {

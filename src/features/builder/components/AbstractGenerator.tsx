@@ -42,6 +42,27 @@ export function AbstractGenerator() {
         }
     }, []);
 
+    // Fetch stored abstract if we have a project ID and no abstract yet
+    useEffect(() => {
+        const fetchStoredAbstract = async () => {
+            if (data.projectId && !data.abstract && !isLoading) {
+                try {
+                    const response = await fetch(`/api/projects/${data.projectId}/abstract`);
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.abstract) {
+                            updateData({ abstract: result.abstract });
+                            setCompletion(result.abstract);
+                        }
+                    }
+                } catch (error) {
+                    console.error('[AbstractGenerator] Failed to fetch stored abstract:', error);
+                }
+            }
+        };
+        fetchStoredAbstract();
+    }, [data.projectId, data.abstract, isLoading]);
+
     const handleRefine = () => {
         if (!refineInput) return;
         complete("", { body: { topic: data.topic, twist: data.twist, instruction: refineInput } });

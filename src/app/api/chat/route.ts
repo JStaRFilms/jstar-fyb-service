@@ -1,5 +1,5 @@
-import { createOpenAI } from '@ai-sdk/openai';
-import { convertToModelMessages, streamText, tool, UIMessage, stepCountIs } from 'ai';
+import { createGroq } from '@ai-sdk/groq';
+import { streamText, tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { saveConversation } from '@/features/bot/actions/chat';
 import { SYSTEM_PROMPT } from '@/features/bot/prompts/system';
@@ -10,9 +10,8 @@ if (!groqApiKey) {
     throw new Error('GROQ_API_KEY environment variable is required');
 }
 
-// Create Groq provider
-const groq = createOpenAI({
-    baseURL: 'https://api.groq.com/openai/v1',
+// Create Groq provider (using dedicated @ai-sdk/groq for proper compatibility)
+const groq = createGroq({
     apiKey: groqApiKey,
 });
 
@@ -71,8 +70,47 @@ export async function POST(req: Request) {
 
         const { messages, conversationId, anonymousId } = validation.data;
 
-        // Cast to unknown first to satisfy strict type overlap checks for UIMessage
-        const modelMessages = convertToModelMessages(messages as unknown as UIMessage[]);
+        // Defensive check: ensure messages is a valid array before converting
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            console.error('[Chat API] Invalid messages array:', messages);
+            return new Response(JSON.stringify({ error: 'Messages array is required and must not be empty' }), { status: 400 });
+        }
+
+        // Safely convert messages to model format
+        // Handle text content, tool calls, and tool results
+        const modelMessages = messages.map((m: any) => {
+            // Extract text content from parts or content
+            let textContent = '';
+
+            if (m.parts && Array.isArray(m.parts)) {
+                // Collect all text parts
+                const textParts: string[] = [];
+
+                for (const part of m.parts) {
+                    if (part.type === 'text' && part.text) {
+                        textParts.push(part.text);
+                    }
+                    // Convert tool results to readable text (so context is preserved)
+                    else if (part.type === 'tool-result' && part.result) {
+                        // Don't include tool results in history - they create issues with Groq
+                        // The AI already knows what tools it called from context
+                    }
+                    // Skip tool invocations entirely - Groq can't process them
+                }
+
+                textContent = textParts.join('\n').trim();
+            } else if (typeof m.content === 'string') {
+                textContent = m.content;
+            }
+
+            return {
+                role: m.role as 'user' | 'assistant' | 'system',
+                content: textContent
+            };
+        }).filter((m: any) => m.content && m.content.trim() !== ''); // Remove empty messages
+
+        // Debug: Log summary (not full history)
+        console.log(`[Chat API] Processing ${modelMessages.length} messages. Last: "${modelMessages[modelMessages.length - 1]?.content?.slice(0, 50)}..."`);
 
         const result = await streamTextWithRetry({
             // FIX 1: Use Llama 3.3 70B (Best for Tool Calling on Groq)
@@ -167,8 +205,6 @@ NEGATIVE: Never end conversation or say "we're done" without calling this tool.`
                 })
             },
             onFinish: async ({ text, toolCalls }) => {
-                // Debug: Log what we received from the client
-                console.log('[Chat API] onFinish - conversationId:', conversationId, 'anonymousId:', anonymousId);
 
                 // Early exit if we don't have a valid identifier
                 const hasValidId = (anonymousId && anonymousId.trim() !== "") || conversationId;

@@ -1,5 +1,5 @@
 import { streamText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import { createGroq } from '@ai-sdk/groq';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -11,9 +11,8 @@ if (!groqApiKey) {
     throw new Error('GROQ_API_KEY environment variable is required');
 }
 
-// Create Groq provider using OpenAI SDK compatibility
-const groq = createOpenAI({
-    baseURL: 'https://api.groq.com/openai/v1',
+// Create Groq provider (using dedicated @ai-sdk/groq for proper compatibility)
+const groq = createGroq({
     apiKey: groqApiKey,
 });
 
@@ -64,6 +63,15 @@ ${outlineData}
 `;
 
     // 4. Stream Response
+    // Defensive check: ensure messages is a valid array before mapping
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        console.error('[Project Chat API] Invalid messages array:', messages);
+        return new Response(JSON.stringify({ error: 'Messages array is required and must not be empty' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
     // We map messages manually to avoid import issues
     const coreMessages = messages.map((m: any) => ({
         role: m.role,
@@ -76,8 +84,6 @@ ${outlineData}
         messages: coreMessages,
         onFinish: async ({ text }) => {
             // Save User Message (last one)
-            // Note: 'messages' from client includes history. We only strictly need to save the new ones if we aren't saving them incrementally.
-            // Strategy: We save the *last* user message sent in this request, and the assistant response.
             const lastUserMessage = messages[messages.length - 1];
             if (lastUserMessage && lastUserMessage.role === 'user') {
                 await prisma.projectChatMessage.create({
@@ -100,7 +106,5 @@ ${outlineData}
         },
     });
 
-    // We can't return StreamData easily without the class, but we can return headers if needed.
-    // For now, we return the simple stream. Client will get the text.
-    return result.toTextStreamResponse(); // streamText result can produce DataStreamResponse
+    return result.toUIMessageStreamResponse();
 }
