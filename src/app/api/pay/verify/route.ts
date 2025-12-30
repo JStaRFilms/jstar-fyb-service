@@ -111,6 +111,44 @@ const processPaymentVerification = async (reference: string) => {
         }
 
         // 6. CRITICAL SECURITY FIX: Atomic update of payment and project with proper error handling
+        // 2. Determine project to unlock (handling lead vs project IDs)
+        let projectId = payment.projectId;
+        let project = await tx.project.findUnique({ where: { id: projectId } });
+
+        // If not found, check if it was a lead-based payment
+        if (!project) {
+            const lead = await tx.lead.findUnique({ where: { id: payment.projectId } });
+            if (lead) {
+                // If lead exists, find or create the project for this lead
+                project = await tx.project.findFirst({
+                    where: { topic: lead.topic, userId: payment.userId }
+                });
+
+                if (!project) {
+                    project = await tx.project.create({
+                        data: {
+                            topic: lead.topic,
+                            twist: lead.twist,
+                            userId: payment.userId,
+                            status: 'OUTLINE_GENERATED',
+                            isUnlocked: true
+                        }
+                    });
+                }
+                projectId = project.id;
+            } else {
+                console.error('[PaymentVerify] Link target not found:', payment.projectId);
+            }
+        }
+
+        // 3. Update Statuses
+        const metadata = typeof data.metadata === 'string'
+            ? JSON.parse(data.metadata)
+            : data.metadata;
+
+        const tier = metadata?.tier;
+        const isConciergeTier = tier && ['BASIC', 'STANDARD', 'PREMIUM'].includes(tier.toUpperCase());
+
         const [updatedPayment, updatedProject] = await Promise.all([
             tx.payment.update({
                 where: { id: payment.id },
@@ -124,12 +162,30 @@ const processPaymentVerification = async (reference: string) => {
                     user: true
                 }
             }),
-            tx.project.update({
-                where: { id: payment.projectId },
+            project ? tx.project.update({
+                where: { id: projectId },
                 data: {
                     isUnlocked: true,
-                    status: "UNLOCKED",
+                    status: isConciergeTier ? "RESEARCH_IN_PROGRESS" : "UNLOCKED",
+                    mode: isConciergeTier ? "CONCIERGE" : "DIY",
                     updatedAt: new Date()
+                }
+            }) : Promise.resolve(),
+            // Additionally update the Lead status if this project belongs to a lead
+            tx.lead.updateMany({
+                where: {
+                    OR: [
+                        { id: metadata?.leadId },
+                        { userId: payment.userId },
+                        { anonymousId: project?.anonymousId }
+                    ].filter(Boolean) as any,
+                    // Only update the lead that matches the project topic (to be safe)
+                    topic: {
+                        contains: project?.topic || payment.project?.topic || ""
+                    }
+                },
+                data: {
+                    status: 'PAID'
                 }
             })
         ]);

@@ -11,9 +11,26 @@ import { ChapterOutliner } from "@/features/builder/components/ChapterOutliner";
 import { X } from "lucide-react";
 import Link from "next/link";
 
+import { useSession } from "@/lib/auth-client";
+
 function BuilderContent() {
-    const { step, updateData } = useBuilderStore();
+    const { data: session, isPending } = useSession();
+    const { step, updateData, syncWithUser, hydrateFromChat } = useBuilderStore();
     const searchParams = useSearchParams();
+
+    // Sync store with current user - but wait for session to load!
+    useEffect(() => {
+        if (!isPending) {
+            syncWithUser(session?.user?.id || null);
+        }
+    }, [session?.user?.id, isPending, syncWithUser]);
+
+    // Hydrate from chat if needed
+    useEffect(() => {
+        if (!isPending) {
+            hydrateFromChat(session?.user?.id);
+        }
+    }, [hydrateFromChat, session?.user?.id, isPending]);
 
     useEffect(() => {
         const topic = searchParams.get('topic');

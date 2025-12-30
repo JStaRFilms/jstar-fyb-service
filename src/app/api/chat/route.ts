@@ -143,7 +143,10 @@ export async function POST(req: Request) {
             return new Response(JSON.stringify({ error: 'Invalid input', details: validation.error }), { status: 400 });
         }
 
-        const { messages, conversationId, anonymousId } = validation.data;
+        const { messages, conversationId, anonymousId, id } = validation.data;
+
+        // Fallback for identification
+        const effectiveAnonymousId = anonymousId || id || `sdk-${Date.now()}`;
 
         // Defensive check: ensure messages is a valid array before converting
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -261,9 +264,9 @@ NEGATIVE: Never end conversation or say "we're done" without calling this tool.`
             onFinish: async ({ text, toolCalls }) => {
 
                 // Early exit if we don't have a valid identifier
-                const hasValidId = (anonymousId && anonymousId.trim() !== "") || conversationId;
+                const hasValidId = (effectiveAnonymousId && effectiveAnonymousId.trim() !== "") || conversationId;
                 if (!hasValidId) {
-                    console.warn('[Chat API] Skipping save: No valid anonymousId or conversationId');
+                    console.warn('[Chat API] Skipping save: No valid identifiers');
                     return;
                 }
 
@@ -271,7 +274,7 @@ NEGATIVE: Never end conversation or say "we're done" without calling this tool.`
                     try {
                         await saveConversation({
                             conversationId,
-                            anonymousId,
+                            anonymousId: effectiveAnonymousId,
                             messages: [
                                 ...modelMessages,
                                 { role: 'assistant', content: text }

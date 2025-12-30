@@ -8,7 +8,7 @@ const extractionSchema = z.object({
     topic: z.string().describe('The main project topic discussed'),
     twist: z.string().describe('The unique angle or feature that makes it special'),
     department: z.string().describe('The academic department (e.g., Computer Science, Engineering)'),
-    complexity: z.number().min(1).max(5).describe('Complexity level 1-5'),
+    complexity: z.coerce.number().min(1).max(5).describe('Complexity level 1-5'),
 });
 
 export type ExtractedTopic = z.infer<typeof extractionSchema>;

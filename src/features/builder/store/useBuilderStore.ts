@@ -10,6 +10,7 @@ export type ProjectStatus = 'OUTLINE_GENERATED' | 'RESEARCH_IN_PROGRESS' | 'RESE
 export type { Chapter };
 
 interface ProjectData {
+    userId: string | null;
     projectId: string | null;
     topic: string;
     twist: string;
@@ -31,8 +32,9 @@ interface BuilderState {
     setGenerating: (isGenerating: boolean) => void;
     unlockPaywall: () => void;
     setMode: (mode: ProjectMode) => void;
-    hydrateFromChat: () => boolean;
+    hydrateFromChat: (userId?: string | null) => boolean;
     clearChatData: () => void;
+    syncWithUser: (userId: string | null) => void;
 }
 
 const CHAT_HANDOFF_KEY = 'jstar_confirmed_topic';
@@ -42,6 +44,7 @@ export const useBuilderStore = create<BuilderState>()(
         (set, get) => ({
             step: 'TOPIC',
             data: {
+                userId: null,
                 projectId: null,
                 topic: '',
                 twist: '',
@@ -65,14 +68,21 @@ export const useBuilderStore = create<BuilderState>()(
             })),
 
             // Hydrate topic/twist from localStorage (set by chat handoff)
-            hydrateFromChat: () => {
+            hydrateFromChat: (currentUserId) => {
                 if (typeof window === 'undefined') return false;
 
                 const stored = localStorage.getItem(CHAT_HANDOFF_KEY);
                 if (!stored) return false;
 
                 try {
-                    const { topic, twist, confirmedAt } = JSON.parse(stored);
+                    const { topic, twist, confirmedAt, userId: handoffUserId } = JSON.parse(stored);
+
+                    // Check if data belongs to current user
+                    if (currentUserId && handoffUserId && currentUserId !== handoffUserId) {
+                        console.warn('[Builder] Handoff data mismatch (different user)');
+                        localStorage.removeItem(CHAT_HANDOFF_KEY);
+                        return false;
+                    }
 
                     // Check if data is stale (older than 24 hours)
                     const confirmedDate = new Date(confirmedAt);
@@ -86,7 +96,7 @@ export const useBuilderStore = create<BuilderState>()(
                     // Only hydrate if we don't already have data
                     if (!get().data.topic) {
                         set({
-                            data: { ...get().data, topic, twist: twist || '' },
+                            data: { ...get().data, topic, twist: twist || '', userId: currentUserId || null },
                             isFromChat: true
                         });
                         return true;
@@ -103,10 +113,36 @@ export const useBuilderStore = create<BuilderState>()(
             clearChatData: () => {
                 localStorage.removeItem(CHAT_HANDOFF_KEY);
                 set({
-                    data: { projectId: null, topic: '', twist: '', abstract: '', outline: [], mode: null, status: 'OUTLINE_GENERATED' },
+                    data: { userId: get().data.userId, projectId: null, topic: '', twist: '', abstract: '', outline: [], mode: null, status: 'OUTLINE_GENERATED' },
                     isFromChat: false,
                     step: 'TOPIC'
                 });
+            },
+
+            // Sync state with current authenticated user
+            syncWithUser: (userId) => {
+                const currentData = get().data;
+                // If user changed, or if we have data but no userId associated, or if we are switching to null (logout)
+                if (currentData.userId !== userId) {
+                    console.log('[Builder] Account change detected. Syncing store.', { old: currentData.userId, new: userId });
+                    set({
+                        data: {
+                            userId,
+                            projectId: null,
+                            topic: '',
+                            twist: '',
+                            abstract: '',
+                            outline: [],
+                            mode: null,
+                            status: 'OUTLINE_GENERATED'
+                        },
+                        step: 'TOPIC',
+                        isPaid: false,
+                        isFromChat: false
+                    });
+                    // Also clear potential chat handoff if switching accounts
+                    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                }
             }
         }),
         {

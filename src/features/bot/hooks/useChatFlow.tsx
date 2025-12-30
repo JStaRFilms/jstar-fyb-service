@@ -30,7 +30,7 @@ export function useChatFlow(userId?: string) {
     const conversationIdRef = useRef(conversationId);
     const anonymousIdRef = useRef(anonymousId);
 
-    // Initialize anonymousId on client-side only (after hydration)
+    // Initialize anonymousId immediately if possible (client-side only)
     useEffect(() => {
         if (typeof window !== 'undefined') {
             let id = localStorage.getItem("jstar_anonymous_id");
@@ -39,6 +39,7 @@ export function useChatFlow(userId?: string) {
                 localStorage.setItem("jstar_anonymous_id", id);
             }
             setAnonymousId(id);
+            anonymousIdRef.current = id; // Update ref immediately
         }
     }, []);
 
@@ -78,7 +79,7 @@ export function useChatFlow(userId?: string) {
     // Sync initial messages if we found a conversation
     const hasSyncedHistory = useRef(false);
     useEffect(() => {
-        if (!hasSyncedHistory.current && anonymousId) {
+        if (!hasSyncedHistory.current && anonymousId && anonymousId !== "") {
             const syncHistory = async () => {
                 const { getLatestConversation } = await import("../actions/chat");
                 const latest = await getLatestConversation({ anonymousId, userId });
@@ -171,7 +172,8 @@ export function useChatFlow(userId?: string) {
                         localStorage.setItem('jstar_confirmed_topic', JSON.stringify({
                             topic,
                             twist: twist || '',
-                            confirmedAt: new Date().toISOString()
+                            confirmedAt: new Date().toISOString(),
+                            userId: userId || null
                         }));
                     }
                 }

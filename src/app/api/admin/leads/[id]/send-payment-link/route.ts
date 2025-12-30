@@ -52,7 +52,43 @@ export async function POST(
         // Use strictly alphanumeric reference to prevent "Invalid character" errors
         const reference = `FYB${safeTier}${safeLeadId}${timestamp}`;
 
-        // 4. Initialize Paystack
+        // 4. Create or Find a Project for this lead
+        let project = await prisma.project.findFirst({
+            where: {
+                topic: lead.topic,
+                OR: [
+                    { userId: userId || undefined },
+                    { anonymousId: lead.anonymousId || undefined }
+                ].filter(o => Object.values(o).some(v => v !== undefined))
+            }
+        });
+
+        if (!project) {
+            project = await prisma.project.create({
+                data: {
+                    topic: lead.topic,
+                    twist: lead.twist,
+                    userId: userId || undefined,
+                    anonymousId: lead.anonymousId || undefined,
+                    mode: "CONCIERGE", // Admin links are for concierge service
+                    status: "OUTLINE_GENERATED"
+                }
+            });
+        }
+
+        // 5. Create Payment Record (to track this link)
+        const payment = await prisma.payment.create({
+            data: {
+                userId: userId || project.userId || "ADMIN_LINK_PENDING", // Use project's user or fallback
+                projectId: project.id, // Now using a valid project ID
+                reference: reference,
+                amount: amount,
+                status: 'PENDING',
+                currency: 'NGN'
+            }
+        });
+
+        // 5. Initialize Paystack
         const paymentData = await PaystackService.initializePayment({
             email,
             amount,
@@ -60,6 +96,7 @@ export async function POST(
             metadata: {
                 leadId,
                 tier,
+                paymentId: payment.id,
                 custom_fields: [
                     { display_name: "Project Topic", variable_name: "project_topic", value: lead.topic },
                     { display_name: "Tier", variable_name: "tier", value: tier }
@@ -68,7 +105,7 @@ export async function POST(
             callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/project/builder?payment_ref=${reference}` // Redirect back to builder
         });
 
-        // 5. Notify (Optional - Internal Log)
+        // 6. Notify (Optional - Internal Log)
         await NotificationService.notifyPaymentLinkSent(leadId, amount, tier);
 
         return NextResponse.json({
