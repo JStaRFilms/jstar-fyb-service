@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Upload, Link as LinkIcon, FileText, Loader2, Trash2, CheckCircle, XCircle, Eye, Sparkles } from "lucide-react";
 import { useBuilderStore } from "../store/useBuilderStore";
-import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { DocumentViewerModal } from "./DocumentViewerModal";
 import { ResearchDocument } from "@prisma/client";
 
 export function DocumentUpload({ projectId }: { projectId: string }) {
@@ -293,8 +293,8 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                 <p><strong>Note:</strong> Documents are automatically processed to extract metadata, content, and insights for AI content generation.</p>
                 <p className="mt-1">Processed documents become available as context for chapter generation and research assistance.</p>
             </div>
-            {/* Document Preview Modal */}
-            <DocumentPreviewModal
+            {/* Document Viewer Modal */}
+            <DocumentViewerModal
                 researchDoc={selectedDocument}
                 isOpen={!!selectedDocument}
                 onClose={() => setSelectedDocument(null)}
