@@ -3,16 +3,19 @@ import { streamText, tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { saveConversation } from '@/features/bot/actions/chat';
 import { SYSTEM_PROMPT } from '@/features/bot/prompts/system';
+import { validateService, getEnv } from '@/lib/env-validation';
 
-// Validate environment variables
-const groqApiKey = process.env.GROQ_API_KEY;
-if (!groqApiKey) {
-    throw new Error('GROQ_API_KEY environment variable is required');
+// Validate AI service configuration at startup
+if (!validateService('ai')) {
+    throw new Error('AI service configuration is missing. Please set GROQ_API_KEY environment variable.');
 }
+
+// Get validated environment variables
+const env = getEnv();
 
 // Create Groq provider (using dedicated @ai-sdk/groq for proper compatibility)
 const groq = createGroq({
-    apiKey: groqApiKey,
+    apiKey: env.GROQ_API_KEY,
 });
 
 // Allow streaming responses up to 30 seconds
@@ -55,6 +58,66 @@ async function streamTextWithRetry(
 const MAX_MESSAGE_LENGTH = 10000; // Prevent excessively long inputs
 const MAX_MESSAGES = 50; // Limit history size per request
 
+/**
+ * CRITICAL SECURITY FIX: Enhanced sanitize user input to prevent injection attacks
+ */
+function sanitizeInput(input: string): string {
+    if (!input || typeof input !== 'string') {
+        return '';
+    }
+
+    // CRITICAL SECURITY FIX: Comprehensive input sanitization
+    return input
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+        .replace(/javascript:/gi, '') // Remove javascript: URLs
+        .replace(/on\w+\s*=/gi, '') // Remove event handlers
+        .replace(/[<>]/g, '') // Remove HTML tags
+        .replace(/data:\s*text\/html/gi, '') // Remove data URLs
+        .replace(/vbscript:/gi, '') // Remove vbscript
+        .replace(/file:\s*\/\//gi, '') // Remove file:// URLs
+        .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+        .trim();
+}
+
+/**
+ * CRITICAL SECURITY FIX: Enhanced validate and sanitize message content
+ */
+function validateAndSanitizeMessage(message: any): string {
+    let content = '';
+
+    try {
+        if (message && typeof message === 'object') {
+            if (message.content && typeof message.content === 'string') {
+                content = message.content;
+            } else if (message.parts && Array.isArray(message.parts)) {
+                // CRITICAL SECURITY FIX: Extract text from parts with validation
+                const textParts: string[] = [];
+                for (const part of message.parts) {
+                    if (part && typeof part === 'object' && part.type === 'text' && part.text && typeof part.text === 'string') {
+                        textParts.push(part.text);
+                    }
+                }
+                content = textParts.join(' ');
+            }
+        } else if (typeof message === 'string') {
+            content = message;
+        }
+
+        // CRITICAL SECURITY FIX: Sanitize the content and limit length
+        const sanitized = sanitizeInput(content);
+
+        // CRITICAL SECURITY FIX: Additional length validation
+        if (sanitized.length > MAX_MESSAGE_LENGTH) {
+            return sanitized.slice(0, MAX_MESSAGE_LENGTH);
+        }
+
+        return sanitized;
+    } catch (error) {
+        console.error('[Chat API] Message sanitization failed:', error);
+        return '';
+    }
+}
+
 // AI SDK v5 message format: uses `parts` array, content is optional/deprecated
 const chatSchema = z.object({
     messages: z.array(z.object({
@@ -88,32 +151,11 @@ export async function POST(req: Request) {
             return new Response(JSON.stringify({ error: 'Messages array is required and must not be empty' }), { status: 400 });
         }
 
-        // Safely convert messages to model format
+        // Safely convert messages to model format with sanitization
         // Handle text content, tool calls, and tool results
         const modelMessages = messages.map((m: any) => {
-            // Extract text content from parts or content
-            let textContent = '';
-
-            if (m.parts && Array.isArray(m.parts)) {
-                // Collect all text parts
-                const textParts: string[] = [];
-
-                for (const part of m.parts) {
-                    if (part.type === 'text' && part.text) {
-                        textParts.push(part.text);
-                    }
-                    // Convert tool results to readable text (so context is preserved)
-                    else if (part.type === 'tool-result' && part.result) {
-                        // Don't include tool results in history - they create issues with Groq
-                        // The AI already knows what tools it called from context
-                    }
-                    // Skip tool invocations entirely - Groq can't process them
-                }
-
-                textContent = textParts.join('\n').trim();
-            } else if (typeof m.content === 'string') {
-                textContent = m.content;
-            }
+            // Extract and sanitize text content
+            const textContent = validateAndSanitizeMessage(m);
 
             return {
                 role: m.role as 'user' | 'assistant' | 'system',

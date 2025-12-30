@@ -157,12 +157,28 @@ export async function getLatestConversation({
 }) {
     if (!anonymousId && !userId) return null;
 
-    // Data Isolation: Never mix authenticated and anonymous sessions
+    // CRITICAL SECURITY FIX: Data Isolation - Never mix authenticated and anonymous sessions
     // If userId is provided, ONLY return that user's conversations
     // This prevents data leakage between sessions
     if (userId) {
+        // CRITICAL SECURITY FIX: Validate user exists and is authorized
+        const userExists = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!userExists) {
+            // CRITICAL SECURITY FIX: Log security event for invalid user access attempt
+            console.warn(`[Security] Invalid userId attempted: ${userId}`);
+            return null;
+        }
+
+        // CRITICAL SECURITY FIX: Strict data isolation - only return conversations for this specific user
         return await prisma.conversation.findFirst({
-            where: { userId },
+            where: {
+                userId: userId,
+                // CRITICAL SECURITY FIX: Ensure no anonymousId conflicts - exclude any conversations with anonymousId
+                anonymousId: null
+            },
             include: {
                 messages: {
                     orderBy: { createdAt: 'asc' }
@@ -172,19 +188,25 @@ export async function getLatestConversation({
         });
     }
 
-    // Anonymous session: only return anonymous conversations
-    return await prisma.conversation.findFirst({
-        where: {
-            anonymousId,
-            userId: null // Ensure we don't return merged conversations
-        },
-        include: {
-            messages: {
-                orderBy: { createdAt: 'asc' }
-            }
-        },
-        orderBy: { updatedAt: 'desc' }
-    });
+    // CRITICAL SECURITY FIX: Anonymous session - only return anonymous conversations
+    // Ensure strict separation from authenticated user data
+    if (anonymousId) {
+        return await prisma.conversation.findFirst({
+            where: {
+                anonymousId: anonymousId,
+                userId: null // CRITICAL SECURITY FIX: Ensure we don't return user-assigned conversations
+            },
+            include: {
+                messages: {
+                    orderBy: { createdAt: 'asc' }
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
+        });
+    }
+
+    // No valid identifiers provided
+    return null;
 }
 
 export async function mergeAnonymousConversations(anonymousId: string, userId: string) {

@@ -1,8 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { createHmac } from 'crypto';
+import { validateService, getEnv } from "@/lib/env-validation";
 
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+// Validate payment service configuration
+if (!validateService('payment')) {
+    throw new Error('Payment service configuration is missing. Please set PAYSTACK_SECRET_KEY environment variable.');
+}
+
+const env = getEnv();
+const PAYSTACK_SECRET = env.PAYSTACK_SECRET_KEY;
+const APP_URL = env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 interface InitializePaymentParams {
     email: string;

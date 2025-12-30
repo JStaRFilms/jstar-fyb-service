@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   webpack: (config) => {
     return config;
   },
+  // Silence Turbopack error in Next.js 16 when webpack config is present
+  turbopack: {},
   // Transpile micromark packages to resolve ESM issues with react-markdown
   transpilePackages: [
     'react-markdown',
