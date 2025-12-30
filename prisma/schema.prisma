@@ -29,6 +29,10 @@ model User {
   
   projects      Project[]
   payments      Payment[]
+  
+  // Notification relations
+  notifications              InAppNotification[]
+  notificationPreference     UserNotificationPreference?
 }
 
 model Session {
@@ -244,3 +248,47 @@ model ProjectChatMessage {
   content        String
   createdAt      DateTime @default(now())
 }
+
+// ============================================
+// Notification System Tables
+// ============================================
+
+model InAppNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      String   // "payment", "project", "system", "reminder", "chapter"
+  title     String
+  message   String
+  data      Json?    // Additional notification-specific data
+  priority  String   @default("medium") // "low", "medium", "high", "urgent"
+  
+  readAt      DateTime?
+  dismissedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model UserNotificationPreference {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  emailEnabled Boolean @default(true)
+  inAppEnabled Boolean @default(true)
+  
+  // Category-specific preferences (JSON object)
+  categories   Json?   // { "payment": true, "project": true, "system": true }
+  
+  // Frequency setting
+  frequency    String  @default("immediate") // "immediate", "daily", "weekly", "never"
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+

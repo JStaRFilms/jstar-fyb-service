@@ -22,6 +22,8 @@
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.561.0",
     "mammoth": "^1.11.0",
+    "micromark-util-decode-numeric-character-reference": "^2.0.2",
+    "micromark-util-decode-string": "^2.0.1",
     "next": "16.0.10",
     "react": "19.2.1",
     "react-dom": "19.2.1",
