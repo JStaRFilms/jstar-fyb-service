@@ -334,7 +334,13 @@ export function useChatFlow(userId?: string) {
     };
 
     const proceedToBuilder = () => {
-        router.push('/auth/register?callbackUrl=/project/builder');
+        // If user is already authenticated, go directly to builder
+        if (userId) {
+            router.push('/project/builder');
+        } else {
+            // Otherwise, redirect to register with callback
+            router.push('/auth/register?callbackUrl=/project/builder');
+        }
     };
 
     return {

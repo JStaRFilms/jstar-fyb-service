@@ -74,6 +74,12 @@ export const useBuilderStore = create<BuilderState>()(
             hydrateFromChat: (currentUserId) => {
                 if (typeof window === 'undefined') return false;
 
+                // Don't overwrite if server already hydrated
+                if (get().hasServerHydrated) {
+                    console.log('[Builder] Server already hydrated, skipping chat hydration');
+                    return false;
+                }
+
                 const stored = localStorage.getItem(CHAT_HANDOFF_KEY);
                 if (!stored) return false;
 
@@ -194,6 +200,12 @@ export const useBuilderStore = create<BuilderState>()(
             // This is the source of truth - marks hasServerHydrated to prevent overwrites
             loadProject: (projectData, isPaid = false) => {
                 console.log('[Builder] Hydrating from server project', { id: projectData.projectId, isPaid, outlineLen: projectData.outline?.length });
+
+                // Clear any stale chat handoff data to prevent topic conflicts
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                }
+
                 set((state) => ({
                     // Determine step based on data presence
                     step: (projectData.outline && projectData.outline.length > 0) ? 'OUTLINE'
