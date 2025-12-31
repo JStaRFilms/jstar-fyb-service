@@ -209,15 +209,23 @@ export async function getLatestConversation({
     return null;
 }
 
-export async function mergeAnonymousConversations(anonymousId: string, userId: string) {
+export async function mergeAnonymousData(anonymousId: string, userId: string) {
     try {
-        await prisma.conversation.updateMany({
-            where: { anonymousId: anonymousId, userId: null },
-            data: { userId: userId },
-        });
+        await prisma.$transaction([
+            // Update Conversations
+            prisma.conversation.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
+            }),
+            // Update Leads
+            prisma.lead.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
+            })
+        ]);
         return { success: true };
     } catch (error) {
-        console.error('Failed to merge chats:', error);
+        console.error('Failed to merge anonymous data:', error);
         return { success: false, error };
     }
 }

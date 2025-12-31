@@ -330,7 +330,7 @@ export function useChatFlow(userId?: string) {
     };
 
     const proceedToBuilder = () => {
-        router.push('/project/builder');
+        router.push('/auth/register?callbackUrl=/project/builder');
     };
 
     return {

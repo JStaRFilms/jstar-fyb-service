@@ -122,6 +122,18 @@ export const useBuilderStore = create<BuilderState>()(
             // Sync state with current authenticated user
             syncWithUser: (userId) => {
                 const currentData = get().data;
+
+                // CASE 1: Transitioning from Anonymous to Authenticated
+                // If we have valid generated content but no user owner, allow the new user to claim it
+                if (currentData.userId === null && userId !== null && currentData.topic) {
+                    console.log('[Builder] Claiming anonymous session data for user', userId);
+                    set((state) => ({
+                        data: { ...state.data, userId }
+                    }));
+                    return;
+                }
+
+                // CASE 2: User changed (Account switch or Logout)
                 // If user changed, or if we have data but no userId associated, or if we are switching to null (logout)
                 if (currentData.userId !== userId) {
                     console.log('[Builder] Account change detected. Syncing store.', { old: currentData.userId, new: userId });

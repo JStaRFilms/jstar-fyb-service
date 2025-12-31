@@ -12,7 +12,7 @@ import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
-import { mergeAnonymousConversations } from "../actions/chat";
+import { mergeAnonymousData } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
@@ -27,7 +27,7 @@ export function ChatInterface() {
         if (user && anonymousId) {
             // User just logged in, but has an anonymous history
             // Merge it!
-            mergeAnonymousConversations(anonymousId, user.id || "")
+            mergeAnonymousData(anonymousId, user.id || "")
                 .then(() => {
                     // console.log("Merged history");
                     // specific cleanup if needed, keeping anonymousId is fine for session continuity

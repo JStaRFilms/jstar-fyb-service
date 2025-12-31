@@ -24,7 +24,11 @@ const prisma = new PrismaClient();
 const dbProvider = (envValidation.data.DATABASE_PROVIDER || "postgresql") as "sqlite" | "postgresql" | "mysql";
 
 // CRITICAL SECURITY FIX: Strict production database provider validation
-if (process.env.NODE_ENV === "production") {
+// Note: We check for actual deployment (VERCEL env) rather than just NODE_ENV
+// because `next build` runs with NODE_ENV=production even locally
+const isActuallyDeployed = process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.RENDER;
+
+if (process.env.NODE_ENV === "production" && isActuallyDeployed) {
     if (dbProvider === "sqlite") {
         console.error("[Auth] CRITICAL: SQLite is not allowed in production environment");
         throw new Error("SQLite database provider is not secure for production use");

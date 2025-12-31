@@ -11,7 +11,7 @@ async function getStats() {
     // Simple stats aggregation
     const total = await prisma.lead.count();
     const newLeads = await prisma.lead.count({ where: { status: 'NEW' } });
-    const soldLeads = await prisma.lead.count({ where: { status: 'SOLD' } });
+    const soldLeads = await prisma.lead.count({ where: { status: { in: ['SOLD', 'PAID'] } } });
 
     return { total, newLeads, soldLeads };
 }
@@ -122,8 +122,8 @@ export default async function AdminLeadsPage(props: { searchParams: Promise<{ pa
                                         </td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold border ${lead.status === 'NEW' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                                                    lead.status === 'SOLD' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                                                        'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                                lead.status === 'SOLD' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                                                    'bg-gray-500/20 text-gray-400 border-gray-500/30'
                                                 }`}>
                                                 {lead.status}
                                             </span>

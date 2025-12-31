@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { TopicSelector } from "@/features/builder/components/TopicSelector";
 import { AbstractGenerator } from "@/features/builder/components/AbstractGenerator";
@@ -12,11 +12,23 @@ import { X } from "lucide-react";
 import Link from "next/link";
 
 import { useSession } from "@/lib/auth-client";
+import { mergeAnonymousData } from "@/features/bot/actions/chat";
 
 function BuilderContent() {
     const { data: session, isPending } = useSession();
+    const router = useRouter();
     const { step, updateData, syncWithUser, hydrateFromChat } = useBuilderStore();
     const searchParams = useSearchParams();
+
+    // 1. Auth Guard: Redirect to Login if not authenticated
+    // Crucial: Preserve query params (e.g., payment reference) in callbackUrl
+    useEffect(() => {
+        if (!isPending && !session) {
+            const params = searchParams.toString();
+            const callbackUrl = params ? `/project/builder?${params}` : '/project/builder';
+            router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+        }
+    }, [isPending, session, searchParams, router]);
 
     // Sync store with current user - but wait for session to load!
     useEffect(() => {
@@ -31,6 +43,17 @@ function BuilderContent() {
             hydrateFromChat(session?.user?.id);
         }
     }, [hydrateFromChat, session?.user?.id, isPending]);
+
+    useEffect(() => {
+        if (!isPending && session?.user?.id) {
+            const anonymousId = localStorage.getItem("jstar_anonymous_id");
+            if (anonymousId) {
+                mergeAnonymousData(anonymousId, session.user.id).then(() => {
+                    localStorage.removeItem("jstar_anonymous_id");
+                });
+            }
+        }
+    }, [session?.user?.id, isPending]);
 
     useEffect(() => {
         const topic = searchParams.get('topic');
