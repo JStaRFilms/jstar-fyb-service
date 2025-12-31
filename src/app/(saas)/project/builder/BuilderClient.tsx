@@ -25,14 +25,35 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
     const { step, updateData, syncWithUser, hydrateFromChat, loadProject } = useBuilderStore();
     const searchParams = useSearchParams();
 
-    // 0. Hydrate from Server if available
+    // Scroll to top on mount to prevent starting at upgrade section
     useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
+    // ========== CONSOLIDATED HYDRATION LOGIC ==========
+    // This single effect handles all state hydration in the correct order to prevent race conditions.
+    // Priority: Server Data > Chat Handoff > localStorage (zustand persist handles this passively)
+    useEffect(() => {
+        // Wait for auth to resolve before doing anything
+        if (isPending) return;
+
+        // STEP 1: Load server project FIRST if available (highest priority)
+        // This marks hasServerHydrated=true which blocks other hydration
         if (serverProject) {
-            // Only load if different from current to avoid loops, though store usually handles diffs
-            // Actually, we trust server over local stale state
             loadProject(serverProject, serverIsPaid);
+            console.log('[BuilderClient] Hydrated from server', { projectId: serverProject.projectId, isPaid: serverIsPaid });
         }
-    }, [serverProject, serverIsPaid, loadProject]);
+
+        // STEP 2: Sync with current user (only runs destructive reset on actual logout/account-switch)
+        // The store's syncWithUser now checks hasServerHydrated to avoid resetting server data
+        syncWithUser(session?.user?.id || null);
+
+        // STEP 3: Only try chat hydration if NO server project was loaded
+        // hydrateFromChat only fills in if topic is empty, so it won't overwrite
+        if (!serverProject) {
+            hydrateFromChat(session?.user?.id);
+        }
+    }, [isPending, serverProject, serverIsPaid, session?.user?.id, loadProject, syncWithUser, hydrateFromChat]);
 
     // 1. Auth Guard: Redirect to Login if not authenticated
     useEffect(() => {
@@ -42,24 +63,6 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
             router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
         }
     }, [isPending, session, searchParams, router]);
-
-    // Sync store with current user - but wait for session to load!
-    useEffect(() => {
-        if (!isPending) {
-            syncWithUser(session?.user?.id || null);
-        }
-    }, [session?.user?.id, isPending, syncWithUser]);
-
-    // Hydrate from chat if needed (only if NO server project was loaded?)
-    // Actually, if serverProject loaded, we might have skipped chat hydration
-    useEffect(() => {
-        if (!isPending) {
-            // If we just loaded a server project, we probably don't want to hydrate from chat
-            // unless the server project IS effectively the chat project?
-            // Let's rely on hydrateFromChat checks (it checks if topic is missing)
-            hydrateFromChat(session?.user?.id);
-        }
-    }, [hydrateFromChat, session?.user?.id, isPending]);
 
     useEffect(() => {
         if (!isPending && session?.user?.id) {

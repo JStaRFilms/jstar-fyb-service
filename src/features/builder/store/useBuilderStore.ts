@@ -26,6 +26,7 @@ interface BuilderState {
     isGenerating: boolean;
     isPaid: boolean;
     isFromChat: boolean;
+    hasServerHydrated: boolean; // Prevents localStorage from overwriting server data
 
     setStep: (step: BuilderStep) => void;
     updateData: (data: Partial<ProjectData>) => void;
@@ -57,6 +58,7 @@ export const useBuilderStore = create<BuilderState>()(
             isGenerating: false,
             isPaid: false,
             isFromChat: false,
+            hasServerHydrated: false,
 
             setStep: (step) => set({ step }),
             updateData: (newData) => set((state) => ({
@@ -122,7 +124,13 @@ export const useBuilderStore = create<BuilderState>()(
 
             // Sync state with current authenticated user
             syncWithUser: (userId) => {
-                const currentData = get().data;
+                const { data: currentData, hasServerHydrated } = get();
+
+                // If server has already hydrated, don't let localStorage-based logic overwrite
+                if (hasServerHydrated) {
+                    console.log('[Builder] Server already hydrated, skipping syncWithUser reset');
+                    return;
+                }
 
                 // CASE 1: Transitioning from Anonymous to Authenticated
                 // If we have valid generated content but no user owner, allow the new user to claim it
@@ -134,10 +142,34 @@ export const useBuilderStore = create<BuilderState>()(
                     return;
                 }
 
-                // CASE 2: User changed (Account switch or Logout)
-                // If user changed, or if we have data but no userId associated, or if we are switching to null (logout)
-                if (currentData.userId !== userId) {
-                    console.log('[Builder] Account change detected. Syncing store.', { old: currentData.userId, new: userId });
+                // CASE 2: Explicit logout (userId becomes null from a valid user)
+                // Only reset if we're actually logging out, not on initial load from localStorage
+                if (currentData.userId !== null && userId === null) {
+                    console.log('[Builder] Logout detected. Clearing store.');
+                    set({
+                        data: {
+                            userId: null,
+                            projectId: null,
+                            topic: '',
+                            twist: '',
+                            abstract: '',
+                            outline: [],
+                            mode: null,
+                            status: 'OUTLINE_GENERATED'
+                        },
+                        step: 'TOPIC',
+                        isPaid: false,
+                        isFromChat: false,
+                        hasServerHydrated: false
+                    });
+                    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                    return;
+                }
+
+                // CASE 3: Different authenticated user (account switch)
+                // Only reset if BOTH are valid users and they differ
+                if (currentData.userId !== null && userId !== null && currentData.userId !== userId) {
+                    console.log('[Builder] Account switch detected.', { old: currentData.userId, new: userId });
                     set({
                         data: {
                             userId,
@@ -151,14 +183,15 @@ export const useBuilderStore = create<BuilderState>()(
                         },
                         step: 'TOPIC',
                         isPaid: false,
-                        isFromChat: false
+                        isFromChat: false,
+                        hasServerHydrated: false
                     });
-                    // Also clear potential chat handoff if switching accounts
                     localStorage.removeItem(CHAT_HANDOFF_KEY);
                 }
             },
 
             // Load a full project object (e.g. from server)
+            // This is the source of truth - marks hasServerHydrated to prevent overwrites
             loadProject: (projectData, isPaid = false) => {
                 console.log('[Builder] Hydrating from server project', { id: projectData.projectId, isPaid, outlineLen: projectData.outline?.length });
                 set((state) => ({
@@ -171,8 +204,9 @@ export const useBuilderStore = create<BuilderState>()(
                         ...state.data,
                         ...projectData
                     },
-                    isPaid: isPaid ?? false, // Hydrate payment status
-                    isFromChat: false
+                    isPaid: isPaid ?? false, // Hydrate payment status from server
+                    isFromChat: false,
+                    hasServerHydrated: true // Mark that server data is now loaded - prevents overwrites
                 }));
             }
         }),
@@ -181,9 +215,10 @@ export const useBuilderStore = create<BuilderState>()(
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 // Only persist data and step, not UI flags like isGenerating
+                // NOTE: isPaid is NOT persisted - server is source of truth for payment
+                // NOTE: hasServerHydrated is NOT persisted - resets each session
                 step: state.step,
                 data: state.data,
-                isPaid: state.isPaid,
                 isFromChat: state.isFromChat
             }),
         }
