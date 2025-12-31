@@ -8,11 +8,30 @@ Automated payment verification and fulfillment system using Paystack webhooks. T
 - **Fulfillment Brain:** `src/services/billing.service.ts`
 - **Admin Links:** `src/app/api/admin/leads/[id]/send-payment-link/route.ts`
 - **Gateway Service:** `src/services/paystack.service.ts`
+- **Pricing Config:** `src/config/pricing.ts`
+- **Billing Logic:** `src/app/actions/billing.ts`
 - **Data Model:** `Payment` and `Project` models in Prisma.
 
 ## Key Components
 
-### 1. Webhook Handlers
+### 1. Centralized Pricing Configuration (`src/config/pricing.ts`)
+Single source of truth for all pricing tiers.
+- **Structure:**
+    - `SAAS`: DIY Plans (`PAPER` vs `SOFTWARE`).
+    - `AGENCY`: Done-For-You Plans (Mapped to tracks).
+- **Tracks:**
+    - **Paper Track**: Research & Writing focus (Base: ₦15k, Upsell Target: ₦80k).
+    - **Software Track**: Implementation focus (Base: ₦20k, Upsell Target: ₦120k).
+
+### 2. Smart Human Touch (Upsell Logic)
+Dynamically calculates upsell offers based on user history.
+- **Logic Location**: `src/app/actions/billing.ts` -> `getProjectBillingDetails`.
+- **Heuristic**: 
+    - Infers "Track" based on total amount paid (e.g., >₦18k = Software).
+    - Calculates `Discount Price = Target Tier Price - Total Paid`.
+- **UI Component**: `UpsellBridge.tsx` (Displays dynamic price or "Concierge Active" status).
+
+### 3. Webhook Handlers
 The system listens for specific Paystack events to trigger fulfillment:
 - **`charge.success`**: Triggers `recordPayment` and project unlocking.
 - **`transfer.success`**: (Planned) Handles automated refund logs.

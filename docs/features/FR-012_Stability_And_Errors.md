@@ -27,7 +27,15 @@ The visual interface shown when an error is caught.
 - **Retry Action:** Button to reset the error state and attempt re-render.
 - **Technical Details:** Collapsible section for developers to see the stack trace and error object.
 
-### 4. Offline Detection (`src/components/ui/OfflineIndicator.tsx`)
+### 4. Toast Notifications (`sonner`)
+- **Library:** `sonner` (integrated via `Toaster` in `layout.tsx`).
+- **Usage:** Replaces disruptive `alert()` calls for non-critical feedback.
+- **Types:**
+    - `toast.success("Message")`: Green checkmark.
+    - `toast.error("Message")`: Red warning.
+    - `toast("Message")`: Neutral info.
+
+### 5. Offline Detection (`src/components/ui/OfflineIndicator.tsx`)
 Uses the `useNetworkStatus` hook to detect when the browser goes offline.
 - **Auto-Banner:** An orange banner appears at the top of the screen after a 2-second delay if the user is offline.
 - **Real-time Updates:** Disappears instantly when the connection is restored.
@@ -35,6 +43,7 @@ Uses the `useNetworkStatus` hook to detect when the browser goes offline.
 ## Integration
 In `src/app/layout.tsx`:
 ```tsx
+<Toaster position="top-center" richColors />
 <ErrorBoundary>
   {children}
 </ErrorBoundary>
@@ -47,6 +56,9 @@ flowchart TD
     App[App Runtime] -->|Uncaught Error| EB[Error Boundary]
     EB -->|Renders| EF[Error Fallback UI]
     EF -->|Click Retry| EB
+    
+    App -->|Action Success| Toast[Sonner Toast]
+    App -->|Action Fail| Toast
     
     Hook[useNetworkStatus] -->|State Change| OI[Offline Indicator]
     OI -->|Render| UI[User Interface Banner]
@@ -62,3 +74,4 @@ flowchart TD
 - Enhanced `OfflineIndicator` styling and responsiveness.
 - Improved error messaging in `ErrorFallback.tsx`.
 - Integrated `sonner` for toast notifications.
+- Replaced legacy `alert()` calls with toasts in Builder and Admin.

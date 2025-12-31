@@ -12,19 +12,20 @@ A multi-step "Wizard" where users generate their Final Year Project materials: t
 ### Server Components
 | File | Purpose |
 |------|---------|
-| [page.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/page.tsx) | Route wrapper, renders BuilderWizard, handles session syncing/hydration |
+| [page.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/page.tsx) | **Async Server Component**. Fetches Project + `isUnlocked` status from DB. Hydrates Client. |
 | [abstract/route.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/abstract/route.ts) | Groq AI endpoint for abstract (`streamText`) |
 | [outline/route.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/outline/route.ts) | Groq AI endpoint for outline (`streamObject`) |
+| [projects/[id]/outline](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/projects/[id]/outline/route.ts) | **GET/POST**. Auto-saves outline to `ChapterOutline` model. |
+| [generate/chapter](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/chapter/route.ts) | **POST**. Gen + Stream Chapter. Saves to `Project.contentProgress`. |
 
 ### Client Components (`'use client'`)
 | File | Purpose |
 |------|---------|
-| [BuilderWizard.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/BuilderWizard.tsx) | Main wizard container, step router |
+| [BuilderClient.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/BuilderClient.tsx) | Main client wrapper. Receives `serverProject` prop for instant hydration. |
 | [TopicSelector.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/TopicSelector.tsx) | Step 1: Topic + Twist input |
 | [AbstractGenerator.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/AbstractGenerator.tsx) | Step 2: AI-generated abstract with edit/preview toggle |
-| [ChapterOutliner.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterOutliner.tsx) | Step 3: Outline display + paywall overlay |
-| [UpsellBridge.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/UpsellBridge.tsx) | "Done-For-You" upsell with full-header, split-body layout and progress card |
-| [ProjectActionCenter.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ProjectActionCenter.tsx) | Hub for managing next steps after outline generation |
+| [ChapterOutliner.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterOutliner.tsx) | Step 3: Outline display + **Auto-Save** + paywall overlay |
+| [ChapterGenerator.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterGenerator.tsx) | Step 4: Full chapter content generation (Markdown) |
 
 ### Schemas
 | File | Purpose |
@@ -38,47 +39,25 @@ A multi-step "Wizard" where users generate their Final Year Project materials: t
 ### Zustand Store (`useBuilderStore`)
 ```typescript
 interface BuilderState {
-    step: 'TOPIC' | 'ABSTRACT' | 'OUTLINE' | 'PAYWALL';
-    data: {
-        topic: string;
-        twist: string;
-        abstract: string;
-        outline: Chapter[];  // { title: string; content: string }[]
-    };
-    isGenerating: boolean;
-    isPaid: boolean;
-    isFromChat: boolean;  // True if user came from Jay chat
-
-    setStep: (step: BuilderStep) => void;
-    updateData: (data: Partial<ProjectData>) => void;
-    setGenerating: (isGenerating: boolean) => void;
-    unlockPaywall: () => void;
-    unlockPaywall: () => void;
-    hydrateFromChat: (currentUserId?: string | null) => boolean;  // Loads topic/twist from localStorage handles user mismatch
-    syncWithUser: (userId: string | null) => void;   // Resets store if user changes to prevent stale data
-    clearChatData: () => void;       // Clears handoff data and resets form
+    // ...
+    // Updated Actions
+    loadProject: (data: Partial<ProjectData>, isPaid?: boolean) => void; // NOW accepts payment status
 }
 ```
 
-### Chat → Builder Handoff
+### User Data Hydration
+The Builder now uses a **Hybrid Hydration Strategy**:
 
-#### Trigger: Smart Suggestion Chips (`SuggestionChips.tsx`)
-When user clicks "Proceed to Builder" in chat:
-1. `proceedToBuilder()` saves `{ topic, twist, confirmedAt }` to `localStorage`
-2. Redirects to `/project/builder`
+1.  **Server-Side (Primary)**:
+    - `page.tsx` fetches the latest project (`prisma.project.findFirst`) + payment status (`isUnlocked`).
+    - Passes full `ProjectData` + `serverIsPaid` to `BuilderClient`.
+    - `useBuilderStore.loadProject()` initializes state immediately.
+    - **Benefit**: Fixes sync issues across devices and ensures payment status is truthful.
 
-#### Hydration: `useBuilderStore.hydrateFromChat()`
-On component mount:
-1. Check `localStorage` for `jstar_confirmed_topic`
-2. Validate freshness (24-hour expiry check)
-3. If valid, populate `data.topic`, `data.twist`, set `isFromChat: true`
-4. TopicSelector renders "Topic imported from Jay" badge
-
-#### Reset: `useBuilderStore.clearChatData()`
-User clicks "Clear & Start Fresh":
-1. Remove `jstar_confirmed_topic` from `localStorage`
-2. Reset form data to empty
-3. Set `isFromChat: false`
+2.  **Client-Side (Handoff)**:
+    - IF no server project exists (new user from chat):
+    - `hydrateFromChat()` checks `localStorage`.
+    - Populates topic/twist from the Chat session.
 
 ---
 
@@ -207,4 +186,9 @@ const PLACEHOLDER_CHAPTERS = [
 - Implemented "Smart Paywall" (No API calls until payment).
 - Added wipe-reveal animation for streaming chapters.
 - Integrated `ProjectAssistant` (The Copilot) into the Builder UI.
+
+### 2025-12-31: Navigation Unification
+- Integrated Builder into shared `SaasShell`.
+- Replaced custom Builder header with integrated "Progress Toolbar".
+- Added context-aware navigation (Hammer Icon) in `MobileBottomNav`.
 
