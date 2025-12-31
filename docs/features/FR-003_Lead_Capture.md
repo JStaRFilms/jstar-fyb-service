@@ -37,6 +37,7 @@ model Lead {
     - Automatically links to authenticated WorkOS `userId` if the user is signed in.
 - **Action**: `src/features/bot/actions/chat.ts`
     - `saveLeadAction`: Validates and upserts lead data into the SQLite database.
+    - **Anonymous Tracking**: Captures `anonymousId` from cookies to link leads to users post-signup.
 
 ## Implementation Steps
 1.  [x] **Setup**: Prisma configured for SQLite.

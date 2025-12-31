@@ -2,9 +2,8 @@ import React from "react";
 import { getCurrentUser } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 import { SaasShell } from "@/features/ui/SaasShell";
-import { prisma } from "@/lib/prisma";
 
-export default async function DashboardLayout({
+export default async function ProjectLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -15,15 +14,8 @@ export default async function DashboardLayout({
         redirect("/auth/login");
     }
 
-    const latestProject = await prisma.project.findFirst({
-        where: { userId: user.id },
-        orderBy: { updatedAt: 'desc' }
-    });
-
-    const hasActiveProject = !!latestProject;
-
     return (
-        <SaasShell user={user} hasActiveProject={hasActiveProject}>
+        <SaasShell user={user}>
             {children}
         </SaasShell>
     );

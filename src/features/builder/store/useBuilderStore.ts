@@ -9,7 +9,7 @@ export type ProjectStatus = 'OUTLINE_GENERATED' | 'RESEARCH_IN_PROGRESS' | 'RESE
 // Re-export for consumers
 export type { Chapter };
 
-interface ProjectData {
+export interface ProjectData {
     userId: string | null;
     projectId: string | null;
     topic: string;
@@ -35,6 +35,7 @@ interface BuilderState {
     hydrateFromChat: (userId?: string | null) => boolean;
     clearChatData: () => void;
     syncWithUser: (userId: string | null) => void;
+    loadProject: (data: Partial<ProjectData>, isPaid?: boolean) => void;
 }
 
 const CHAT_HANDOFF_KEY = 'jstar_confirmed_topic';
@@ -155,6 +156,24 @@ export const useBuilderStore = create<BuilderState>()(
                     // Also clear potential chat handoff if switching accounts
                     localStorage.removeItem(CHAT_HANDOFF_KEY);
                 }
+            },
+
+            // Load a full project object (e.g. from server)
+            loadProject: (projectData, isPaid = false) => {
+                console.log('[Builder] Hydrating from server project', { id: projectData.projectId, isPaid, outlineLen: projectData.outline?.length });
+                set((state) => ({
+                    // Determine step based on data presence
+                    step: (projectData.outline && projectData.outline.length > 0) ? 'OUTLINE'
+                        : projectData.abstract ? 'ABSTRACT'
+                            : projectData.topic ? 'ABSTRACT' // If topic exists, go to Abstract
+                                : 'TOPIC',
+                    data: {
+                        ...state.data,
+                        ...projectData
+                    },
+                    isPaid: isPaid ?? false, // Hydrate payment status
+                    isFromChat: false
+                }));
             }
         }),
         {

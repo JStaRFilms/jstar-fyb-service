@@ -7,6 +7,7 @@ This system provides comprehensive error handling, user-friendly feedback, and o
 - **Service/File:** `src/lib/errors.ts`
 - **Hook:** `src/hooks/useNetworkStatus.ts`
 - **UI Components:** `src/components/ui/ErrorBoundary.tsx`, `src/components/ui/ErrorFallback.tsx`, `src/components/ui/OfflineIndicator.tsx`
+- **Toast Notifications:** `sonner` (via `Toaster` in layout)
 
 ## Key Components
 
@@ -56,3 +57,8 @@ flowchart TD
 - Created global Error Boundary and Fallback UI.
 - Implemented Offline Indicator with 2s debounce.
 - Created custom error hierarchy in `src/lib/errors.ts`.
+
+### 2025-12-31: Refined Error Components
+- Enhanced `OfflineIndicator` styling and responsiveness.
+- Improved error messaging in `ErrorFallback.tsx`.
+- Integrated `sonner` for toast notifications.

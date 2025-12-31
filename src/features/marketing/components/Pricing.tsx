@@ -4,23 +4,42 @@ import { motion } from 'framer-motion';
 import { Zap, Crown, Check, Star, FileText, Code2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { PRICING_CONFIG } from '@/config/pricing';
 
 const PRICING = {
     saas: {
-        paperOnly: { price: 15000, features: ['AI-Generated Abstract', 'Full Chapter 1-5 Outline', 'Formatting Templates', 'Unlimited Revisions'] },
-        software: { price: 20000, features: ['Everything in Paper-Only', 'Code Snippets & Boilerplate', 'Database Schema Generator', 'Tech Stack Recommendations'] }
+        paperOnly: {
+            price: PRICING_CONFIG.SAAS.PAPER.price,
+            features: ['AI-Generated Abstract', 'Full Chapter 1-5 Outline', 'Formatting Templates', 'Unlimited Revisions']
+        },
+        software: {
+            price: PRICING_CONFIG.SAAS.SOFTWARE.price,
+            features: ['Everything in Paper-Only', 'Code Snippets & Boilerplate', 'Database Schema Generator', 'Tech Stack Recommendations']
+        }
     },
     agency: {
-        paperOnly: [
-            { name: 'Paper Express', price: 60000, features: ['Chapters 1-5 Written', 'APA/IEEE Formatting', 'Plagiarism Check'], popular: false },
-            { name: 'Paper + Defense', price: 80000, features: ['Everything in Express', 'Mock Defense Session', 'Presentation Slides'], popular: true },
-            { name: 'Paper Premium', price: 100000, features: ['Everything in Defense', 'Priority Support', 'Unlimited Revisions'], popular: false },
-        ],
-        software: [
-            { name: 'Code & Go', price: 120000, features: ['Complete Source Code', 'Database Setup Script', 'Installation Guide'], popular: false },
-            { name: 'Defense Ready', price: 200000, features: ['Everything in Code & Go', 'Chapter 3 & 4 Write-up', 'Mock Defense Session'], popular: true },
-            { name: 'The Soft Life', price: 320000, features: ['Full Documentation (Ch 1-5)', 'Presentation Slides', 'Priority Support'], popular: false },
-        ]
+        paperOnly: PRICING_CONFIG.AGENCY.PAPER.map(t => ({
+            name: t.label,
+            price: t.price,
+            id: t.id,
+            features: t.id === 'AGENCY_PAPER_EXPRESS'
+                ? ['Chapters 1-5 Written', 'APA/IEEE Formatting', 'Plagiarism Check']
+                : t.id === 'AGENCY_PAPER_DEFENSE'
+                    ? ['Everything in Express', 'Mock Defense Session', 'Presentation Slides']
+                    : ['Everything in Defense', 'Priority Support', 'Unlimited Revisions'],
+            popular: t.popular || false
+        })),
+        software: PRICING_CONFIG.AGENCY.SOFTWARE.map(t => ({
+            name: t.label,
+            price: t.price,
+            id: t.id,
+            features: t.id === 'AGENCY_CODE_GO'
+                ? ['Complete Source Code', 'Database Setup Script', 'Installation Guide']
+                : t.id === 'AGENCY_DEFENSE_READY'
+                    ? ['Everything in Code & Go', 'Chapter 3 & 4 Write-up', 'Mock Defense Session']
+                    : ['Full Documentation (Ch 1-5)', 'Presentation Slides', 'Priority Support'],
+            popular: t.popular || false
+        }))
     }
 };
 

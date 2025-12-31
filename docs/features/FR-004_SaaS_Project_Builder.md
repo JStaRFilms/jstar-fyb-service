@@ -12,7 +12,7 @@ A multi-step "Wizard" where users generate their Final Year Project materials: t
 ### Server Components
 | File | Purpose |
 |------|---------|
-| [page.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/page.tsx) | Route wrapper, renders BuilderWizard |
+| [page.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/page.tsx) | Route wrapper, renders BuilderWizard, handles session syncing/hydration |
 | [abstract/route.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/abstract/route.ts) | Groq AI endpoint for abstract (`streamText`) |
 | [outline/route.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/outline/route.ts) | Groq AI endpoint for outline (`streamObject`) |
 
@@ -23,6 +23,8 @@ A multi-step "Wizard" where users generate their Final Year Project materials: t
 | [TopicSelector.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/TopicSelector.tsx) | Step 1: Topic + Twist input |
 | [AbstractGenerator.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/AbstractGenerator.tsx) | Step 2: AI-generated abstract with edit/preview toggle |
 | [ChapterOutliner.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterOutliner.tsx) | Step 3: Outline display + paywall overlay |
+| [UpsellBridge.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/UpsellBridge.tsx) | "Done-For-You" upsell with full-header, split-body layout and progress card |
+| [ProjectActionCenter.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ProjectActionCenter.tsx) | Hub for managing next steps after outline generation |
 
 ### Schemas
 | File | Purpose |
@@ -51,7 +53,9 @@ interface BuilderState {
     updateData: (data: Partial<ProjectData>) => void;
     setGenerating: (isGenerating: boolean) => void;
     unlockPaywall: () => void;
-    hydrateFromChat: () => boolean;  // Loads topic/twist from localStorage
+    unlockPaywall: () => void;
+    hydrateFromChat: (currentUserId?: string | null) => boolean;  // Loads topic/twist from localStorage handles user mismatch
+    syncWithUser: (userId: string | null) => void;   // Resets store if user changes to prevent stale data
     clearChatData: () => void;       // Clears handoff data and resets form
 }
 ```
@@ -113,7 +117,7 @@ You are an expert academic research consultant.
 ### AI Integration
 - Uses `useObject` hook from `@ai-sdk/react` (experimental)
 - API: `/api/generate/outline`
-- Model: `llama-3.3-70b-versatile` (Groq)
+- Model: `llama-3.3-70b-versatile` (Groq) - Switched for speed/reliability
 - Streaming protocol: `object` (via `toTextStreamResponse()`)
 
 ### Shared Zod Schema (`outlineSchema.ts`)
@@ -196,4 +200,11 @@ const PLACEHOLDER_CHAPTERS = [
 - [x] **Smart paywall: no API calls until payment**
 - [x] **Wipe reveal animation for streaming chapters**
 - [x] **Error handling with retry button**
+
+## Changelog
+### 2025-12-28: Real AI + Paywall
+- Replaced placeholder content with Real AI (`llama-3.3-70b-versatile`).
+- Implemented "Smart Paywall" (No API calls until payment).
+- Added wipe-reveal animation for streaming chapters.
+- Integrated `ProjectAssistant` (The Copilot) into the Builder UI.
 

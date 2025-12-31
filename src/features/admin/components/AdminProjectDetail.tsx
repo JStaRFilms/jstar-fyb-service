@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Send, FileText, Link as LinkIcon, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 
 type Project = {
     id: string;
@@ -61,13 +62,13 @@ export function AdminProjectDetail({ project }: { project: Project }) {
             const res = await fetch(`/api/documents/${docId}/extract`, { method: "POST" });
             const data = await res.json();
             if (data.success) {
-                alert("Extraction complete! Refresh to see results.");
+                toast.success("Extraction complete! Refresh to see results.");
             } else {
-                alert("Extraction failed: " + (data.error || "Unknown error"));
+                toast.error("Extraction failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
             console.error("Extraction error:", error);
-            alert("Extraction failed");
+            toast.error("Extraction failed");
         }
     };
 

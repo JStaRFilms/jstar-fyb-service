@@ -3,6 +3,7 @@ import { Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
+import { Toaster } from "sonner";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -33,6 +34,7 @@ export default function RootLayout({
           {children}
         </ErrorBoundary>
         <OfflineIndicator />
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );

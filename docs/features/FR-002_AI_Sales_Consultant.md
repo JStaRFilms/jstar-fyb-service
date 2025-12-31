@@ -36,6 +36,7 @@ const groq = createOpenAI({
     baseURL: 'https://api.groq.com/openai/v1',
     apiKey: process.env.GROQ_API_KEY,
 });
+// Model: moonshotai/kimi-k2-instruct-0905 (Best for Tool Calling)
 ```
 
 ### System Prompt (Jay's Persona)
@@ -102,6 +103,10 @@ Client filters out blank AI responses to prevent gray bubbles in UI.
 
 ### Error Handling
 Returns user-friendly error: "Jay is currently offline (System Overload)."
+
+### Data Persistence Guard
+- **Fallback Identifier:** If `anonymousId` is missing/empty, falls back to SDK's `id` or ephemeral ID to prevent "Skipping save" errors.
+- **Atomic Saves:** Ensures conversation is saved even if one message fails.
 
 ---
 

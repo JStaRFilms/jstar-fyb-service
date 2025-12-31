@@ -3,6 +3,7 @@
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useEffect, useRef } from "react";
 import { Check, Loader2, RefreshCw } from "lucide-react";
+import { toast } from 'sonner';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
 import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
@@ -52,11 +53,11 @@ export function ChapterOutliner() {
             if (result.url) {
                 window.location.href = result.url;
             } else {
-                alert(result.error || "Failed to initialize payment. Please try again.");
+                toast.error(result.error || "Failed to initialize payment. Please try again.");
             }
         } catch (error) {
             console.error('[ChapterOutliner] Failed to init payment:', error);
-            alert("Connection error. Please try again.");
+            toast.error("Connection error. Please try again.");
         }
     };
 
@@ -67,7 +68,20 @@ export function ChapterOutliner() {
             if (object?.chapters) {
                 // Map AI response format to store format
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                updateData({ outline: object.chapters as any });
+                const newOutline = object.chapters as any;
+                updateData({ outline: newOutline });
+
+                // Auto-save to DB
+                if (data.projectId) {
+                    fetch(`/api/projects/${data.projectId}/outline`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ outline: newOutline })
+                    }).then(res => {
+                        if (res.ok) console.log('[ChapterOutliner] Auto-saved outline to DB');
+                        else console.error('[ChapterOutliner] Failed to auto-save outline');
+                    });
+                }
             }
         },
         onError: (err) => {
@@ -228,7 +242,7 @@ export function ChapterOutliner() {
                         )}
 
                         <div className="mt-20 mb-10">
-                            <UpsellBridge />
+                            <UpsellBridge projectId={data.projectId} />
                         </div>
 
                         {data.projectId && (

@@ -60,10 +60,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 - Page navigation with prev/next buttons
 - Keyboard shortcuts: `←` / `→` for pages, `Escape` to close
 
-### Mobile Responsive
 - Sidebar auto-hides on mobile (<768px)
 - Collapsible sidebar toggle
 - Full-screen modal on mobile, rounded on desktop
+- **Premium Glass UI**: Integrated background with refined padding for a leaner look
 
 ### Metadata Display
 Parsed from `ResearchDocument` model fields:

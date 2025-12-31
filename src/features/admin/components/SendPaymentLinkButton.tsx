@@ -2,15 +2,28 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Loader2, CreditCard, ChevronDown } from "lucide-react";
+import { toast } from 'sonner';
+import { PRICING_CONFIG } from '@/config/pricing';
 
 interface SendPaymentLinkButtonProps {
     leadId: string;
 }
 
+// Flattening tiers for Admin Selection
 const PRICING_TIERS = {
-    BASIC: { label: "Basic Plan", amount: 15000 },
-    STANDARD: { label: "Standard Plan", amount: 30000 },
-    PREMIUM: { label: "Premium Plan", amount: 50000 },
+    // SaaS
+    DIY_PAPER: PRICING_CONFIG.SAAS.PAPER,
+    DIY_SOFTWARE: PRICING_CONFIG.SAAS.SOFTWARE,
+
+    // Agency Paper
+    AGENCY_PAPER_EXPRESS: PRICING_CONFIG.AGENCY.PAPER[0],
+    AGENCY_PAPER_DEFENSE: PRICING_CONFIG.AGENCY.PAPER[1],
+    AGENCY_PAPER_PREMIUM: PRICING_CONFIG.AGENCY.PAPER[2],
+
+    // Agency Software
+    AGENCY_CODE_GO: PRICING_CONFIG.AGENCY.SOFTWARE[0],
+    AGENCY_DEFENSE_READY: PRICING_CONFIG.AGENCY.SOFTWARE[1],
+    AGENCY_SOFT_LIFE: PRICING_CONFIG.AGENCY.SOFTWARE[2],
 };
 
 export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
@@ -64,7 +77,7 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    amount: tier.amount,
+                    amount: tier.price,
                     tier: tier.label,
                 }),
             });
@@ -75,9 +88,9 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
 
             // Success - Copy to clipboard
             await navigator.clipboard.writeText(data.authorizationUrl);
-            alert(`✅ Link for ${tier.label} copied to clipboard!`);
+            toast.success(`Link for ${tier.label} copied to clipboard!`);
         } catch (error) {
-            alert("❌ Error generating link");
+            toast.error("Error generating link");
             console.error(error);
         } finally {
             setLoading(false);
@@ -115,7 +128,7 @@ export function SendPaymentLinkButton({ leadId }: SendPaymentLinkButtonProps) {
                             className="w-full text-left px-4 py-3 hover:bg-primary/20 transition-colors border-b border-white/5 last:border-b-0"
                         >
                             <div className="font-medium text-white">{tier.label}</div>
-                            <div className="text-xs text-gray-400">₦{tier.amount.toLocaleString()}</div>
+                            <div className="text-xs text-gray-400">₦{tier.price.toLocaleString()}</div>
                         </button>
                     ))}
                 </div>

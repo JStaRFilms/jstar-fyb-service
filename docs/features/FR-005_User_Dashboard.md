@@ -20,10 +20,15 @@ Displays a summary of a single project, including:
 ### StatusTimeline
 A visual stepper showing the project's lifecycle:
 1. Topic Approved
-2. Payment Verified
+2. Payment (Pending -> Verified)
 3. Generation in Progress
 4. Final Review
 5. Completed
+
+### UpsellSystem
+Components that drive revenue:
+- **UpsellBanner:** "Need a Human Touch?" promotional banner.
+- **UpsellBridge:** "Done-For-You" visualization in the Builder flow.
 
 ### ResourceDownloads
 A dedicated section for downloading generated assets:

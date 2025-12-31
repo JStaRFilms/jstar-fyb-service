@@ -6,6 +6,7 @@ Automated payment verification and fulfillment system using Paystack webhooks. T
 ## Architecture
 - **Webhook Endpoint:** `src/app/api/pay/webhook/route.ts`
 - **Fulfillment Brain:** `src/services/billing.service.ts`
+- **Admin Links:** `src/app/api/admin/leads/[id]/send-payment-link/route.ts`
 - **Gateway Service:** `src/services/paystack.service.ts`
 - **Data Model:** `Payment` and `Project` models in Prisma.
 
@@ -33,6 +34,16 @@ The core busines logic for financial transactions:
 - **`updateProjectUnlock(projectId)`**: 
     - Sets `isUnlocked: true`.
     - Advances project status to `RESEARCH_IN_PROGRESS`.
+    - **Lead Linking**: Retroactively updates `Lead` status to `PAID` via `topic` or `anonymousId` matching.
+
+### 4. Admin Payment Links
+Allows admins to send payment links to leads who haven't signed up yet.
+- **Route:** `/api/admin/leads/[id]/send-payment-link`
+- **Logic:**
+    1. Finds or Creates a `Project` for the lead (Mode: `CONCIERGE`).
+    2. Creates a `Payment` record linked to that Project.
+    3. Generates Paystack link with `paymentId` in metadata.
+- **Why:** Prevents "Record not found" errors during verification if the project didn't exist.
 
 ## Data Flow
 ```mermaid
