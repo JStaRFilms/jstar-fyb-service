@@ -6,6 +6,7 @@ import { LogOut, User as UserIcon, LayoutDashboard, Plus, Hammer } from "lucide-
 import { cn } from "@/lib/utils";
 import { MobileBottomNav } from "@/features/dashboard/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -128,9 +129,9 @@ export const SaasShell = ({ children, user, headerContent, fullWidth = false, ha
                     <div className="relative" ref={dropdownRef}>
                         <button
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="w-10 h-10 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-accent font-bold hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50"
+                            className="focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-full"
                         >
-                            {initials}
+                            <UserAvatar name={user.name} image={user.image} size="md" />
                         </button>
 
                         {isDropdownOpen && (

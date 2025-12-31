@@ -74,17 +74,16 @@ INITIAL → ANALYZING → PROPOSAL → NEGOTIATION → CLOSING
 const [confirmedTopic, setConfirmedTopic] = useState<{topic: string, twist: string} | null>(null);
 ```
 
-#### Manual Proceed Function (Reliable)
+#### Manual Proceed Function (Auth-Aware)
 ```typescript
 const proceedToBuilder = () => {
-    if (confirmedTopic) {
-        localStorage.setItem('jstar_confirmed_topic', JSON.stringify({
-            topic: confirmedTopic.topic,
-            twist: confirmedTopic.twist,
-            confirmedAt: new Date().toISOString()
-        }));
+    // If user is already authenticated, go directly to builder
+    if (userId) {
+        router.push('/project/builder');
+    } else {
+        // Otherwise, redirect to register with callback
+        router.push('/auth/register?callbackUrl=/project/builder');
     }
-    router.push('/project/builder');
 };
 ```
 
@@ -137,3 +136,13 @@ Uses existing Prisma schema from FR-003:
 - [x] Empty message filtering
 - [x] Markdown rendering in MessageBubble
 - [x] Mobile-optimized UI (no bot icon on mobile)
+
+---
+
+## Changelog
+
+### 2025-12-31: UX Improvements
+- Back button now uses `router.back()` to respect navigation history.
+- Profile picture now uses shared `UserAvatar` component.
+- `proceedToBuilder()` is now auth-aware - goes directly to builder if logged in.
+

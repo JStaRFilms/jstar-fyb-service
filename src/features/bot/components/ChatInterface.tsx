@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User, AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
@@ -8,6 +9,7 @@ import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ComplexityMeter } from "./ComplexityMeter";
 import { SuggestionChips } from "./SuggestionChips";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,6 +18,7 @@ import { mergeAnonymousData } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 export function ChatInterface() {
+    const router = useRouter();
     const { data: session } = useSession();
     const user = session?.user;
     const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
@@ -58,9 +61,9 @@ export function ChatInterface() {
             {/* Header */}
             <header className="h-16 flex items-center justify-between px-4 border-b border-white/5 bg-dark/80 backdrop-blur-md z-20 shrink-0">
                 <div className="flex items-center gap-3">
-                    <Link href="/" className="p-2 rounded-full hover:bg-white/5 text-gray-400">
+                    <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-white/5 text-gray-400">
                         <ArrowLeft className="w-5 h-5" />
-                    </Link>
+                    </button>
                     <div>
                         <h1 className="font-display font-bold text-lg tracking-wide hidden md:block">Project Consultant</h1>
                         <h1 className="font-display font-bold text-lg tracking-wide md:hidden">Jay</h1>
@@ -80,9 +83,7 @@ export function ChatInterface() {
                     {/* Auth Button */}
                     {user ? (
                         <div className="flex items-center gap-3 pl-3 border-l border-white/10">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold ring-2 ring-white/10">
-                                {user.name?.charAt(0) || "U"}
-                            </div>
+                            <UserAvatar name={user.name} image={user.image} size="sm" />
                             <button
                                 onClick={() => signOutAction()}
                                 className="p-2 rounded-full hover:bg-white/5 text-gray-400 hover:text-red-400 transition-colors"

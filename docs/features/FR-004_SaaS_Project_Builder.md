@@ -192,3 +192,12 @@ const PLACEHOLDER_CHAPTERS = [
 - Replaced custom Builder header with integrated "Progress Toolbar".
 - Added context-aware navigation (Hammer Icon) in `MobileBottomNav`.
 
+### 2025-12-31: State Persistence Fixes
+- Added `hasServerHydrated` flag to prevent localStorage from overwriting server data.
+- Removed `step` and `isPaid` from localStorage persistence - server is source of truth.
+- Fixed `syncWithUser()` to only reset on actual logout/account switch, not on every page load.
+- `loadProject()` now clears stale chat handoff localStorage.
+- `hydrateFromChat()` now checks `hasServerHydrated` before attempting hydration.
+- Fixed PDF upload validation (broken EOF check was rejecting valid PDFs).
+- Abstract generation API no longer creates duplicate projects (only updates existing).
+

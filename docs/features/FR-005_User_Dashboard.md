@@ -55,3 +55,24 @@ flowchart TD
     D -->|Select| E[ProjectCard]
     E -->|Click| F[Builder / Download]
 ```
+
+---
+
+## Shared UI Components
+
+### UserAvatar (`components/ui/UserAvatar.tsx`)
+Reusable avatar component used across all authenticated pages.
+- Shows `user.image` if available (Google/OAuth profile picture).
+- Falls back to gradient initials if no image.
+- Supports `sm`, `md`, `lg` sizes.
+- Used in: `SaasShell`, `ChatInterface`, `ProfilePage`.
+
+---
+
+## Changelog
+
+### 2025-12-31: Empty State & Avatar Improvements
+- Removed broken "Start New Project" button from empty state (was non-functional).
+- Created unified `UserAvatar` component for consistent profile pictures.
+- Updated `SaasShell`, `ChatInterface`, and `ProfilePage` to use `UserAvatar`.
+

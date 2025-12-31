@@ -168,11 +168,13 @@ export async function POST(req: Request) {
 
             // CRITICAL SECURITY FIX: Additional file content validation
             if (isPdf) {
-                // Basic PDF structure validation
-                const pdfEnd = buffer.slice(buffer.length - 4);
-                if (!pdfEnd.equals(Buffer.from([0x25, 0x25, 0x45, 0x4F, 0x46])) && // %EOF
-                    !pdfEnd.equals(Buffer.from([0x0A, 0x25, 0x25, 0x45, 0x4F, 0x46]))) { // \n%EOF
-                    return NextResponse.json({ error: "Invalid PDF file structure" }, { status: 400 });
+                // PDF structure validation: Check for %%EOF marker
+                // Note: Many valid PDFs have trailing content after %%EOF, so we check the last 1KB
+                const tailSection = buffer.slice(Math.max(0, buffer.length - 1024));
+                const tailString = tailSection.toString('ascii', 0, tailSection.length);
+                if (!tailString.includes('%%EOF')) {
+                    console.warn(`[Security] PDF missing %%EOF marker: ${file.name}`);
+                    return NextResponse.json({ error: "Invalid PDF file structure - missing EOF marker" }, { status: 400 });
                 }
             }
 

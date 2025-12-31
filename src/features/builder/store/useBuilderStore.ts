@@ -226,10 +226,10 @@ export const useBuilderStore = create<BuilderState>()(
             name: 'jstar-builder-storage', // unique name
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
-                // Only persist data and step, not UI flags like isGenerating
+                // Only persist data, not step or UI flags
+                // NOTE: step is NOT persisted - server determines step from data presence
                 // NOTE: isPaid is NOT persisted - server is source of truth for payment
                 // NOTE: hasServerHydrated is NOT persisted - resets each session
-                step: state.step,
                 data: state.data,
                 isFromChat: state.isFromChat
             }),
