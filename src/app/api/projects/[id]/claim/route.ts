@@ -49,14 +49,21 @@ export async function POST(
             return NextResponse.json({ error: "Forbidden: Ownership mismatch" }, { status: 403 });
         }
 
-        // Update the project
-        await prisma.project.update({
-            where: { id },
-            data: {
-                userId: user.id,
-                anonymousId: null // Clear anonymous ID once claimed
-            }
-        });
+        // Update the project and link relevant leads
+        await prisma.$transaction([
+            prisma.project.update({
+                where: { id },
+                data: {
+                    userId: user.id,
+                    anonymousId: null // Clear anonymous ID once claimed
+                }
+            }),
+            // Also link any leads created with this anonymous cookie to the user
+            prisma.lead.updateMany({
+                where: { anonymousId: anonymousCookie },
+                data: { userId: user.id }
+            })
+        ]);
 
         // Optional: Clear the cookie? No, might have other projects.
 

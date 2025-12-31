@@ -46,13 +46,19 @@ export const StatusTimeline = ({ status, progress }: { status: string; progress:
 
     // Map statuses to step states
     const getStepStatus = (step: "topic" | "payment" | "generation"): "completed" | "current" | "pending" => {
-        // Topic and Payment are always completed if user is on dashboard
-        if (step === "topic" || step === "payment") return "completed";
+        // Topic is always completed if they have a project on dashboard
+        if (step === "topic") return "completed";
 
-        // Generation step logic
         const inProgressStatuses = ["RESEARCH_IN_PROGRESS", "WRITING_IN_PROGRESS"];
         const completedStatuses = ["RESEARCH_COMPLETE", "PROJECT_COMPLETE"];
+        const isProjectFullyUnlocked = completedStatuses.includes(status) || inProgressStatuses.includes(status) || status === "UNLOCKED";
 
+        if (step === "payment") {
+            // Check if project is unlocked/paid
+            return isProjectFullyUnlocked ? "completed" : "current";
+        }
+
+        // Generation step logic
         if (completedStatuses.includes(status)) return "completed";
         if (inProgressStatuses.includes(status)) return "current";
         return "pending"; // OUTLINE_GENERATED or unknown
@@ -81,7 +87,12 @@ export const StatusTimeline = ({ status, progress }: { status: string; progress:
     return (
         <div className="space-y-4 mb-8">
             <TimelineStep label="Topic Approved" subLabel="Checked" status={getStepStatus("topic")} />
-            <TimelineStep label="Payment Verified" subLabel="Paid" status={getStepStatus("payment")} />
+            <TimelineStep
+                label={status === 'UNLOCKED' || getStepStatus("payment") === "completed" ? "Payment Verified" : "Payment"}
+                subLabel={status === 'UNLOCKED' || getStepStatus("payment") === "completed" ? "Paid" : "Pending"}
+                status={getStepStatus("payment")}
+                stepNumber={2}
+            />
             <TimelineStep
                 label={getGenerationLabel()}
                 subLabel={getGenerationSubLabel()}

@@ -80,7 +80,7 @@ export function ChapterOutliner() {
     const displayChapters = streamedChapters.length > 0 ? streamedChapters : (data.outline || []);
     const displayTitle = object?.title || data.topic || "Project Title";
     const abstractPreview = data.abstract ? data.abstract.slice(0, 180) + '...' : "Loading abstract...";
-    const isStreaming = isPaid && isLoading;
+    const isStreaming = isLoading;
 
     // Fetch stored outline if we have a project ID and no outline yet
     useEffect(() => {
@@ -168,17 +168,17 @@ export function ChapterOutliner() {
             {/* Success State Header */}
             <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 text-green-500 mb-4 border border-green-500/20">
-                    {isPaid && isLoading ? (
+                    {isLoading ? (
                         <Loader2 className="w-8 h-8 animate-spin" />
                     ) : (
                         <Check className="w-8 h-8" />
                     )}
                 </div>
                 <h1 className="text-3xl font-display font-bold mb-2">
-                    {isPaid && isLoading ? 'Generating Your Project...' : 'Structure Generated'}
+                    {isLoading ? 'Generating Your Project...' : 'Structure Generated'}
                 </h1>
                 <p className="text-gray-400">
-                    {isPaid && isLoading
+                    {isLoading
                         ? 'AI is crafting your distinction-grade outline...'
                         : "We've crafted a distinction-grade abstract and outline for your project."}
                 </p>
