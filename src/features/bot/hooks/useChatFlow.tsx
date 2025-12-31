@@ -25,6 +25,7 @@ export function useChatFlow(userId?: string) {
     const [conversationId, setConversationId] = useState<string | undefined>();
     const [anonymousId, setAnonymousId] = useState<string>("");
     const [confirmedTopic, setConfirmedTopic] = useState<ConfirmedTopic | null>(null);
+    const [hasProvidedPhone, setHasProvidedPhone] = useState(false);
 
     // Use refs to access current values in fetch without stale closures
     const conversationIdRef = useRef(conversationId);
@@ -269,6 +270,9 @@ export function useChatFlow(userId?: string) {
                     userId: userId,
                 });
 
+                // Mark that user has provided phone (for manual fallback UI)
+                setHasProvidedPhone(true);
+
                 // Transition to CLOSING if not already there
                 if (state !== "CLOSING" && state !== "COMPLETED") {
                     setState("CLOSING");
@@ -339,6 +343,7 @@ export function useChatFlow(userId?: string) {
         complexity,
         isLoading,
         confirmedTopic,
+        hasProvidedPhone,
         error,
         regenerate,
         handleUserMessage,

@@ -289,8 +289,30 @@ NEGATIVE: Never end conversation or say "we're done" without calling this tool.`
         });
 
         return result.toUIMessageStreamResponse();
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Chat API] Fatal error after retries:', error);
+
+        // Detect tool call validation errors and provide graceful recovery
+        const errorMessage = error?.message || '';
+        const isToolCallError =
+            errorMessage.includes('tool call validation failed') ||
+            errorMessage.includes('Failed to call a function') ||
+            errorMessage.includes('did not match schema');
+
+        if (isToolCallError) {
+            console.warn('[Chat API] Tool call failed, returning recovery message');
+            // Return a text stream with a recovery message so the user can retry
+            const recoveryText = "Oops! I got a bit confused there. Let me try again — could you repeat what you'd like to do? If you've already shared your WhatsApp, you can click \"Proceed to Builder\" below to continue!";
+
+            return new Response(
+                JSON.stringify({
+                    error: recoveryText,
+                    recoverable: true
+                }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } }
+            );
+        }
+
         return new Response(
             JSON.stringify({ error: 'Jay is currently offline (System Overload). Please try again.' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }

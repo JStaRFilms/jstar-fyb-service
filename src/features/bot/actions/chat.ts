@@ -176,8 +176,8 @@ export async function getLatestConversation({
         return await prisma.conversation.findFirst({
             where: {
                 userId: userId,
-                // CRITICAL SECURITY FIX: Ensure no anonymousId conflicts - exclude any conversations with anonymousId
-                anonymousId: null
+                // Note: We allow conversations with anonymousId set, as these are migrated sessions.
+                // The userId check is sufficient for security.
             },
             include: {
                 messages: {

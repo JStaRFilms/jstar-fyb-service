@@ -1,4 +1,4 @@
-import React from "react";
+import { headers } from "next/headers";
 import { getCurrentUser } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 import { SaasShell } from "@/features/ui/SaasShell";
@@ -12,7 +12,9 @@ export default async function DashboardLayout({
     const user = await getCurrentUser();
 
     if (!user) {
-        redirect("/auth/login");
+        const headersList = await headers();
+        const currentPath = headersList.get("x-current-path") || "/dashboard";
+        redirect(`/auth/login?callbackUrl=${encodeURIComponent(currentPath)}`);
     }
 
     const latestProject = await prisma.project.findFirst({
