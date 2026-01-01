@@ -128,6 +128,7 @@ const chatSchema = z.object({
     })).min(1).max(MAX_MESSAGES),
     conversationId: z.string().uuid().optional(),
     anonymousId: z.string().optional(),
+    userId: z.string().uuid().optional(), // Authenticated User ID
     id: z.string().optional(), // Conversation ID from useChat
     trigger: z.string().optional(), // AI SDK internal
 }).passthrough(); // Allow additional fields from AI SDK
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
             return new Response(JSON.stringify({ error: 'Invalid input', details: validation.error }), { status: 400 });
         }
 
-        const { messages, conversationId, anonymousId, id } = validation.data;
+        const { messages, conversationId, anonymousId, id, userId } = validation.data;
 
         // Fallback for identification
         const effectiveAnonymousId = anonymousId || id || `sdk-${Date.now()}`;
@@ -262,29 +263,9 @@ NEGATIVE: Never end conversation or say "we're done" without calling this tool.`
                 })
             },
             onFinish: async ({ text, toolCalls }) => {
-
-                // Early exit if we don't have a valid identifier
-                const hasValidId = (effectiveAnonymousId && effectiveAnonymousId.trim() !== "") || conversationId;
-                if (!hasValidId) {
-                    console.warn('[Chat API] Skipping save: No valid identifiers');
-                    return;
-                }
-
-                if (text) {
-                    try {
-                        await saveConversation({
-                            conversationId,
-                            anonymousId: effectiveAnonymousId,
-                            messages: [
-                                ...modelMessages,
-                                { role: 'assistant', content: text }
-                            ]
-                        });
-                    } catch (saveError) {
-                        // Don't let save errors break the stream
-                        console.error('[Chat API] Save failed:', saveError);
-                    }
-                }
+                // Client-side persistence model:
+                // The API is now stateless. The client (useChatFlow) handles saving via Server Actions
+                // after the stream completes.
             },
         });
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
-import { saveLeadAction } from "../actions/chat";
+import { saveConversation, getLatestConversation, saveLeadAction } from "../actions/chat";
 
 export interface Message {
     id: string;
@@ -53,6 +53,11 @@ export function useChatFlow(userId?: string) {
         anonymousIdRef.current = anonymousId;
     }, [anonymousId]);
 
+    const userIdRef = useRef(userId);
+    useEffect(() => {
+        userIdRef.current = userId;
+    }, [userId]);
+
     // Standard AI SDK useChat with custom fetch to inject headers dynamically
     const {
         messages: aiMessages,
@@ -62,37 +67,134 @@ export function useChatFlow(userId?: string) {
         regenerate,
         setMessages
     } = useChat({
-        // Use custom fetch to dynamically inject anonymousId/conversationId at request-time
+        // Use custom fetch to ensure we can inject dynamic data
         fetch: async (url: RequestInfo | URL, options?: RequestInit) => {
             const body = JSON.parse(options?.body as string || '{}');
 
-            // Inject current values from refs (not stale closure values)
+            // Explicitly use the CURRENT ref value
+            const currentUserId = userIdRef.current;
+
             body.anonymousId = anonymousIdRef.current;
             body.conversationId = conversationIdRef.current;
+            body.userId = currentUserId;
 
             return fetch(url, {
                 ...options,
                 body: JSON.stringify(body),
             });
         },
+        onFinish: (message: any) => {
+            // Call the mutable ref to access latest state
+            // We use 'any' here primarily to bypass strict checks if the SDK types mismatch, 
+            // but ideally we import { Message } from 'ai'
+            if (onFinishRef.current) {
+                onFinishRef.current(message);
+            }
+        },
     } as any) as any;
+
+    // Track messages in ref for access in onFinish
+    const messagesRef = useRef(aiMessages);
+    useEffect(() => {
+        messagesRef.current = aiMessages;
+    }, [aiMessages]);
+
+    // Mutable ref for the onFinish logic to avoid stale closures
+    const onFinishRef = useRef<any>(null);
+    useEffect(() => {
+        onFinishRef.current = async (message: any) => {
+            const currentUserId = userIdRef.current;
+            const currentAnonymousId = anonymousIdRef.current;
+            const currentConversationId = conversationIdRef.current;
+            const currentMessages = messagesRef.current;
+
+            if (!currentUserId && !currentAnonymousId) return;
+
+            // console.log('[useChatFlow] Persisting conversation (Client-First)...');
+
+
+            // Ensure the final message is included
+            let messagesToSave = [...currentMessages];
+            const lastMsg = messagesToSave[messagesToSave.length - 1];
+
+            // If the last message in state doesn't match the finished message ID, append it.
+            // (AI SDK usually syncs state, but this guarantees we save the full final text)
+            if (!lastMsg || lastMsg.id !== message.id) {
+                // If the roles match (assistant), it might be a partial update issue, but usually 'id' persists.
+                messagesToSave.push(message);
+            } else {
+                // Update the last message to ensure it has the full content
+                messagesToSave[messagesToSave.length - 1] = message;
+            }
+
+            try {
+                // Sanitize messages for server action
+                const cleanMessages = messagesToSave.map(m => {
+                    // Map generic roles to valid schema roles
+                    let role = 'user';
+                    if (m.role === 'assistant' || m.role === 'ai' || m.role === 'system') {
+                        role = m.role === 'ai' ? 'assistant' : m.role;
+                    } else if (m.role === 'data') {
+                        role = 'user';
+                    }
+
+                    // Extract text content from parts if needed (AI SDK V3+ often uses parts)
+                    let textContent = '';
+                    if (typeof m.content === 'string' && m.content) {
+                        textContent = m.content;
+                    } else if (m.parts) {
+                        textContent = m.parts
+                            .filter((p: any) => p.type === 'text')
+                            .map((p: any) => p.text)
+                            .join('');
+                    }
+
+                    return {
+                        role: role as 'user' | 'assistant' | 'system',
+                        content: textContent,
+                    };
+                }).filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'system');
+
+                await saveConversation({
+                    conversationId: currentConversationId,
+                    userId: currentUserId,
+                    anonymousId: currentAnonymousId,
+                    messages: cleanMessages
+                });
+                // console.log('[useChatFlow] Persistence complete.');
+            } catch (err) {
+                console.error('[useChatFlow] Failed to persist chat:', err);
+            }
+        };
+    }, []); // Empty dependency array, but we rely on refs inside which is fine.
+
+    // Reset synced history if identity changes (e.g. login)
+    useEffect(() => {
+        if (userId) {
+            hasSyncedHistory.current = false;
+        }
+    }, [userId]);
 
     // Sync initial messages if we found a conversation
     const hasSyncedHistory = useRef(false);
     useEffect(() => {
         if (!hasSyncedHistory.current && anonymousId && anonymousId !== "") {
             const syncHistory = async () => {
-                const { getLatestConversation } = await import("../actions/chat");
-                const latest = await getLatestConversation({ anonymousId, userId });
+                const currentUserId = userIdRef.current; // access ref to be sure
+
+                const latest = await getLatestConversation({ anonymousId, userId: currentUserId });
+
                 if (latest && latest.messages.length > 0) {
                     setConversationId(latest.id);
-                    setMessages(latest.messages.map((m: any) => ({
+                    // Ensure messages are correctly formatted for UI
+                    const formattedMessages = latest.messages.map((m: any) => ({
                         id: m.id,
                         role: m.role as any,
                         content: m.content as string,
                         parts: [{ type: 'text' as const, text: m.content as string }],
                         createdAt: new Date(m.createdAt)
-                    })));
+                    }));
+                    setMessages(formattedMessages);
                 }
                 hasSyncedHistory.current = true;
             };
@@ -120,8 +222,6 @@ export function useChatFlow(userId?: string) {
                 p.type?.startsWith('tool-')
             );
 
-
-
             return {
                 id: m.id,
                 role: (m.role === 'user' ? 'user' : 'ai') as 'user' | 'ai',
@@ -131,6 +231,7 @@ export function useChatFlow(userId?: string) {
             };
         })
         .filter((m: any) => m.content && (typeof m.content === 'string' ? m.content.trim() : true));
+
 
     // Watch for tool calls
     useEffect(() => {

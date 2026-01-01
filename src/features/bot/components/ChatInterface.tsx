@@ -17,10 +17,15 @@ import { useSession } from "@/lib/auth-client";
 import { mergeAnonymousData } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+    initialUser?: any; // Replace 'any' with proper User type if available, e.g. from better-auth
+}
+
+export function ChatInterface({ initialUser }: ChatInterfaceProps) {
     const router = useRouter();
     const { data: session } = useSession();
-    const user = session?.user;
+    // Prioritize session user if available (client update), otherwise fallback to server passed user
+    const user = session?.user || initialUser;
     const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);

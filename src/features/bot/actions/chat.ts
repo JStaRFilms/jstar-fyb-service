@@ -6,9 +6,9 @@ import { z } from 'zod';
 
 // Input validation schema
 const saveConversationSchema = z.object({
-    conversationId: z.string().uuid().optional(),
-    anonymousId: z.string().optional(), // Relaxed to allow empty string during initialization
-    userId: z.string().uuid().optional(),
+    conversationId: z.string().optional(),
+    anonymousId: z.string().optional(),
+    userId: z.string().optional(), // Removed .uuid() to support CUIDs (better-auth)
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant', 'system']),
         content: z.union([z.string(), z.array(z.any())]),
@@ -58,6 +58,9 @@ export async function saveConversation({
             userId,
             messages,
         });
+
+        // Validated
+
 
         if (!validation.success) {
             console.error('Validation failed:', validation.error);
