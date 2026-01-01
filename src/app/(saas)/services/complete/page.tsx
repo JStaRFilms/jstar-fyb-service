@@ -1,14 +1,13 @@
 'use client';
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { CheckCircle, Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
 
-export default function ServiceCompletePage() {
+function ServiceCompleteContent() {
     const searchParams = useSearchParams();
     const reference = searchParams.get('ref');
-    const serviceId = searchParams.get('service');
 
     const [status, setStatus] = useState<'verifying' | 'success' | 'failed'>('verifying');
 
@@ -92,5 +91,20 @@ export default function ServiceCompletePage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function ServiceCompletePage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-dark text-white flex items-center justify-center p-8">
+                <div className="max-w-md w-full text-center space-y-4">
+                    <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto" />
+                    <h1 className="text-2xl font-bold">Loading...</h1>
+                </div>
+            </div>
+        }>
+            <ServiceCompleteContent />
+        </Suspense>
     );
 }
