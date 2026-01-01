@@ -110,7 +110,7 @@ export function useChatFlow(userId?: string) {
 
             if (!currentUserId && !currentAnonymousId) return;
 
-            // console.log('[useChatFlow] Persisting conversation (Client-First)...');
+            console.log('[useChatFlow] Persisting conversation (Client-First)...');
 
 
             // Ensure the final message is included

@@ -37,7 +37,7 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
             // Merge it!
             mergeAnonymousData(anonymousId, user.id || "")
                 .then(() => {
-                    // console.log("Merged history");
+                    console.log("Merged history");
                     // specific cleanup if needed, keeping anonymousId is fine for session continuity
                 })
                 .catch((err) => {
@@ -98,7 +98,7 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
                         </div>
                     ) : (
                         <button
-                            onClick={() => signInAction()}
+                            onClick={() => router.push('/auth/login?callbackUrl=' + encodeURIComponent('/chat'))}
                             className="px-4 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 text-xs font-bold text-primary transition-all flex items-center gap-2"
                         >
                             <User className="w-3 h-3" />
