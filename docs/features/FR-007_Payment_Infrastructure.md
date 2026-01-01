@@ -64,6 +64,25 @@ Allows admins to send payment links to leads who haven't signed up yet.
     3. Generates Paystack link with `paymentId` in metadata.
 - **Why:** Prevents "Record not found" errors during verification if the project didn't exist.
 
+### 5. Proration & Upgrade Links (2026-01-01)
+Allows admins to send prorated upgrade links to existing paid users.
+- **Route:** `/api/admin/projects/[id]/send-payment-link`
+- **Logic:**
+    1. Fetches `totalPaid` from existing payments on the project.
+    2. Calculates `prorated amount = target tier price - totalPaid`.
+    3. Generates Paystack link for the difference.
+- **Key Files:**
+    - `SendPaymentLinkButton.tsx` - Dropdown showing prorated prices
+    - `getProjectBillingDetails()` - Calculates total paid
+- **UI Display:** Admin sees "Paid: ₦15,000" badge and "Due: ₦65,000" for upgrades.
+
+### 6. Expert Services Add-ons (2026-01-01)
+À la carte services for DIY users who want expert help without upgrading.
+- **Config:** `PRICING_CONFIG.ADD_ONS` in `src/config/pricing.ts`
+- **Services:** Defense Speech, Code Review, Chapter Editing, Rush Delivery
+- **Route:** `/api/services/purchase`
+- **Pages:** `/services` (listing), `/services/[serviceId]` (checkout), `/services/complete` (confirmation)
+
 ## Data Flow
 ```mermaid
 sequenceDiagram

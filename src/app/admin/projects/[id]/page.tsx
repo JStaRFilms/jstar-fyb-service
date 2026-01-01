@@ -10,7 +10,15 @@ async function getProject(id: string) {
         where: { id },
         include: {
             documents: {
-                orderBy: { createdAt: "desc" }
+                orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    fileName: true,
+                    fileType: true,
+                    fileUrl: true,
+                    status: true,
+                    createdAt: true,
+                }
             },
             messages: {
                 orderBy: { createdAt: "asc" }
