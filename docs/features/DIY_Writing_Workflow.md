@@ -107,7 +107,7 @@ This document outlines the implementation of the **core writing workflow** for D
 
 ---
 
-## PHASE 1: Core Writing Loop
+## PHASE 1 [PLANNED]: Core Writing Loop
 
 > **Goal**: Enable users to generate, view, edit, and save chapter content with full context awareness.
 
@@ -269,7 +269,7 @@ Before moving to Phase 2, verify:
 
 ---
 
-## PHASE 2: Research Integration
+## PHASE 2 [PLANNED]: Research Integration
 
 > **Goal**: Ground chapter generation in user's uploaded research documents using Gemini File Search (managed RAG).
 
@@ -515,7 +515,7 @@ Before moving to Phase 3, verify:
 
 ---
 
-## PHASE 3: AI Copilot Enhancement
+## PHASE 3 [PLANNED]: AI Copilot Enhancement
 
 > **Goal**: Transform ProjectAssistant into a fully context-aware writing companion that can edit specific sections, answer project questions, and guide users through the writing process.
 
@@ -821,7 +821,7 @@ Before moving to Phase 4, verify:
 
 ---
 
-## PHASE 4: Diagrams & Export
+## PHASE 4 [PLANNED]: Diagrams & Export
 
 > **Goal**: Enable users to generate Mermaid diagrams for their project (system architecture, data flow, etc.) and export the final document as DOCX or PDF.
 
@@ -1041,7 +1041,7 @@ Before moving to Phase 5, verify:
 
 ---
 
-## PHASE 5: Deep Research Add-On (₦5,000)
+## PHASE 5 [PLANNED]: Deep Research Add-On (₦5,000)
 
 > **Goal**: Integrate Gemini Deep Research Agent as a premium paid feature that automates the manual NotebookLM research workflow.
 
