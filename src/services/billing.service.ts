@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getTierByPrice } from "@/config/pricing";
+import { EmailService } from "@/services/email.service";
 
 export interface PaymentData {
     reference: string;
@@ -92,6 +93,11 @@ export const BillingService = {
         // 4. Unlock Project
         await this.updateProjectUnlock(projectId, data.amount);
 
+        // 5. Send Receipt Email (Async, don't block)
+        this.sendReceiptEmail(userId, payment.id).catch(e =>
+            console.error('[BillingService] Background email failed:', e)
+        );
+
         return payment;
     },
 
@@ -128,8 +134,42 @@ export const BillingService = {
     },
 
     async sendReceiptEmail(userId: string, paymentId: string) {
-        // Placeholder for email service integration
-        console.log(`[BillingService] TODO: Send receipt for payment ${paymentId} to user ${userId}`);
+        try {
+            // 1. Fetch details
+            const payment = await prisma.payment.findUnique({
+                where: { id: paymentId },
+                include: { project: true }
+            });
+
+            const user = await prisma.user.findUnique({
+                where: { id: userId }
+            });
+
+            if (!payment || !user) {
+                console.error(`[BillingService] Could not send receipt. Missing data. Payment: ${!!payment}, User: ${!!user}`);
+                return;
+            }
+
+            // 2. Prepare Email Params
+            const amountNaira = payment.amount; // stored as unit in DB (checked create logic)
+            // Wait, in create logic: amount: data.amount / 100. So DB stores main currency unit (Naira).
+
+            const emailParams = {
+                email: user.email,
+                name: user.name || 'Valued Customer',
+                amount: amountNaira,
+                reference: payment.reference,
+                projectTopic: payment.project?.topic || 'Project Unlock',
+                date: payment.createdAt
+            };
+
+            // 3. Send via EmailService
+            await EmailService.sendPaymentReceipt(emailParams);
+
+            console.log(`[BillingService] Receipt email sent to ${user.email} for payment ${payment.reference}`);
+        } catch (error) {
+            console.error('[BillingService] Failed to send receipt email:', error);
+        }
     },
 
     async getPaymentHistory(userId: string) {
