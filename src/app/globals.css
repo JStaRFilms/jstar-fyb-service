@@ -2,32 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* React-PDF text layer styles */
-.react-pdf__Page__textContent {
-  line-height: 1.0;
-  user-select: text;
-}
-
-.react-pdf__Page__textContent span {
-  color: transparent;
-  position: absolute;
-  white-space: pre;
-  transform-origin: 0% 0%;
-}
-
-.react-pdf__Page__textContent span::selection {
-  background: rgba(139, 92, 246, 0.3);
-}
-
-.react-pdf__Page__annotations {
-  pointer-events: auto;
-}
-
-.react-pdf__Page__canvas {
-  display: block;
-  user-select: none;
-}
-
 :root {
   --color-primary: #8b5cf6;
   --color-accent: #06b6d4;
@@ -166,23 +140,4 @@ body {
     var(--color-bg) 20%,
     transparent 100%
   );
-}
-
-/* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
 }

@@ -12,20 +12,17 @@ A multi-step "Wizard" where users generate their Final Year Project materials: t
 ### Server Components
 | File | Purpose |
 |------|---------|
-| [page.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/page.tsx) | **Async Server Component**. Fetches Project + `isUnlocked` status from DB. Hydrates Client. |
+| [page.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/page.tsx) | Route wrapper, renders BuilderWizard |
 | [abstract/route.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/abstract/route.ts) | Groq AI endpoint for abstract (`streamText`) |
 | [outline/route.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/outline/route.ts) | Groq AI endpoint for outline (`streamObject`) |
-| [projects/[id]/outline](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/projects/[id]/outline/route.ts) | **GET/POST**. Auto-saves outline to `ChapterOutline` model. |
-| [generate/chapter](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/api/generate/chapter/route.ts) | **POST**. Gen + Stream Chapter. Saves to `Project.contentProgress`. |
 
 ### Client Components (`'use client'`)
 | File | Purpose |
 |------|---------|
-| [BuilderClient.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/app/(saas)/project/builder/BuilderClient.tsx) | Main client wrapper. Receives `serverProject` prop for instant hydration. |
+| [BuilderWizard.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/BuilderWizard.tsx) | Main wizard container, step router |
 | [TopicSelector.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/TopicSelector.tsx) | Step 1: Topic + Twist input |
 | [AbstractGenerator.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/AbstractGenerator.tsx) | Step 2: AI-generated abstract with edit/preview toggle |
-| [ChapterOutliner.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterOutliner.tsx) | Step 3: Outline display + **Auto-Save** + paywall overlay |
-| [ChapterGenerator.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterGenerator.tsx) | Step 4: Full chapter content generation (Markdown) |
+| [ChapterOutliner.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterOutliner.tsx) | Step 3: Outline display + paywall overlay |
 
 ### Schemas
 | File | Purpose |
@@ -39,27 +36,45 @@ A multi-step "Wizard" where users generate their Final Year Project materials: t
 ### Zustand Store (`useBuilderStore`)
 ```typescript
 interface BuilderState {
-    // ...
-    // Updated Actions
-    loadProject: (data: Partial<ProjectData>, isPaid?: boolean) => void; // NOW accepts payment status
+    step: 'TOPIC' | 'ABSTRACT' | 'OUTLINE' | 'PAYWALL';
+    data: {
+        topic: string;
+        twist: string;
+        abstract: string;
+        outline: Chapter[];  // { title: string; content: string }[]
+    };
+    isGenerating: boolean;
+    isPaid: boolean;
+    isFromChat: boolean;  // True if user came from Jay chat
+
+    setStep: (step: BuilderStep) => void;
+    updateData: (data: Partial<ProjectData>) => void;
+    setGenerating: (isGenerating: boolean) => void;
+    unlockPaywall: () => void;
+    hydrateFromChat: () => boolean;  // Loads topic/twist from localStorage
+    clearChatData: () => void;       // Clears handoff data and resets form
 }
 ```
 
-### User Data Hydration
-The Builder now uses a **Hybrid Hydration Strategy**:
+### Chat → Builder Handoff
 
-1.  **Server-Side (Primary)**:
-    - `page.tsx` fetches the latest project (`prisma.project.findFirst`) + payment status (`isUnlocked`).
-    - Passes full `ProjectData` + `serverIsPaid` to `BuilderClient`.
-    - `useBuilderStore.loadProject()` initializes state immediately.
-    - **Benefit**: Fixes sync issues across devices and ensures payment status is truthful.
+#### Trigger: Smart Suggestion Chips (`SuggestionChips.tsx`)
+When user clicks "Proceed to Builder" in chat:
+1. `proceedToBuilder()` saves `{ topic, twist, confirmedAt }` to `localStorage`
+2. Redirects to `/project/builder`
 
-2.  **Client-Side (Handoff)**:
-    - **Fresh Override Strategy**:
-        - `hydrateFromChat()` checks if handoff data is **< 5 minutes old**.
-        - If FRESH: It **overrides** any existing server draft (forcing "New Project" state).
-        - If STALE/EMPTY: It only hydrates if the current project is empty.
-    - **Outcome**: Users coming effectively from Chat always see their new topic, even if they have an old draft.
+#### Hydration: `useBuilderStore.hydrateFromChat()`
+On component mount:
+1. Check `localStorage` for `jstar_confirmed_topic`
+2. Validate freshness (24-hour expiry check)
+3. If valid, populate `data.topic`, `data.twist`, set `isFromChat: true`
+4. TopicSelector renders "Topic imported from Jay" badge
+
+#### Reset: `useBuilderStore.clearChatData()`
+User clicks "Clear & Start Fresh":
+1. Remove `jstar_confirmed_topic` from `localStorage`
+2. Reset form data to empty
+3. Set `isFromChat: false`
 
 ---
 
@@ -98,7 +113,7 @@ You are an expert academic research consultant.
 ### AI Integration
 - Uses `useObject` hook from `@ai-sdk/react` (experimental)
 - API: `/api/generate/outline`
-- Model: `llama-3.3-70b-versatile` (Groq) - Switched for speed/reliability
+- Model: `llama-3.3-70b-versatile` (Groq)
 - Streaming protocol: `object` (via `toTextStreamResponse()`)
 
 ### Shared Zod Schema (`outlineSchema.ts`)
@@ -115,7 +130,7 @@ export const outlineSchema = z.object({
 ### Smart Paywall (API Call Optimization)
 
 > [!IMPORTANT]
-> **Generation only triggers AFTER payment** to save API costs and prevent hackers. Unlocking is handled automatically via Paystack Webhooks (see [FR-007: Payment Infrastructure](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service-agent-webhooks/docs/features/FR-007_Payment_Infrastructure.md)).
+> **Generation only triggers AFTER payment** to save API costs and prevent hackers.
 
 #### Flow:
 1. **Before Payment**: Shows 3 static placeholder chapters (blurred)
@@ -181,30 +196,4 @@ const PLACEHOLDER_CHAPTERS = [
 - [x] **Smart paywall: no API calls until payment**
 - [x] **Wipe reveal animation for streaming chapters**
 - [x] **Error handling with retry button**
-
-## Changelog
-### 2025-12-28: Real AI + Paywall
-- Replaced placeholder content with Real AI (`llama-3.3-70b-versatile`).
-- Implemented "Smart Paywall" (No API calls until payment).
-- Added wipe-reveal animation for streaming chapters.
-- Integrated `ProjectAssistant` (The Copilot) into the Builder UI.
-
-### 2025-12-31: Navigation Unification
-- Integrated Builder into shared `SaasShell`.
-- Replaced custom Builder header with integrated "Progress Toolbar".
-- Added context-aware navigation (Hammer Icon) in `MobileBottomNav`.
-
-### 2025-12-31: State Persistence Fixes
-- Added `hasServerHydrated` flag to prevent localStorage from overwriting server data.
-- Removed `step` and `isPaid` from localStorage persistence - server is source of truth.
-- Fixed `syncWithUser()` to only reset on actual logout/account switch, not on every page load.
-- `loadProject()` now clears stale chat handoff localStorage.
-- `hydrateFromChat()` now checks `hasServerHydrated` before attempting hydration.
-- Fixed PDF upload validation (broken EOF check was rejecting valid PDFs).
-- Abstract generation API no longer creates duplicate projects (only updates existing).
-
-### 2026-01-01: Critical Handoff Fix
-- **Problem**: Login via Chat Handoff was loading old server drafts instead of the new chat topic.
-- **Solution**: Implemented "Freshness Override" in `BuilderClient`. If chat data is < 5 mins old, it takes priority over server data.
-- **Logic**: `hydrateFromChat` now accepts a user ID and performs a time-check before wiping/setting state.
 

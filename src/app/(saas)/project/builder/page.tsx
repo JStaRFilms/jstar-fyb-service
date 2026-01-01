@@ -1,79 +1,113 @@
+'use client';
+
 import { Suspense } from "react";
-import { getCurrentUser } from "@/lib/auth-server";
-import { prisma } from "@/lib/prisma";
-import { ProjectData } from "@/features/builder/store/useBuilderStore";
-import { BuilderClient } from "./BuilderClient"; // We'll assume it's in the same folder
-import { Chapter } from "@/features/builder/schemas/outlineSchema";
+import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { TopicSelector } from "@/features/builder/components/TopicSelector";
+import { AbstractGenerator } from "@/features/builder/components/AbstractGenerator";
+import { ChapterOutliner } from "@/features/builder/components/ChapterOutliner";
+import { X } from "lucide-react";
+import Link from "next/link";
 
-interface PageProps {
-    searchParams: Promise<{ projectId?: string; payment_ref?: string }>;
-}
+function BuilderContent() {
+    const { step, updateData } = useBuilderStore();
+    const searchParams = useSearchParams();
 
-export default async function BuilderPage({ searchParams }: PageProps) {
-    const user = await getCurrentUser();
-    const params = await searchParams;
-    const targetProjectId = params?.projectId; // From upgrade callback URL
+    useEffect(() => {
+        const topic = searchParams.get('topic');
+        const twist = searchParams.get('twist');
+        if (topic && twist) updateData({ topic, twist });
+    }, [searchParams, updateData]);
 
-    let serverProject: Partial<ProjectData> | null = null;
-
-    if (user) {
-        let recentProject = null;
-
-        // Priority 1: If projectId is specified in URL (e.g., from upgrade callback), load THAT project
-        if (targetProjectId) {
-            console.log(`[BuilderPage] Loading specific project from URL: ${targetProjectId}`);
-            recentProject = await prisma.project.findUnique({
-                where: { id: targetProjectId },
-                include: { outline: true }
-            });
-            // Security: Verify the project belongs to this user (or is anonymous and claimable)
-            if (recentProject && recentProject.userId && recentProject.userId !== user.id) {
-                console.warn(`[BuilderPage] User ${user.id} tried to access project ${targetProjectId} owned by ${recentProject.userId}`);
-                recentProject = null; // Don't load someone else's project
-            }
-        }
-
-        // Priority 2: Otherwise, load the user's most recent project
-        if (!recentProject) {
-            recentProject = await prisma.project.findFirst({
-                where: { userId: user.id },
-                orderBy: { updatedAt: 'desc' },
-                include: { outline: true }
-            });
-        }
-
-        if (recentProject) {
-            // Map to ProjectData
-            let parsedOutline: Chapter[] = [];
-            if (recentProject.outline && recentProject.outline.content) {
-                try {
-                    parsedOutline = JSON.parse(recentProject.outline.content);
-                } catch (e) {
-                    console.error("Failed to parse outline content", e);
-                }
-            }
-
-            serverProject = {
-                userId: user.id,
-                projectId: recentProject.id,
-                topic: recentProject.topic,
-                twist: recentProject.twist || "",
-                abstract: recentProject.abstract || "",
-                outline: parsedOutline,
-                // @ts-ignore - casting string to literal type
-                mode: recentProject.mode as any,
-                // @ts-ignore - casting string to literal type
-                status: recentProject.status as any,
-            };
-        }
-    }
-
-    // @ts-ignore
-    const isUnlocked = serverProject ? (await prisma.project.findUnique({ where: { id: serverProject.projectId! }, select: { isUnlocked: true } }))?.isUnlocked : false;
+    // Helper to determine step index
+    const getStepIndex = () => ['TOPIC', 'ABSTRACT', 'OUTLINE'].indexOf(step);
 
     return (
+        <div className="min-h-screen bg-dark pb-32">
+            {/* Progress Header */}
+            <header className="sticky top-0 z-50 bg-dark/90 backdrop-blur-md border-b border-white/5 pb-4 pt-6">
+                <div className="container mx-auto px-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <Link href="/" className="text-gray-400 hover:text-white transition-colors">
+                            <X className="w-6 h-6" />
+                        </Link>
+                        <span className="font-display font-bold uppercase tracking-widest text-sm text-white">Project Builder</span>
+                        <span className="w-6"></span> {/* Spacer */}
+                    </div>
+
+                    {/* Steps Progress */}
+                    <div className="flex items-center gap-2">
+                        {['TOPIC', 'ABSTRACT', 'OUTLINE'].map((s, i) => {
+                            const currentIndex = getStepIndex();
+                            const isCompleted = currentIndex > i;
+                            const isActive = currentIndex === i;
+
+                            return (
+                                <div key={s} className={`h-1 flex-1 rounded-full transition-all duration-500 relative overflow-hidden ${isCompleted ? 'bg-green-500' :
+                                    isActive ? 'bg-primary' : 'bg-white/10'
+                                    }`}>
+                                    {isActive && (
+                                        <div className="absolute inset-0 bg-white/30 animate-[shimmer_2s_infinite]" />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs font-mono text-gray-500 uppercase">
+                        <span className={getStepIndex() >= 0 ? "text-white" : ""}>Topic</span>
+                        <span className={getStepIndex() >= 1 ? "text-white" : ""}>Context</span>
+                        <span className={getStepIndex() >= 2 ? "text-primary font-bold" : ""}>Generate</span>
+                    </div>
+                </div>
+            </header>
+
+            {/* Main Content Area */}
+            <main className="container mx-auto px-6 py-8 md:max-w-3xl relative">
+                <AnimatePresence mode="wait">
+                    {step === 'TOPIC' && (
+                        <motion.div
+                            key="topic"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <TopicSelector />
+                        </motion.div>
+                    )}
+
+                    {step === 'ABSTRACT' && (
+                        <motion.div
+                            key="abstract"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <AbstractGenerator />
+                        </motion.div>
+                    )}
+
+                    {step === 'OUTLINE' && (
+                        <motion.div
+                            key="outline"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <ChapterOutliner />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </main>
+        </div>
+    );
+}
+
+export default function BuilderPage() {
+    return (
         <Suspense fallback={<div className="min-h-screen bg-dark flex items-center justify-center text-white/50">Loading Builder...</div>}>
-            <BuilderClient serverProject={serverProject} serverIsPaid={isUnlocked || false} />
+            <BuilderContent />
         </Suspense>
     );
 }

@@ -43,9 +43,6 @@ export async function POST(req: Request) {
         // Use the new Builder AI service to generate outline with context
         const outlineTopics = await BuilderAiService.generateOutline(topic);
 
-        // Check for authenticated user context before streaming
-        const user = await getCurrentUser();
-
         const result = streamObject({
             model: groq('openai/gpt-oss-120b'), // Valid Groq model
             schema: outlineSchema,
@@ -68,49 +65,52 @@ export async function POST(req: Request) {
         
         Use the context from similar projects to make the outline more relevant and data-driven.`,
             prompt: "Generate the project outline structure with enhanced context.",
-            onFinish: async ({ object: outlineData }) => {
-                // Store the outline in the database asynchronously
-                if (outlineData?.chapters) {
-                    try {
-                        if (user) {
-                            // Find existing project or create a new one
-                            let project = await prisma.project.findFirst({
-                                where: {
-                                    topic: topic,
-                                    userId: user.id
-                                }
-                            });
-
-                            if (!project) {
-                                // Create new project
-                                project = await prisma.project.create({
-                                    data: {
-                                        topic: topic,
-                                        abstract: abstract,
-                                        userId: user.id
-                                    }
-                                });
-                            }
-
-                            // Create or update the chapter outline
-                            await prisma.chapterOutline.upsert({
-                                where: { projectId: project.id },
-                                update: {
-                                    content: JSON.stringify(outlineData.chapters),
-                                    updatedAt: new Date()
-                                },
-                                create: {
-                                    projectId: project.id,
-                                    content: JSON.stringify(outlineData.chapters)
-                                }
-                            });
-                        }
-                    } catch (dbError) {
-                        console.error('[GenerateOutline] Failed to store outline in database:', dbError);
-                    }
-                }
-            }
         });
+
+        // Store the outline in the database
+        const outlineData = await result.object;
+        if (outlineData?.chapters) {
+            try {
+                // Check if we have a project context (for authenticated users)
+                const user = await getCurrentUser();
+                if (user) {
+                    // Find existing project or create a new one
+                    let project = await prisma.project.findFirst({
+                        where: {
+                            topic: topic,
+                            userId: user.id
+                        }
+                    });
+
+                    if (!project) {
+                        // Create new project
+                        project = await prisma.project.create({
+                            data: {
+                                topic: topic,
+                                abstract: abstract,
+                                userId: user.id
+                            }
+                        });
+                    }
+
+                    // Create or update the chapter outline
+                    await prisma.chapterOutline.upsert({
+                        where: { projectId: project.id },
+                        update: {
+                            content: JSON.stringify(outlineData.chapters),
+                            updatedAt: new Date()
+                        },
+                        create: {
+                            projectId: project.id,
+                            content: JSON.stringify(outlineData.chapters)
+                        }
+                    });
+                }
+            } catch (dbError) {
+                console.error('[GenerateOutline] Failed to store outline in database:', dbError);
+                // Continue with the response even if database storage fails
+            }
+        }
 
         return result.toTextStreamResponse();
     } catch (error) {
