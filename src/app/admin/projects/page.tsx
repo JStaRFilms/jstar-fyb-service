@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 export const dynamic = 'force-dynamic';
 
 async function getProjects() {
-    const projects = await prisma.project.findMany({
+    return prisma.project.findMany({
         where: {
             isUnlocked: true
         },
@@ -14,18 +14,9 @@ async function getProjects() {
         include: {
             _count: {
                 select: { documents: true, messages: true }
-            },
-            payments: {
-                where: { status: 'SUCCESS' },
-                select: { amount: true }
             }
         }
     });
-
-    return projects.map(p => ({
-        ...p,
-        totalPaid: p.payments.reduce((sum, pay) => sum + pay.amount, 0)
-    }));
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -47,7 +38,6 @@ export default async function AdminProjectsPage() {
     return (
         <div className="min-h-screen bg-dark text-white p-8">
             <div className="max-w-6xl mx-auto">
-                {/* ... header ... */}
                 <header className="mb-8">
                     <h1 className="text-3xl font-display font-bold">Projects Dashboard</h1>
                     <p className="text-gray-400">Manage all paid projects</p>
@@ -59,7 +49,6 @@ export default async function AdminProjectsPage() {
                             <tr className="text-left text-xs uppercase tracking-wider text-gray-400">
                                 <th className="px-6 py-4">Topic</th>
                                 <th className="px-6 py-4">Mode</th>
-                                <th className="px-6 py-4">Amount Paid</th>  {/* NEW COLUMN */}
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4">Docs</th>
                                 <th className="px-6 py-4">Messages</th>
@@ -70,7 +59,7 @@ export default async function AdminProjectsPage() {
                         <tbody className="divide-y divide-white/5">
                             {projects.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500"> {/* Updated colSpan */}
+                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                                         No paid projects yet.
                                     </td>
                                 </tr>
@@ -87,17 +76,11 @@ export default async function AdminProjectsPage() {
                                                 {project.mode}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4"> {/* NEW DATA CELL */}
-                                            <span className="text-green-400 font-mono text-sm">
-                                                ₦{project.totalPaid.toLocaleString()}
-                                            </span>
-                                        </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${STATUS_COLORS[project.status] || "bg-gray-500"}`}>
                                                 {project.status.replace(/_/g, " ")}
                                             </span>
                                         </td>
-                                        {/* ... other cells ... */}
                                         <td className="px-6 py-4 text-gray-400">
                                             {project._count.documents}
                                         </td>

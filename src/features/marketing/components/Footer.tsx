@@ -19,7 +19,7 @@ export function Footer() {
                         Full Agency Service
                     </Link>
                 </div>
-                <p className="text-gray-500">J Star FYB Service © 2026. All rights reserved.</p>
+                <p className="text-gray-500">J Star FYB Service © 2025. All rights reserved.</p>
             </div>
         </footer>
     );

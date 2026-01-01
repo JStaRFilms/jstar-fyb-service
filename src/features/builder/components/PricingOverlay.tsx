@@ -6,12 +6,12 @@ interface PricingOverlayProps {
 
 export function PricingOverlay({ onUnlock }: PricingOverlayProps) {
     return (
-        <div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-primary/20 bg-dark/50 backdrop-blur-xl p-4 md:p-8">
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-dark/50 backdrop-blur-xl p-8">
             {/* Background Effects */}
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 blur-[100px] rounded-full" />
             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/10 blur-[100px] rounded-full" />
 
-            <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 md:gap-8">
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
                 {/* Value Prop */}
                 <div className="flex-1 text-center md:text-left">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-4">

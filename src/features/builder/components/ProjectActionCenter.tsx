@@ -2,12 +2,12 @@ import { ArrowRight, Bot, BookOpen, FileText, CheckCircle2, Download } from "luc
 
 export function ProjectActionCenter() {
     return (
-        <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-4 sm:p-8 relative overflow-hidden">
+        <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-8 relative overflow-hidden">
             {/* Background Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 blur-[100px] rounded-full" />
 
             <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-green-500/20 rounded-lg text-green-500">
                         <CheckCircle2 className="w-6 h-6" />
                     </div>
@@ -19,7 +19,7 @@ export function ProjectActionCenter() {
 
                 <div className="grid md:grid-cols-2 gap-4 mb-8">
                     {/* Action Card 1: Deep Research */}
-                    <div className="bg-black/40 border border-white/10 rounded-xl p-4 sm:p-5 hover:border-primary/50 transition-colors group cursor-pointer">
+                    <div className="bg-black/40 border border-white/10 rounded-xl p-5 hover:border-primary/50 transition-colors group cursor-pointer">
                         <div className="flex items-start justify-between mb-4">
                             <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
                                 <Bot className="w-5 h-5" />
@@ -33,7 +33,7 @@ export function ProjectActionCenter() {
                     </div>
 
                     {/* Action Card 2: Chapter Writing */}
-                    <div className="bg-black/40 border border-white/5 rounded-xl p-4 sm:p-5 opacity-60">
+                    <div className="bg-black/40 border border-white/5 rounded-xl p-5 opacity-60">
                         <div className="flex items-start justify-between mb-4">
                             <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
                                 <FileText className="w-5 h-5" />

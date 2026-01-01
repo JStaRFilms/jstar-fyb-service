@@ -51,40 +51,20 @@ export async function POST(
             return NextResponse.json({ error: "No file data - this is a link document" }, { status: 400 });
         }
 
-        // Prepare content for Gemini
-        let geminiContent: { type: "text" | "file", text?: string, data?: string, mediaType?: string }[] = [];
+        // Convert to base64 for Gemini
+        const base64Data = Buffer.from(doc.fileData).toString("base64");
 
-        // Check if it's a DOCX file
-        if (doc.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-            const mammoth = require("mammoth");
-            const result = await mammoth.extractRawText({ buffer: doc.fileData });
-            const text = result.value;
-
-            geminiContent = [
+        // Step 1: Extract structured metadata
+        const metadataResult = await generateObject({
+            model: google("gemini-2.5-flash"),
+            schema: extractionSchema,
+            messages: [
                 {
-                    type: "text",
-                    // Pass extracted text directly
-                    text: `Analyze this research document (extracted text from DOCX) and extract comprehensive metadata for academic content generation. Document Text:\n\n${text.substring(0, 100000)}...` // limit text if huge
-                }
-            ];
-        } else {
-            // Assume PDF or supported image, convert to base64
-            const base64Data = Buffer.from(doc.fileData).toString("base64");
-            geminiContent = [
-                {
-                    type: "text",
-                    text: `Analyze this research document and extract comprehensive metadata for academic content generation.`
-                },
-                {
-                    type: "file",
-                    data: base64Data,
-                    mediaType: doc.mimeType || "application/pdf"
-                }
-            ];
-        }
-
-        // Common prompt suffix
-        const extractionPrompt = `Provide:
+                    role: "user",
+                    content: [
+                        {
+                            type: "text",
+                            text: `Analyze this research document and extract comprehensive metadata for academic content generation. Provide:
 
 1. **Document Identification:**
    - Title
@@ -108,51 +88,17 @@ export async function POST(
    - Brief summary of the document content
    - Key insights and findings
 
-Be thorough and accurate in your analysis.`;
-
-        // Update content instructions if it's text-only, otherwise append
-        if (geminiContent[0].type === "text") {
-            geminiContent[0].text = geminiContent[0].text + "\n\n" + extractionPrompt;
-        }
-
-        // Step 1: Extract structured metadata
-        const metadataResult = await generateObject({
-            model: google("gemini-2.5-flash"),
-            schema: extractionSchema,
-            messages: [
-                {
-                    role: "user",
-                    content: geminiContent as any
+Be thorough and accurate in your analysis.`
+                        },
+                        {
+                            type: "file",
+                            data: base64Data,
+                            mediaType: doc.mimeType || "application/pdf"
+                        }
+                    ]
                 }
             ]
         });
-
-        // Helper to construct messages for subsequent steps
-        const buildContent = (prompt: string) => {
-            // Check if we have text-only content (from Mammoth)
-            if (geminiContent[0].type === "text" && geminiContent.length === 1) {
-                return [
-                    {
-                        type: "text",
-                        text: `${prompt}\n\nDocument Context:\n${(geminiContent[0] as any).text.substring(0, 100000)}`
-                    }
-                ] as any;
-            }
-            // Otherwise, we have text + file (PDF/Image)
-            else {
-                return [
-                    {
-                        type: "text",
-                        text: prompt
-                    },
-                    {
-                        type: "file",
-                        data: (geminiContent[1] as any).data,
-                        mediaType: (geminiContent[1] as any).mediaType
-                    }
-                ] as any;
-            }
-        };
 
         // Step 2: Extract full text content for AI content generation
         const contentResult = await generateText({
@@ -160,7 +106,10 @@ Be thorough and accurate in your analysis.`;
             messages: [
                 {
                     role: "user",
-                    content: buildContent(`Extract the full text content from this document, preserving the structure and key information. Focus on:
+                    content: [
+                        {
+                            type: "text",
+                            text: `Extract the full text content from this document, preserving the structure and key information. Focus on:
 
 1. **Introduction and Background** - Extract the main concepts and context
 2. **Literature Review** - Key findings and related work
@@ -169,7 +118,14 @@ Be thorough and accurate in your analysis.`;
 5. **Discussion** - Implications and significance
 6. **Conclusion** - Summary and future work
 
-Provide the extracted content in a structured format that can be used for AI content generation. Include important quotes, statistics, and technical details that would be valuable for creating academic content.`)
+Provide the extracted content in a structured format that can be used for AI content generation. Include important quotes, statistics, and technical details that would be valuable for creating academic content.`
+                        },
+                        {
+                            type: "file",
+                            data: base64Data,
+                            mediaType: doc.mimeType || "application/pdf"
+                        }
+                    ]
                 }
             ]
         });
@@ -180,7 +136,10 @@ Provide the extracted content in a structured format that can be used for AI con
             messages: [
                 {
                     role: "user",
-                    content: buildContent(`Based on this research document, generate insights that would be valuable for AI content generation. Provide:
+                    content: [
+                        {
+                            type: "text",
+                            text: `Based on this research document, generate insights that would be valuable for AI content generation. Provide:
 
 1. **Content Generation Prompts** - Specific prompts that could be used to generate related content
 2. **Knowledge Gaps** - Areas where additional research or explanation would be valuable
@@ -188,7 +147,14 @@ Provide the extracted content in a structured format that can be used for AI con
 4. **Related Topics** - Other areas of study that connect to this research
 5. **Teaching Points** - Key concepts that would be important for educational content
 
-Format this as structured insights that can guide AI content creation.`)
+Format this as structured insights that can guide AI content creation.`
+                        },
+                        {
+                            type: "file",
+                            data: base64Data,
+                            mediaType: doc.mimeType || "application/pdf"
+                        }
+                    ]
                 }
             ]
         });

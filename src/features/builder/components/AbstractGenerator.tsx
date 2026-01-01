@@ -114,7 +114,7 @@ export function AbstractGenerator() {
                 <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
                     <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-accent/80">
                         <Edit3 className="w-3.5 h-3.5" />
-                        <span className="hidden md:inline">Abstract Editor</span>
+                        <span>Abstract Editor</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ export function AbstractGenerator() {
                 </div>
 
                 {/* Content Area */}
-                <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-b from-transparent to-black/20 min-h-[200px] md:min-h-[350px]">
+                <div className="p-8 bg-gradient-to-b from-transparent to-black/20 min-h-[350px]">
                     {isLoading || isPreviewMode ? (
                         <div className="prose prose-invert prose-lg max-w-none font-serif leading-relaxed prose-headings:font-display prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white">
                             {completion ? (
@@ -158,7 +158,7 @@ export function AbstractGenerator() {
                                 setCompletion(e.target.value);
                                 updateData({ abstract: e.target.value });
                             }}
-                            className="w-full min-h-[150px] md:min-h-[300px] bg-transparent border-none focus:ring-0 text-base md:text-lg font-serif leading-relaxed text-gray-200 resize-none p-0 placeholder-gray-700 focus:outline-none selection:bg-primary/30"
+                            className="w-full min-h-[300px] bg-transparent border-none focus:ring-0 text-lg font-serif leading-relaxed text-gray-200 resize-none p-0 placeholder-gray-700 focus:outline-none selection:bg-primary/30"
                             placeholder="Waiting for AI generation..."
                         />
                     )}

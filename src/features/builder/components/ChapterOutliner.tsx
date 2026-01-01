@@ -3,7 +3,6 @@
 import { useBuilderStore } from "@/features/builder/store/useBuilderStore";
 import { useEffect, useRef } from "react";
 import { Check, Loader2, RefreshCw } from "lucide-react";
-import { toast } from 'sonner';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { outlineSchema } from '../schemas/outlineSchema';
 import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
@@ -53,11 +52,11 @@ export function ChapterOutliner() {
             if (result.url) {
                 window.location.href = result.url;
             } else {
-                toast.error(result.error || "Failed to initialize payment. Please try again.");
+                alert(result.error || "Failed to initialize payment. Please try again.");
             }
         } catch (error) {
             console.error('[ChapterOutliner] Failed to init payment:', error);
-            toast.error("Connection error. Please try again.");
+            alert("Connection error. Please try again.");
         }
     };
 
@@ -68,20 +67,7 @@ export function ChapterOutliner() {
             if (object?.chapters) {
                 // Map AI response format to store format
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const newOutline = object.chapters as any;
-                updateData({ outline: newOutline });
-
-                // Auto-save to DB
-                if (data.projectId) {
-                    fetch(`/api/projects/${data.projectId}/outline`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ outline: newOutline })
-                    }).then(res => {
-                        if (res.ok) console.log('[ChapterOutliner] Auto-saved outline to DB');
-                        else console.error('[ChapterOutliner] Failed to auto-save outline');
-                    });
-                }
+                updateData({ outline: object.chapters as any });
             }
         },
         onError: (err) => {
@@ -94,7 +80,7 @@ export function ChapterOutliner() {
     const displayChapters = streamedChapters.length > 0 ? streamedChapters : (data.outline || []);
     const displayTitle = object?.title || data.topic || "Project Title";
     const abstractPreview = data.abstract ? data.abstract.slice(0, 180) + '...' : "Loading abstract...";
-    const isStreaming = isLoading;
+    const isStreaming = isPaid && isLoading;
 
     // Fetch stored outline if we have a project ID and no outline yet
     useEffect(() => {
@@ -182,17 +168,17 @@ export function ChapterOutliner() {
             {/* Success State Header */}
             <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 text-green-500 mb-4 border border-green-500/20">
-                    {isLoading ? (
+                    {isPaid && isLoading ? (
                         <Loader2 className="w-8 h-8 animate-spin" />
                     ) : (
                         <Check className="w-8 h-8" />
                     )}
                 </div>
                 <h1 className="text-3xl font-display font-bold mb-2">
-                    {isLoading ? 'Generating Your Project...' : 'Structure Generated'}
+                    {isPaid && isLoading ? 'Generating Your Project...' : 'Structure Generated'}
                 </h1>
                 <p className="text-gray-400">
-                    {isLoading
+                    {isPaid && isLoading
                         ? 'AI is crafting your distinction-grade outline...'
                         : "We've crafted a distinction-grade abstract and outline for your project."}
                 </p>
@@ -242,7 +228,7 @@ export function ChapterOutliner() {
                         )}
 
                         <div className="mt-20 mb-10">
-                            <UpsellBridge projectId={data.projectId} />
+                            <UpsellBridge />
                         </div>
 
                         {data.projectId && (

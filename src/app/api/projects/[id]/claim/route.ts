@@ -18,7 +18,7 @@ export async function POST(
         // Get the project
         const project = await prisma.project.findUnique({
             where: { id },
-            select: { id: true, userId: true, anonymousId: true, topic: true }
+            select: { userId: true, anonymousId: true }
         });
 
         if (!project) {
@@ -49,77 +49,14 @@ export async function POST(
             return NextResponse.json({ error: "Forbidden: Ownership mismatch" }, { status: 403 });
         }
 
-        // Check if we need to migrate content from an anonymous session
-        // This handles the "Paid for a link but started anonymously" flow
-        const isTargetEmpty = !project.topic || project.topic.trim() === '';
-
-        let didMerge = false;
-
-        // Try to find a source project if target is empty
-        if (isTargetEmpty) {
-            // Reuse cookieStore from line 40 - check both cookie names
-            const mergeAnonymousCookie = anonymousCookie || cookieStore.get('jstar_anonymous_id')?.value;
-
-            if (mergeAnonymousCookie) {
-                const sourceProject = await prisma.project.findFirst({
-                    where: {
-                        anonymousId: mergeAnonymousCookie,
-                        topic: { not: '' } // Must have content
-                    },
-                    orderBy: { updatedAt: 'desc' },
-                    include: { outline: true }
-                });
-
-                if (sourceProject) {
-                    console.log(`[ClaimProject] Smart Merge: Copying content from ${sourceProject.id} to ${project.id}`);
-
-                    // Copy content directly
-                    await prisma.$transaction([
-                        prisma.project.update({
-                            where: { id: project.id },
-                            data: {
-                                topic: sourceProject.topic,
-                                twist: sourceProject.twist,
-                                abstract: sourceProject.abstract,
-                                // note: we don't overwrite mode here, relying on billing service or default
-                            }
-                        }),
-                        // Copy Outline if exists
-                        ...(sourceProject.outline ? [
-                            prisma.chapterOutline.upsert({
-                                where: { projectId: project.id },
-                                create: {
-                                    projectId: project.id,
-                                    content: sourceProject.outline.content
-                                },
-                                update: {
-                                    content: sourceProject.outline.content
-                                }
-                            })
-                        ] : [])
-                    ]);
-                    didMerge = true;
-                }
+        // Update the project
+        await prisma.project.update({
+            where: { id },
+            data: {
+                userId: user.id,
+                anonymousId: null // Clear anonymous ID once claimed
             }
-        }
-
-        // Update the project and link relevant leads
-        await prisma.$transaction([
-            prisma.project.update({
-                where: { id },
-                data: {
-                    userId: user.id,
-                    anonymousId: null // Clear anonymous ID once claimed
-                }
-            }),
-            // Also link any leads created with this anonymous cookie to the user
-            ...(project.anonymousId ? [
-                prisma.lead.updateMany({
-                    where: { anonymousId: project.anonymousId },
-                    data: { userId: user.id }
-                })
-            ] : [])
-        ]);
+        });
 
         // Optional: Clear the cookie? No, might have other projects.
 
