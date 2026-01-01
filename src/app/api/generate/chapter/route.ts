@@ -4,6 +4,14 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-server';
 import { BuilderAiService } from '@/features/builder/services/builderAiService';
+import { JsonObject } from '@prisma/client/runtime/library';
+
+function checkJsonObject(json: any): JsonObject | null {
+    if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
+        return json as JsonObject;
+    }
+    return null;
+}
 
 // Validate environment variables
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -109,14 +117,25 @@ Use this context to generate a comprehensive chapter that builds upon the existi
             const chapterContent = await result.text;
             if (chapterContent) {
                 try {
-                    // Update the chapter outline with the generated content
-                    await prisma.chapterOutline.update({
-                        where: { projectId: projectId },
+                    // Update the Project contentProgress with the generated content
+                    // We fetch the current contentProgress first (or use what we have if we included it)
+                    // Since we didn't include it in the findUnique above, let's just do an atomic update if possible?
+                    // Prisma doesn't support deep merge on JSON easily without fetching.
+
+                    const currentProject = await prisma.project.findUnique({
+                        where: { id: projectId },
+                        select: { contentProgress: true }
+                    });
+
+                    const currentContent = checkJsonObject(currentProject?.contentProgress) || {};
+
+                    await prisma.project.update({
+                        where: { id: projectId },
                         data: {
-                            content: JSON.stringify({
-                                ...JSON.parse(project.outline?.content || '{}'),
+                            contentProgress: {
+                                ...currentContent,
                                 [`chapter_${chapterNumber}`]: chapterContent
-                            }),
+                            },
                             updatedAt: new Date()
                         }
                     });
@@ -161,14 +180,21 @@ ${projectContext}`,
             const fallbackChapterContent = await result.text;
             if (fallbackChapterContent) {
                 try {
-                    // Update the chapter outline with the generated content
-                    await prisma.chapterOutline.update({
-                        where: { projectId: projectId },
+                    const currentProject = await prisma.project.findUnique({
+                        where: { id: projectId },
+                        select: { contentProgress: true }
+                    });
+
+                    const currentContent = checkJsonObject(currentProject?.contentProgress) || {};
+
+                    // Update the Project contentProgress with the generated content
+                    await prisma.project.update({
+                        where: { id: projectId },
                         data: {
-                            content: JSON.stringify({
-                                ...JSON.parse(project.outline?.content || '{}'),
+                            contentProgress: {
+                                ...currentContent,
                                 [`chapter_${chapterNumber}`]: fallbackChapterContent
-                            }),
+                            },
                             updatedAt: new Date()
                         }
                     });

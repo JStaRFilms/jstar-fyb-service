@@ -80,7 +80,7 @@ export function ProgressIndicator({ projectId, className }: ProgressIndicatorPro
                                     <CheckCircle className="h-4 w-4 text-green-500" />
                                     Outline Generated
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-[10px] md:text-xs text-gray-500 whitespace-nowrap ml-2">
                                     {progress.contentProgress.outline.timestamp &&
                                         new Date(progress.contentProgress.outline.timestamp).toLocaleDateString()}
                                 </span>
@@ -143,8 +143,8 @@ export function ProgressIndicator({ projectId, className }: ProgressIndicatorPro
                     <h4 className="text-xs font-medium text-gray-600">Chapter Progress</h4>
                     <div className="space-y-2">
                         {chapters.map((chapter) => (
-                            <div key={chapter.id} className="flex items-center justify-between text-sm">
-                                <span className="flex items-center gap-2">
+                            <div key={chapter.id} className="flex flex-col md:flex-row md:items-center justify-between text-sm gap-1 md:gap-0">
+                                <span className="flex items-center gap-2 w-full truncate">
                                     {chapter.isCompleted ? (
                                         <CheckCircle className="h-4 w-4 text-green-500" />
                                     ) : (

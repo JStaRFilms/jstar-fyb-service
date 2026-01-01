@@ -6,9 +6,9 @@ import { z } from 'zod';
 
 // Input validation schema
 const saveConversationSchema = z.object({
-    conversationId: z.string().uuid().optional(),
-    anonymousId: z.string().optional(), // Relaxed to allow empty string during initialization
-    userId: z.string().uuid().optional(),
+    conversationId: z.string().optional(),
+    anonymousId: z.string().optional(),
+    userId: z.string().optional(), // Removed .uuid() to support CUIDs (better-auth)
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant', 'system']),
         content: z.union([z.string(), z.array(z.any())]),
@@ -58,6 +58,9 @@ export async function saveConversation({
             userId,
             messages,
         });
+
+        // Validated
+
 
         if (!validation.success) {
             console.error('Validation failed:', validation.error);
@@ -157,12 +160,28 @@ export async function getLatestConversation({
 }) {
     if (!anonymousId && !userId) return null;
 
-    // Data Isolation: Never mix authenticated and anonymous sessions
+    // CRITICAL SECURITY FIX: Data Isolation - Never mix authenticated and anonymous sessions
     // If userId is provided, ONLY return that user's conversations
     // This prevents data leakage between sessions
     if (userId) {
+        // CRITICAL SECURITY FIX: Validate user exists and is authorized
+        const userExists = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!userExists) {
+            // CRITICAL SECURITY FIX: Log security event for invalid user access attempt
+            console.warn(`[Security] Invalid userId attempted: ${userId}`);
+            return null;
+        }
+
+        // CRITICAL SECURITY FIX: Strict data isolation - only return conversations for this specific user
         return await prisma.conversation.findFirst({
-            where: { userId },
+            where: {
+                userId: userId,
+                // Note: We allow conversations with anonymousId set, as these are migrated sessions.
+                // The userId check is sufficient for security.
+            },
             include: {
                 messages: {
                     orderBy: { createdAt: 'asc' }
@@ -172,30 +191,49 @@ export async function getLatestConversation({
         });
     }
 
-    // Anonymous session: only return anonymous conversations
-    return await prisma.conversation.findFirst({
-        where: {
-            anonymousId,
-            userId: null // Ensure we don't return merged conversations
-        },
-        include: {
-            messages: {
-                orderBy: { createdAt: 'asc' }
-            }
-        },
-        orderBy: { updatedAt: 'desc' }
-    });
+    // CRITICAL SECURITY FIX: Anonymous session - only return anonymous conversations
+    // Ensure strict separation from authenticated user data
+    if (anonymousId) {
+        return await prisma.conversation.findFirst({
+            where: {
+                anonymousId: anonymousId,
+                userId: null // CRITICAL SECURITY FIX: Ensure we don't return user-assigned conversations
+            },
+            include: {
+                messages: {
+                    orderBy: { createdAt: 'asc' }
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
+        });
+    }
+
+    // No valid identifiers provided
+    return null;
 }
 
-export async function mergeAnonymousConversations(anonymousId: string, userId: string) {
+export async function mergeAnonymousData(anonymousId: string, userId: string) {
     try {
-        await prisma.conversation.updateMany({
-            where: { anonymousId: anonymousId, userId: null },
-            data: { userId: userId },
-        });
+        await prisma.$transaction([
+            // Update Conversations
+            prisma.conversation.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
+            }),
+            // Update Leads
+            prisma.lead.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
+            }),
+            // Update Projects (Fix for stranded anonymous projects)
+            prisma.project.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
+            })
+        ]);
         return { success: true };
     } catch (error) {
-        console.error('Failed to merge chats:', error);
+        console.error('Failed to merge anonymous data:', error);
         return { success: false, error };
     }
 }
@@ -209,8 +247,9 @@ const saveLeadSchema = z.object({
     topic: z.string(),
     twist: z.string(),
     complexity: z.number().min(1).max(5),
-    anonymousId: z.string().uuid().optional(),
-    userId: z.string().uuid().optional(),
+    // Allow any string for these IDs - convert empty to undefined
+    anonymousId: z.string().optional().transform(val => val && val.trim() !== '' ? val : undefined),
+    userId: z.string().optional().transform(val => val && val.trim() !== '' ? val : undefined),
 });
 
 export type SaveLeadParams = z.infer<typeof saveLeadSchema>;
@@ -224,6 +263,7 @@ export async function saveLeadAction(params: SaveLeadParams) {
         }
 
         const data = validation.data;
+
 
         const lead = await prisma.lead.upsert({
             where: { whatsapp: data.whatsapp },

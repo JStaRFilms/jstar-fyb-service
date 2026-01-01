@@ -1,36 +1,29 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, Code2 } from 'lucide-react';
-
-const PROJECTS = [
-    {
-        title: "E-Commerce AI Agent",
-        category: "Computer Science",
-        tech: ["Next.js", "OpenAI", "Stripe"],
-        gradient: "from-purple-500 to-indigo-500"
-    },
-    {
-        title: "Hospital Management System",
-        category: "Information Tech",
-        tech: ["React", "Firebase", "Tailwind"],
-        gradient: "from-cyan-500 to-blue-500"
-    },
-    {
-        title: "Crypto Fraud Detection",
-        category: "Cybersecurity",
-        tech: ["Python", "Machine Learning", "FastAPI"],
-        gradient: "from-pink-500 to-rose-500"
-    },
-    {
-        title: "Smart Campus IoT",
-        category: "Computer Eng.",
-        tech: ["C++", "Arduino", "MQTT"],
-        gradient: "from-emerald-500 to-teal-500"
-    }
-];
+import { ProjectDetail, ProjectDetailModal } from './ProjectDetailModal';
+import { PROJECTS } from '../data/projects';
 
 export function ProjectGallery() {
+    const [selectedProject, setSelectedProject] = useState<ProjectDetail | null>(null);
+
+    const handleNext = () => {
+        if (!selectedProject) return;
+        const currentIndex = PROJECTS.findIndex(p => p.id === selectedProject.id);
+        const nextIndex = (currentIndex + 1) % PROJECTS.length;
+        setSelectedProject(PROJECTS[nextIndex]);
+    };
+
+    const handlePrev = () => {
+        if (!selectedProject) return;
+        const currentIndex = PROJECTS.findIndex(p => p.id === selectedProject.id);
+        const prevIndex = (currentIndex - 1 + PROJECTS.length) % PROJECTS.length;
+        setSelectedProject(PROJECTS[prevIndex]);
+    };
+
+
     return (
         <section className="py-20 relative overflow-hidden">
             {/* Background Decor */}
@@ -55,6 +48,7 @@ export function ProjectGallery() {
                     {PROJECTS.map((project, index) => (
                         <motion.div
                             key={index}
+                            onClick={() => setSelectedProject(project)}
                             initial={{ opacity: 0, y: 50, scale: 0.9 }}
                             whileInView={{ opacity: 1, y: 0, scale: 1 }}
                             viewport={{ once: true }}
@@ -80,7 +74,7 @@ export function ProjectGallery() {
                                     </h3>
 
                                     <div className="flex flex-wrap gap-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                                        {project.tech.map((tech) => (
+                                        {project.techStack.slice(0, 3).map((tech) => (
                                             <span key={tech} className="text-[10px] bg-black/50 text-white/80 px-2 py-1 rounded border border-white/10">
                                                 {tech}
                                             </span>
@@ -101,6 +95,16 @@ export function ProjectGallery() {
                     ))}
                 </div>
             </div>
+
+            {/* MODAL */}
+            <ProjectDetailModal
+                project={selectedProject}
+                isOpen={!!selectedProject}
+                onClose={() => setSelectedProject(null)}
+                onNext={handleNext}
+                onPrev={handlePrev}
+            />
         </section>
     );
 }
+

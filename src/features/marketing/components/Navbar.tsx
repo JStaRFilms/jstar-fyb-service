@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/lib/auth-client';
 
 
 export function Navbar() {
     const [scrolled, setScrolled] = useState(false);
+    const session = useSession();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -35,12 +37,23 @@ export function Navbar() {
                     <Link href="#showcase" className="hover:text-primary transition-colors text-white/80">Showcase</Link>
                 </div>
 
-                <Link
-                    href="/project/builder"
-                    className="px-6 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-primary hover:border-primary transition-all duration-300 font-bold text-xs uppercase tracking-wider text-white"
-                >
-                    Start Project
-                </Link>
+                <div className="flex items-center gap-4">
+                    {session?.data ? (
+                        <Link
+                            href="/dashboard"
+                            className="text-sm font-bold uppercase tracking-wider text-white hover:text-primary transition-colors"
+                        >
+                            Dashboard
+                        </Link>
+                    ) : null}
+
+                    <Link
+                        href="/project/builder"
+                        className="px-6 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-primary hover:border-primary transition-all duration-300 font-bold text-xs uppercase tracking-wider text-white"
+                    >
+                        Start Project
+                    </Link>
+                </div>
             </div>
         </nav>
     );

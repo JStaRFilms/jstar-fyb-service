@@ -34,7 +34,13 @@ export default async function middleware(req: NextRequest) {
         return adminAuthMiddleware(req);
     }
 
-    // All other routes are public by default
-    // Better Auth handles its own session management via cookies
-    return NextResponse.next();
+    // Inject current path for Server Components
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-current-path', req.nextUrl.pathname);
+
+    return NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    });
 }

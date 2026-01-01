@@ -1,5 +1,7 @@
 import { ChatInterface } from '@/features/bot/components/ChatInterface';
+import { getCurrentUser } from "@/lib/auth-server";
 
-export default function ChatPage() {
-    return <ChatInterface />;
+export default async function ChatPage() {
+    const user = await getCurrentUser();
+    return <ChatInterface initialUser={user} />;
 }

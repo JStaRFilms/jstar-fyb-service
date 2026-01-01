@@ -20,7 +20,8 @@ export function usePaymentVerification(
 
     useEffect(() => {
         const searchParams = new URLSearchParams(window.location.search);
-        const reference = searchParams.get('reference');
+        // Check multiple possible parameter names (Paystack uses 'reference' and 'trxref', our callbacks use 'payment_ref')
+        const reference = searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('payment_ref');
 
         if (reference && !isPaid && !isVerifying) {
             setIsVerifying(true);

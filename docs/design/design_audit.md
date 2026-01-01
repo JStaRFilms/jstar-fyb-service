@@ -45,12 +45,12 @@
 
 | ID | Severity | Issue | Location | Mockup Reference |
 |----|----------|-------|----------|------------------|
-| **C-01** | 🔴 HIGH | **Missing Blur Paywall Effect** - Mockup shows `blur-content` class with locked content behind blur + gradient overlay. Implementation shows pricing as separate block below content. | `ChapterOutliner.tsx:278-281` | `builder.html:117-154` |
-| **C-02** | 🔴 HIGH | **ChapterOutliner God Component** - 331 lines, handles: Payment, Routing, Mode Selection, Document Upload, Chapter Gen - all in one component | `ChapterOutliner.tsx` | N/A (Arch issue) |
-| **C-03** | 🔴 HIGH | **Dashboard Page Not Implemented** - User dashboard showing project progress, downloads, timeline entirely missing | `src/app/(saas)/` | `dashboard.html` |
+| **C-01** | 🟢 RSLVD | **Missing Blur Paywall Effect** - Implemented via `PaywallGate` component and `blur-content` utility. | `PaywallGate.tsx` | `builder.html` |
+| **C-02** | 🟢 RSLVD | **ChapterOutliner God Component** - Refactored into `OutlinePreview`, `PaywallGate`, and `usePaymentVerification`. | `src/features/builder/components/` | N/A |
+| **C-03** | 🟢 RSLVD | **Dashboard Page Not Implemented** - Fully implemented with Project Cards, Timeline, and Downloads. | `src/app/(saas)/dashboard/` | `dashboard.html` |
 | **C-04** | 🟠 MED | **Project Detail Modal Not Implemented** - Showcase case study modal with hero image, tech stack, deliverables missing | None | `project-detail-modal.html` |
-| **C-05** | 🟠 MED | **Mobile Padding Bloat** - `p-8` used everywhere instead of responsive `p-4 md:p-8` | Multiple components | All mockups show tighter mobile design |
-| **C-06** | 🟡 LOW | **Admin Page Missing Card View** - Mockup has separate mobile card view and desktop table. Impl only has table. | `admin/leads/page.tsx` | `admin.html:90-143` |
+| **C-05** | 🟢 RSLVD | **Mobile Padding Bloat** - Systematically reduced padding and margins across mobile breakpoints. | Multiple components | N/A |
+| **C-06** | 🟢 RSLVD | **Admin Page Missing Card View** - Implemented `AdminLeadCard` for mobile-friendly view. | `AdminLeadCard.tsx` | `admin.html` |
 
 ---
 

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { Upload, Link as LinkIcon, FileText, Loader2, Trash2, CheckCircle, XCircle, Eye, Sparkles } from "lucide-react";
 import { useBuilderStore } from "../store/useBuilderStore";
+import { DocumentViewerModal } from "./DocumentViewerModal";
+import { ResearchDocument } from "@prisma/client";
 
 export function DocumentUpload({ projectId }: { projectId: string }) {
     const [mode, setMode] = useState<"upload" | "link">("upload");
@@ -12,6 +14,7 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
     const [isExtracting, setIsExtracting] = useState(false);
     const [documents, setDocuments] = useState<any[]>([]);
     const [extractionStatus, setExtractionStatus] = useState<Record<string, string>>({});
+    const [selectedDocument, setSelectedDocument] = useState<ResearchDocument | null>(null);
 
     // Fetch existing documents
     useEffect(() => {
@@ -228,22 +231,32 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Uploaded Documents</h4>
                     {documents.map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                {doc.fileType === 'file' ? <FileText className="w-5 h-5 text-blue-400 shrink-0" /> : <LinkIcon className="w-5 h-5 text-purple-400 shrink-0" />}
-                                <div className="min-w-0">
-                                    <span className="text-sm font-medium text-white">{doc.fileName}</span>
+                        <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5 gap-4">
+                            <div className="flex items-start gap-3 min-w-0">
+                                <div className="mt-0.5 shrink-0">
+                                    {doc.fileType === 'file' ? (
+                                        <FileText className="w-5 h-5 text-blue-400" />
+                                    ) : (
+                                        <LinkIcon className="w-5 h-5 text-purple-400" />
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-medium text-white block truncate" title={doc.fileName}>
+                                        {doc.fileName}
+                                    </span>
                                     {doc.title && (
-                                        <p className="text-xs text-gray-400 truncate">{doc.title}</p>
+                                        <p className="text-xs text-gray-400 truncate mt-0.5" title={doc.title}>
+                                            {doc.title}
+                                        </p>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
                                 {/* Status */}
                                 <div className="flex items-center gap-2">
                                     {getStatusIcon(doc.status)}
-                                    <span className="text-xs text-gray-400">{getStatusText(doc.status)}</span>
+                                    <span className="text-xs text-gray-400 whitespace-nowrap">{getStatusText(doc.status)}</span>
                                 </div>
 
                                 {/* Actions */}
@@ -252,7 +265,7 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                                         <button
                                             onClick={() => handleExtract(doc.id)}
                                             disabled={isExtracting}
-                                            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-xs transition-colors border border-blue-500/20"
                                         >
                                             <Sparkles className="w-3 h-3" />
                                             Process
@@ -261,11 +274,8 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
 
                                     {doc.status === "PROCESSED" && (
                                         <button
-                                            onClick={() => {
-                                                // Show extracted content
-                                                alert(`Title: ${doc.title || 'N/A'}\n\nSummary: ${doc.summary || 'N/A'}`);
-                                            }}
-                                            className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
+                                            onClick={() => setSelectedDocument(doc)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-md text-xs transition-colors border border-green-500/20"
                                         >
                                             <Eye className="w-3 h-3" />
                                             View
@@ -283,6 +293,12 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                 <p><strong>Note:</strong> Documents are automatically processed to extract metadata, content, and insights for AI content generation.</p>
                 <p className="mt-1">Processed documents become available as context for chapter generation and research assistance.</p>
             </div>
+            {/* Document Viewer Modal */}
+            <DocumentViewerModal
+                researchDoc={selectedDocument}
+                isOpen={!!selectedDocument}
+                onClose={() => setSelectedDocument(null)}
+            />
         </div>
     );
 }
