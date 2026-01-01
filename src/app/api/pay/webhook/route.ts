@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { PaystackService } from '@/services/paystack.service';
 import { BillingService, PaymentData } from '@/services/billing.service';
+import { logger } from '@/lib/logger';
+
+// Zod schema for Paystack webhook events
+const paystackEventSchema = z.object({
+    event: z.string(),
+    data: z.object({
+        reference: z.string(),
+        amount: z.number(),
+        currency: z.string(),
+        status: z.string(),
+        paid_at: z.string(),
+        channel: z.string(),
+        metadata: z.object({
+            projectId: z.string().optional()
+        }).passthrough().optional(),
+        customer: z.object({
+            email: z.string().email()
+        }).passthrough()
+    }).passthrough()
+});
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,12 +35,27 @@ export async function POST(req: NextRequest) {
 
         // 2. Verify signature
         if (!PaystackService.verifyWebhookSignature(bodyText, signature)) {
-            console.error('[Webhook] Invalid signature');
+            logger.error('[Webhook] Invalid signature');
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
-        const event = JSON.parse(bodyText);
-        console.log(`[Webhook] Received event: ${event.event}`, event.data.reference);
+        // 3. Parse and validate with Zod
+        let parsedBody: unknown;
+        try {
+            parsedBody = JSON.parse(bodyText);
+        } catch {
+            logger.error('[Webhook] Invalid JSON body');
+            return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+        }
+
+        const validationResult = paystackEventSchema.safeParse(parsedBody);
+        if (!validationResult.success) {
+            logger.error('[Webhook] Invalid event schema:', JSON.stringify(validationResult.error.flatten()));
+            return NextResponse.json({ error: 'Invalid payload schema' }, { status: 400 });
+        }
+
+        const event = validationResult.data;
+        logger.info(`[Webhook] Received event: ${event.event}`, event.data.reference);
 
         // 3. Handle events
         switch (event.event) {
@@ -29,22 +65,23 @@ export async function POST(req: NextRequest) {
 
             case 'transfer.success':
                 // Optional: Handle transfers if we implement refunds or payouts
-                console.log('[Webhook] Transfer success:', event.data);
+                logger.info('[Webhook] Transfer success:', JSON.stringify(event.data));
                 break;
 
             case 'subscription.create':
                 // Optional: Handle value-added subscriptions if added later
-                console.log('[Webhook] Subscription created:', event.data);
+                logger.info('[Webhook] Subscription created:', JSON.stringify(event.data));
                 break;
 
             default:
-                console.log(`[Webhook] Unhandled event type: ${event.event}`);
+                logger.info(`[Webhook] Unhandled event type: ${event.event}`);
         }
 
         return NextResponse.json({ received: true }, { status: 200 });
 
-    } catch (error: any) {
-        console.error('[Webhook] Error processing event:', error);
-        return NextResponse.json({ error: error.message || 'Server Error' }, { status: 500 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Server Error';
+        logger.error('[Webhook] Error processing event:', errorMessage);
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

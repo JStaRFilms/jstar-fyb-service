@@ -57,13 +57,13 @@ export async function POST(
 
         // Try to find a source project if target is empty
         if (isTargetEmpty) {
-            const cookieStore = await cookies();
-            const anonymousCookie = cookieStore.get('anonymous_id')?.value || cookieStore.get('jstar_anonymous_id')?.value;
+            // Reuse cookieStore from line 40 - check both cookie names
+            const mergeAnonymousCookie = anonymousCookie || cookieStore.get('jstar_anonymous_id')?.value;
 
-            if (anonymousCookie) {
+            if (mergeAnonymousCookie) {
                 const sourceProject = await prisma.project.findFirst({
                     where: {
-                        anonymousId: anonymousCookie,
+                        anonymousId: mergeAnonymousCookie,
                         topic: { not: '' } // Must have content
                     },
                     orderBy: { updatedAt: 'desc' },
