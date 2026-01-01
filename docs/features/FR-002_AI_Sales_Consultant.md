@@ -13,8 +13,8 @@ An AI-powered chat interface where students find a project topic through guided 
 | File | Purpose |
 |------|---------|
 | `src/app/(saas)/chat/page.tsx` | Route wrapper, renders ChatInterface |
-| `src/app/api/chat/route.ts` | Groq AI endpoint with streaming, tools, and retry logic |
-| `src/features/bot/actions/chat.ts` | Server actions for conversation persistence |
+| `src/app/api/chat/route.ts` | **Stateless** Groq AI endpoint (Inference Only) |
+| `src/features/bot/actions/chat.ts` | Server actions for conversation persistence (called from client) |
 
 ### Client Components (`'use client'`)
 | File | Purpose |
@@ -23,11 +23,22 @@ An AI-powered chat interface where students find a project topic through guided 
 | `src/features/bot/components/MessageBubble.tsx` | Styled bubbles with markdown rendering (react-markdown) |
 | `src/features/bot/components/ComplexityMeter.tsx` | Visual 1-5 difficulty meter (AI-controlled) |
 | `src/features/bot/components/SuggestionChips.tsx` | Action buttons: Accept/Simplify/Harder + "Proceed to Builder" |
-| `src/features/bot/hooks/useChatFlow.tsx` | State machine, tool detection, chat→builder handoff |
+| `src/features/bot/hooks/useChatFlow.tsx` | State machine, persistence orchestration, tool detection |
 
 ---
 
 ## Logic & Data Flow
+
+### Chat Persistence Architecture (Client-First)
+We use a **Client-First, Optimistic Persistence** model (aka "JohnGPT" architecture) to ensure reliability and handle auth states correctly.
+
+1.  **Stateless API**: `/api/chat` only streams the AI response. It does *not* write to the DB.
+2.  **Client Orchestration**: `useChatFlow` listens for the `onFinish` event from the AI SDK.
+3.  **Optimistic Save**: When streaming finishes, the client calls the `saveConversation` Server Action.
+4.  **Data Integrity**:
+    - **CUID Support**: Handles CUIDs (BetterAuth standard) for `userId` and `conversationId`.
+    - **Role Mapping**: Maps `ai` roles to `assistant` for Prisma compatibility.
+    - **Content Extraction**: Extracts text from `parts` array (AI SDK v3+) to prevent saving empty messages.
 
 ### AI Provider Setup
 ```typescript
@@ -36,6 +47,7 @@ const groq = createOpenAI({
     baseURL: 'https://api.groq.com/openai/v1',
     apiKey: process.env.GROQ_API_KEY,
 });
+// Model: moonshotai/kimi-k2-instruct-0905 (Best for Tool Calling)
 ```
 
 ### System Prompt (Jay's Persona)
@@ -73,17 +85,16 @@ INITIAL → ANALYZING → PROPOSAL → NEGOTIATION → CLOSING
 const [confirmedTopic, setConfirmedTopic] = useState<{topic: string, twist: string} | null>(null);
 ```
 
-#### Manual Proceed Function (Reliable)
+#### Manual Proceed Function (Auth-Aware)
 ```typescript
 const proceedToBuilder = () => {
-    if (confirmedTopic) {
-        localStorage.setItem('jstar_confirmed_topic', JSON.stringify({
-            topic: confirmedTopic.topic,
-            twist: confirmedTopic.twist,
-            confirmedAt: new Date().toISOString()
-        }));
+    // If user is already authenticated, go directly to builder
+    if (userId) {
+        router.push('/project/builder');
+    } else {
+        // Otherwise, redirect to register with callback
+        router.push('/auth/register?callbackUrl=/project/builder');
     }
-    router.push('/project/builder');
 };
 ```
 
@@ -102,6 +113,10 @@ Client filters out blank AI responses to prevent gray bubbles in UI.
 
 ### Error Handling
 Returns user-friendly error: "Jay is currently offline (System Overload)."
+
+### Data Persistence Guard
+- **Client-Side Trigger**: Persistence is triggered by the client, ensuring `userId` is available (if logged in).
+- **Atomic Saves**: Transaction-based saving prevents partial history states.
 
 ---
 
@@ -129,6 +144,23 @@ Uses existing Prisma schema from FR-003:
 - [x] Tool: getPricing
 - [x] Tool: confirmTopic (chat→builder handoff)
 - [x] Retry logic with exponential backoff
-- [x] Empty message filtering
+- [x] Empty message filtering (fixed for `parts`)
 - [x] Markdown rendering in MessageBubble
 - [x] Mobile-optimized UI (no bot icon on mobile)
+- [x] Client-First Persistence (JohnGPT architecture)
+
+---
+
+## Changelog
+
+### 2026-01-01: Client-First Persistence Refactor
+- **Architecture Change**: Moved persistence from `/api/chat` (server-side) to `useChatFlow` (client-side) to fix unreliable `userId` availability.
+- **Fix**: Patched "Empty Bubble" bug by extracting text from AI SDK `parts`.
+- **Fix**: Relaxed Zod validation to support CUIDs.
+
+### 2025-12-31: UX Improvements
+- Back button now uses `router.back()` to respect navigation history.
+- Profile picture now uses shared `UserAvatar` component.
+- `proceedToBuilder()` is now auth-aware - goes directly to builder if logged in.
+
+

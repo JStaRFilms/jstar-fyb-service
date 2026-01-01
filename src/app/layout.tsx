@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { OfflineIndicator } from "@/components/ui/OfflineIndicator";
+import { Toaster } from "sonner";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -27,7 +30,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${outfit.variable} ${spaceGrotesk.variable} font-sans antialiased bg-dark`}>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+        <OfflineIndicator />
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );

@@ -1,37 +1,59 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PaystackService } from "@/services/paystack.service";
+import { z } from "zod";
 
-export async function POST(req: Request) {
-    try {
-        const { reference } = await req.json();
+// Input validation schema
+const verifyPaymentSchema = z.object({
+    reference: z.string().min(1, "Reference is required")
+});
 
-        if (!reference) {
-            return NextResponse.json({ error: "Reference required" }, { status: 400 });
-        }
+// CRITICAL SECURITY FIX: Prevent duplicate processing with unique constraint check and enhanced security
+const processPaymentVerification = async (reference: string) => {
+    return await prisma.$transaction(async (tx) => {
+        // 1. CRITICAL SECURITY FIX: Atomic check and reserve payment to prevent race conditions
+        const reservedPayment = await tx.payment.updateMany({
+            where: {
+                reference: reference,
+                status: { notIn: ['SUCCESS', 'FAILED'] }
+            },
+            data: {
+                status: 'PROCESSING',
+                updatedAt: new Date()
+            }
+        });
 
-        // 1. Verify with Paystack
-        const verifyRes = await PaystackService.verifyPayment(reference);
-
-        if (!verifyRes.success || !verifyRes.data) {
-            return NextResponse.json({ error: "Verification failed at gateway" }, { status: 400 });
-        }
-
-        const data = verifyRes.data;
-
-        // 2. Validate Status
-        if (data.status !== 'success') {
-            // Update DB to Failed if it was pending
-            await prisma.payment.updateMany({
+        if (reservedPayment.count === 0) {
+            // Payment not found or already processed
+            const existingPayment = await tx.payment.findUnique({
                 where: { reference: reference },
-                data: { status: 'FAILED' }
+                include: {
+                    project: true,
+                    user: true
+                }
             });
-            return NextResponse.json({ error: "Transaction not successful" }, { status: 400 });
+
+            if (!existingPayment) {
+                throw new Error("Payment record not found");
+            }
+
+            if (existingPayment.status === 'SUCCESS') {
+                // Log duplicate verification attempt
+                console.warn(`[Security] Duplicate verification attempt for reference: ${reference}`);
+                return { success: true, message: "Already verified", payment: existingPayment };
+            }
+
+            if (existingPayment.status === 'FAILED') {
+                throw new Error("Payment was previously marked as failed");
+            }
+
+            if (existingPayment.status === 'PROCESSING') {
+                throw new Error("Payment is currently being processed");
+            }
         }
 
-        // 3. Update Database (Idempotent update)
-        // Find the payment
-        const payment = await prisma.payment.findUnique({
+        // 2. Get the payment details after reserving
+        const payment = await tx.payment.findUnique({
             where: { reference: reference },
             include: {
                 project: true,
@@ -40,47 +62,196 @@ export async function POST(req: Request) {
         });
 
         if (!payment) {
-            return NextResponse.json({ error: "Payment record not found" }, { status: 404 });
+            throw new Error("Payment record not found");
         }
 
-        if (payment.status === 'SUCCESS') {
-            return NextResponse.json({ success: true, message: "Already verified" });
+        // 3. Verify with Paystack
+        const verifyRes = await PaystackService.verifyPayment(reference);
+
+        if (!verifyRes.success || !verifyRes.data) {
+            // CRITICAL SECURITY FIX: Atomic update to prevent race conditions
+            await tx.payment.update({
+                where: { id: payment.id },
+                data: {
+                    status: 'FAILED',
+                    gatewayResponse: JSON.stringify({ error: "Gateway verification failed" }),
+                    updatedAt: new Date()
+                }
+            });
+            throw new Error("Verification failed at gateway");
         }
 
-        // Update Payment and Project in transaction
-        await prisma.$transaction([
-            prisma.payment.update({
+        const data = verifyRes.data;
+
+        // 4. Validate transaction status
+        if (data.status !== 'success') {
+            await tx.payment.update({
+                where: { id: payment.id },
+                data: {
+                    status: 'FAILED',
+                    gatewayResponse: JSON.stringify(data),
+                    updatedAt: new Date()
+                }
+            });
+            throw new Error("Transaction not successful");
+        }
+
+        // 5. CRITICAL SECURITY FIX: Verify amount matches (prevent amount tampering)
+        const expectedAmount = payment.amount * 100; // Convert to kobo
+        if (data.amount !== expectedAmount) {
+            await tx.payment.update({
+                where: { id: payment.id },
+                data: {
+                    status: 'FAILED',
+                    gatewayResponse: JSON.stringify({ ...data, error: "Amount mismatch" }),
+                    updatedAt: new Date()
+                }
+            });
+            throw new Error("Amount mismatch detected");
+        }
+
+        // 6. CRITICAL SECURITY FIX: Atomic update of payment and project with proper error handling
+        // 2. Determine project to unlock (handling lead vs project IDs)
+        let projectId = payment.projectId;
+        let project = await tx.project.findUnique({ where: { id: projectId } });
+
+        // If not found, check if it was a lead-based payment
+        if (!project) {
+            const lead = await tx.lead.findUnique({ where: { id: payment.projectId } });
+            if (lead) {
+                // If lead exists, find or create the project for this lead
+                project = await tx.project.findFirst({
+                    where: { topic: lead.topic, userId: payment.userId }
+                });
+
+                if (!project) {
+                    project = await tx.project.create({
+                        data: {
+                            topic: lead.topic,
+                            twist: lead.twist,
+                            userId: payment.userId,
+                            status: 'OUTLINE_GENERATED',
+                            isUnlocked: true
+                        }
+                    });
+                }
+                projectId = project.id;
+            } else {
+                console.error('[PaymentVerify] Link target not found:', payment.projectId);
+            }
+        }
+
+        // 3. Update Statuses
+        const metadata = typeof data.metadata === 'string'
+            ? JSON.parse(data.metadata)
+            : data.metadata;
+
+        const tier = metadata?.tier;
+        const isConciergeTier = tier && ['BASIC', 'STANDARD', 'PREMIUM'].includes(tier.toUpperCase());
+
+        const [updatedPayment, updatedProject] = await Promise.all([
+            tx.payment.update({
                 where: { id: payment.id },
                 data: {
                     status: 'SUCCESS',
-                    gatewayResponse: JSON.stringify(data)
+                    gatewayResponse: JSON.stringify(data),
+                    updatedAt: new Date()
+                },
+                include: {
+                    project: true,
+                    user: true
                 }
             }),
-            prisma.project.update({
-                where: { id: payment.projectId },
-                data: { isUnlocked: true }
+            project ? tx.project.update({
+                where: { id: projectId },
+                data: {
+                    isUnlocked: true,
+                    status: isConciergeTier ? "RESEARCH_IN_PROGRESS" : "UNLOCKED",
+                    mode: isConciergeTier ? "CONCIERGE" : "DIY",
+                    updatedAt: new Date()
+                }
+            }) : Promise.resolve(),
+            // Additionally update the Lead status if this project belongs to a lead
+            tx.lead.updateMany({
+                where: {
+                    OR: [
+                        { id: metadata?.leadId },
+                        { userId: payment.userId },
+                        { anonymousId: project?.anonymousId }
+                    ].filter(Boolean) as any,
+                    // Only update the lead that matches the project topic (to be safe)
+                    topic: {
+                        contains: project?.topic || payment.project?.topic || ""
+                    }
+                },
+                data: {
+                    status: 'PAID'
+                }
             })
         ]);
 
-        // Send Email Receipt
+        return { success: true, payment: updatedPayment, project: updatedProject };
+    }, {
+        // Transaction timeout to prevent long locks
+        timeout: 10000 // 10 seconds
+    });
+};
+
+export async function POST(req: Request) {
+    try {
+        const body = await req.json();
+
+        // Validate input
+        const validation = verifyPaymentSchema.safeParse(body);
+        if (!validation.success) {
+            return NextResponse.json({
+                error: "Invalid input",
+                details: validation.error.format()
+            }, { status: 400 });
+        }
+
+        const { reference } = validation.data;
+
+        // Process payment verification with race condition protection
+        const result = await processPaymentVerification(reference);
+
+        // Send email receipt (outside transaction to avoid blocking)
         try {
             const { EmailService } = await import('@/services/email.service');
             await EmailService.sendPaymentReceipt({
-                email: payment.user.email,
-                name: payment.user.name || 'Student',
-                amount: payment.amount,
-                reference: payment.reference,
-                projectTopic: payment.project.topic,
+                email: result.payment.user?.email || '',
+                name: result.payment.user?.name || 'Student',
+                amount: result.payment.amount,
+                reference: result.payment.reference,
+                projectTopic: result.project?.topic || '',
                 date: new Date()
             });
         } catch (err) {
             console.error('[Verify] Failed to send receipt email:', err);
+            // Don't fail the payment if email fails
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({
+            success: true,
+            message: result.message || "Payment verified successfully",
+            paymentId: result.payment.id,
+            projectId: result.project?.id || result.payment.projectId
+        });
 
     } catch (error: any) {
-        console.error("[PaymentVerify] Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("[PaymentVerify] Security error:", error);
+
+        // Return generic error message to prevent information disclosure
+        if (error.message.includes("not found") ||
+            error.message.includes("failed") ||
+            error.message.includes("mismatch")) {
+            return NextResponse.json({
+                error: "Payment verification failed"
+            }, { status: 400 });
+        }
+
+        return NextResponse.json({
+            error: "Payment verification failed"
+        }, { status: 500 });
     }
 }

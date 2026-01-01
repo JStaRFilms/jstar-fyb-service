@@ -33,8 +33,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             });
         }
 
-        // Return stored chapters
-        const chapters = project.outline?.content ? JSON.parse(project.outline.content) : {};
+        // Return stored chapters from contentProgress
+        const chapters = project.contentProgress || {};
 
         return new Response(JSON.stringify({
             success: true,

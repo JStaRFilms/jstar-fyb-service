@@ -222,13 +222,13 @@ export function ChapterGenerator({ projectId }: ChapterGeneratorProps) {
                             className="glass-panel rounded-2xl overflow-hidden"
                         >
                             {/* Chapter Header */}
-                            <div className="p-5 flex items-center justify-between">
+                            <div className="p-3 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
                                 <button
                                     onClick={() => setExpandedChapter(isExpanded ? null : info.number)}
-                                    className="flex items-center gap-4 flex-1 text-left"
+                                    className="flex items-center gap-3 md:gap-4 w-full md:flex-1 text-left"
                                     disabled={!isGenerated}
                                 >
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${isGenerated ? 'bg-green-500/20 text-green-400' :
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${isGenerated ? 'bg-green-500/20 text-green-400' :
                                         isGenerating ? 'bg-primary/20 text-primary' :
                                             'bg-white/5 text-gray-500'
                                         }`}>
@@ -257,7 +257,7 @@ export function ChapterGenerator({ projectId }: ChapterGeneratorProps) {
                                     )}
                                 </button>
 
-                                <div className="flex items-center gap-2 ml-4">
+                                <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto md:ml-4 border-t border-white/5 pt-2.5 md:pt-0 md:border-t-0">
                                     {isGenerated && (
                                         <button
                                             onClick={() => downloadChapter(chapter)}

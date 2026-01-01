@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Detail Modal V2 - Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #8b5cf6;
+            --color-accent: #06b6d4;
+            --color-bg: #030014;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--color-bg);
+            color: white;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* PREMIUM GLASS */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08); /* More subtle border */
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .glass-panel-hover:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px -10px rgba(139, 92, 246, 0.15);
+        }
+
+        /* TEXT GRADIENTS */
+        .text-gradient {
+            background: linear-gradient(135deg, #e0e7ff 0%, #a78bfa 50%, #67e8f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0px 0px 30px rgba(167, 139, 250, 0.3);
+        }
+
+        .text-gradient-gold {
+             background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 50%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* ANIMATIONS */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(1deg); }
+        }
+        .float { animation: float 6s ease-in-out infinite; }
+        .float-delay { animation: float 7s ease-in-out infinite 1s; }
+
+        .modal-enter {
+            animation: modalPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.95) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* NOISE TEXTURE OVERLAY */
+        .noise-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* MESH GRADIENT BACKDROP */
+        .mesh-gradient {
+            background: 
+                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: { 
+                extend: { 
+                    colors: { 
+                        dark: '#030014', 
+                        primary: '#8b5cf6', 
+                        accent: '#06b6d4',
+                        surface: 'rgba(255,255,255,0.03)'
+                    },
+                    fontFamily: { 
+                        sans: ['Outfit', 'sans-serif'], 
+                        display: ['Space Grotesk', 'sans-serif'], 
+                    } 
+                } 
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-dark min-h-screen relative overflow-hidden">
+    
+    <!-- NOISE -->
+    <div class="noise-bg"></div>
+
+    <!-- MESH BACKGROUND (Simulated) -->
+    <div class="fixed inset-0 z-0">
+        <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-900/40 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/30 rounded-full blur-[100px]"></div>
+    </div>
+
+    <!-- MODAL CONTAINER (Active State) -->
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        
+        <!-- BACKDROP -->
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-xl transition-opacity duration-500"></div>
+
+        <!-- MAIN LAYOUT -->
+        <div class="modal-enter relative w-full max-w-[1400px] h-[90vh] bg-dark/90 rounded-[32px] border border-white/10 shadow-2xl flex overflow-hidden">
+
+            <!-- CLOSE BTN -->
+            <button class="absolute top-6 right-6 z-50 p-2 rounded-full bg-black/20 hover:bg-white/10 border border-white/5 transition-colors group">
+                <i data-lucide="x" class="w-6 h-6 text-white/50 group-hover:text-white transition-colors"></i>
+            </button>
+
+            <!-- LEFT COLUMN: MEDIA & HERO (60%) -->
+            <div class="w-full lg:w-[60%] relative flex flex-col h-full border-r border-white/5">
+                
+                <!-- HERO IMAGE AREA -->
+                <div class="relative flex-grow overflow-hidden group">
+                    <!-- Image Placeholder with Shimmer -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-gray-900 to-black">
+                        <!-- Simulated abstract dashboard screenshot -->
+                        <div class="absolute inset-0 opacity-40 mix-blend-overlay bg-[url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center transition-transform duration-1000 transform group-hover:scale-105"></div>
+                    </div>
+
+                    <!-- Overlay Gradient -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-dark via-transparent to-transparent opacity-90"></div>
+
+                    <!-- Floating Chips -->
+                    <div class="absolute top-8 left-8 flex gap-3">
+                        <span class="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold uppercase tracking-widest text-white/90">
+                            Web Application
+                        </span>
+                        <span class="px-4 py-1.5 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-500/20 text-xs font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                             Distinction
+                        </span>
+                    </div>
+
+                    <!-- Title Block (Bottom) -->
+                    <div class="absolute bottom-0 left-0 w-full p-10 bg-gradient-to-t from-dark to-transparent">
+                        <h1 class="text-5xl md:text-6xl font-display font-bold mb-4 leading-tight">
+                            Finance<span class="text-gradient">Flow</span> AI
+                        </h1>
+                        <p class="text-xl text-gray-400 max-w-2xl font-light">
+                            Next-generation financial forecasting tailored for enterprise scale, powered by predictive machine learning models.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- GALLERY THUMBNAILS (Scrollable) -->
+                <div class="h-32 bg-dark/50 border-t border-white/5 p-4 flex gap-4 overflow-x-auto items-center">
+                    <button class="flex-shrink-0 w-40 h-24 rounded-xl border-2 border-primary overflow-hidden relative group">
+                        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&auto=format&fit=crop&q=60" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
+                        <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-transparent transition-colors">
+                            <i data-lucide="eye" class="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"></i>
+                        </div>
+                    </button>
+                    <button class="flex-shrink-0 w-40 h-24 rounded-xl border border-white/10 overflow-hidden relative group hover:border-white/30 transition-colors">
+                        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&auto=format&fit=crop&q=60" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity">
+                    </button>
+                    <button class="flex-shrink-0 w-40 h-24 rounded-xl border border-white/10 overflow-hidden relative group hover:border-white/30 transition-colors">
+                        <img src="https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=400&auto=format&fit=crop&q=60" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity">
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: DETAILS (40%) -->
+            <div class="w-full lg:w-[40%] bg-dark flex flex-col h-full overflow-hidden relative">
+                
+                <!-- Inner Scroll -->
+                <div class="flex-grow overflow-y-auto p-10 space-y-10 custom-scrollbar">
+                    
+                    <!-- ABOUT -->
+                    <section>
+                        <h3 class="text-sm font-mono uppercase text-gray-500 mb-4 tracking-wider">About the Project</h3>
+                        <p class="text-gray-300 leading-relaxed text-lg font-light">
+                            FinanceFlow solves the complexity of multi-currency consolidation. By leveraging OpenAI's API for transaction categorization and Stripe for real-time reconciliation, this system reduces end-of-month reporting time by <span class="text-white font-medium">85%</span>.
+                        </p>
+                    </section>
+
+                    <!-- METRICS GRID -->
+                    <section class="grid grid-cols-2 gap-4">
+                        <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between h-32 group hover:bg-white/5 transition-colors">
+                            <i data-lucide="layers" class="w-6 h-6 text-accent mb-2 group-hover:scale-110 transition-transform"></i>
+                            <div>
+                                <div class="text-3xl font-display font-bold text-white mb-1">98/100</div>
+                                <div class="text-xs text-gray-400 font-mono">CODE QUALITY SCORE</div>
+                            </div>
+                        </div>
+                        <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between h-32 group hover:bg-white/5 transition-colors">
+                            <i data-lucide="zap" class="w-6 h-6 text-yellow-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                            <div>
+                                <div class="text-3xl font-display font-bold text-white mb-1">2.4s</div>
+                                <div class="text-xs text-gray-400 font-mono">AVG LOAD TIME</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- TECH STACK -->
+                    <section>
+                        <h3 class="text-sm font-mono uppercase text-gray-500 mb-4 tracking-wider">Tech Stack</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm hover:bg-white/10 transition-colors cursor-default">Next.js 14</span>
+                            <span class="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm hover:bg-white/10 transition-colors cursor-default">TypeScript</span>
+                            <span class="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm hover:bg-white/10 transition-colors cursor-default">Tailwind</span>
+                            <span class="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm hover:bg-white/10 transition-colors cursor-default">Prisma</span>
+                            <span class="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm hover:bg-white/10 transition-colors cursor-default">PostgreSQL</span>
+                            <span class="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-sm text-accent border-accent/20 bg-accent/5 hover:bg-accent/10 transition-colors cursor-default">
+                                <i data-lucide="sparkles" class="w-3 h-3 inline mr-1"></i> OpenAI
+                            </span>
+                        </div>
+                    </section>
+
+                    <!-- DELIVERABLES LIST -->
+                    <section>
+                        <h3 class="text-sm font-mono uppercase text-gray-500 mb-4 tracking-wider">Deliverables</h3>
+                        <ul class="space-y-3">
+                            <li class="flex items-center gap-3 text-gray-300 group">
+                                <div class="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-emerald-400"></i>
+                                </div>
+                                <span class="group-hover:text-white transition-colors">Full Source Code (GitHub)</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-gray-300 group">
+                                <div class="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-emerald-400"></i>
+                                </div>
+                                <span class="group-hover:text-white transition-colors">120-Page Dissertation PDF</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-gray-300 group">
+                                <div class="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-emerald-400"></i>
+                                </div>
+                                <span class="group-hover:text-white transition-colors">Defense Slide Deck (PPTX)</span>
+                            </li>
+                        </ul>
+                    </section>
+                </div>
+
+                <!-- FOOTER CTA (Sticky) -->
+                <div class="p-8 border-t border-white/5 bg-dark/95 backdrop-blur-xl absolute bottom-0 w-full z-10">
+                    <button class="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-display font-bold text-lg uppercase tracking-wide group relative overflow-hidden transition-all shadow-lg hover:shadow-primary/25">
+                        <span class="relative z-10 flex items-center justify-center gap-3">
+                            Start Similar Project 
+                            <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                        </span>
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                    </button>
+                    <div class="mt-4 text-center">
+                        <span class="text-xs text-gray-500 cursor-pointer hover:text-white transition-colors">Have a question?</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
