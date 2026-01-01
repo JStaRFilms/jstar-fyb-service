@@ -1402,6 +1402,39 @@ Before marking implementation complete:
 
 ---
 
+## Phase 0: UI Design & Navigation Architecture
+
+> **Goal**: Establish a "Timeline & Studio" architecture to guide users through the writing journey.
+
+### 0.1 Navigation Architecture (Version B: Timeline)
+
+We are adopting a **Timeline-based** approach rather than simple tabs. This emphasizes progress and completion.
+
+**Mobile (Timeline View):**
+- **Structure**: Vertical line connecting chapters (Nodes).
+- **Navigation**: Minimized entry points (Floating Pill) instead of a heavy bottom bar.
+- **Writing**: Full-screen immersive editor.
+
+**Desktop (Productive Studio):**
+- **Left Panel**: Navigation & Timeline (Chapters).
+- **Center**: Immersive Writing Canvas (Paper-like).
+- **Right Panel**: Context (Research, AI Chat, Diagrams).
+
+### 0.2 Visual Mockups
+
+High-fidelity HTML mockups have been generated to guide implementation:
+
+| View | File Path | Purpose |
+|------|-----------|---------|
+| **Mobile Workspace** | `docs/mockups/diy-workflow/v2_workspace_mobile.html` | Timeline layout, floating nav, progress tracking. |
+| **Mobile Editor** | `docs/mockups/diy-workflow/v2_section_editor.html` | Immersive writing mode, smart action button. |
+| **Mobile Research** | `docs/mockups/diy-workflow/v2_research_tab.html` | Grid view with thumbnails, unified search. |
+| **Desktop Studio** | `docs/mockups/diy-workflow/v2_workspace_desktop.html` | 3-Column layout (Nav/Write/Context). |
+
+> **Instruction to Agent**: When implementing Phase 1-5, **strictly follow these V2 mockups**. Open the HTML files in a browser to extract design tokens (glassmorphism classes, spacing, colors).
+
+---
+
 ## Prompts Reference
 
 ### Prompt 1: Research Query Generation
