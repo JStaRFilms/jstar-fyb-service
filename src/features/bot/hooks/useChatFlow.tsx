@@ -56,6 +56,7 @@ export function useChatFlow(userId?: string) {
     // Use refs to access current values in fetch without stale closures
     const conversationIdRef = useRef(conversationId);
     const anonymousIdRef = useRef(anonymousId);
+    const retryCountRef = useRef(0); // Track retries
 
     // Initialize anonymousId immediately if possible (client-side only)
     useEffect(() => {
@@ -91,7 +92,8 @@ export function useChatFlow(userId?: string) {
         status,
         error,
         regenerate,
-        setMessages
+        setMessages,
+        reload
     } = useChat({
         // Use custom fetch to ensure we can inject dynamic data
         fetch: async (url: RequestInfo | URL, options?: RequestInit) => {
@@ -135,6 +137,26 @@ export function useChatFlow(userId?: string) {
             const currentMessages = messagesRef.current;
 
             if (!currentUserId && !currentAnonymousId) return;
+
+            // ===========================================
+            // Task 7: Silent Retry for Junk Responses
+            // ===========================================
+            let textContentForCheck = '';
+            if (typeof message.content === 'string') textContentForCheck = message.content;
+            else if (message.parts) textContentForCheck = message.parts.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('');
+
+            const lower = textContentForCheck.toLowerCase().trim();
+            const isJunk = (lower.includes('still thinking') || lower.includes('thinking...') || lower === 'thinking') && lower.length < 20;
+            const hasTools = message.toolInvocations && message.toolInvocations.length > 0;
+            // Also check for tool-related parts in 'parts' array if toolInvocations is missing/empty on the top level object
+            const hasToolParts = message.parts && message.parts.some((p: any) => p.type?.startsWith('tool-'));
+
+            if ((isJunk || (!textContentForCheck && !hasTools && !hasToolParts)) && retryCountRef.current < 3) {
+                console.log('[useChatFlow] Junk response detected (filler or empty). Retrying...', textContentForCheck);
+                retryCountRef.current += 1;
+                reload();
+                return; // Do not persist junk
+            }
 
             // console.log('[useChatFlow] Persisting conversation (Client-First)...');
 
@@ -192,7 +214,7 @@ export function useChatFlow(userId?: string) {
                 console.error('[useChatFlow] Failed to persist chat:', err);
             }
         };
-    }, []); // Empty dependency array, but we rely on refs inside which is fine.
+    }, [reload]); // Add reload to dependencies
 
     // Reset synced history if identity changes (e.g. login)
     useEffect(() => {
@@ -333,7 +355,22 @@ export function useChatFlow(userId?: string) {
                 timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'
             };
         })
-        .filter((m: any) => m.content && (typeof m.content === 'string' ? m.content.trim() : true));
+        .filter((m: any) => {
+            // Filter out empty messages BUT keep tool invocations
+            // Also filter out "still thinking" filler text if it's the only content
+            const hasContent = m.content && (typeof m.content === 'string' ? m.content.trim().length > 0 : true);
+            const hasTools = m.toolInvocations && m.toolInvocations.length > 0;
+
+            if (hasContent) {
+                const lower = m.content.toLowerCase().trim();
+                if (lower.includes('still thinking') || lower.includes('thinking...') || lower === 'thinking') {
+                    // Only filter if it's short, generic filler
+                    if (lower.length < 20) return false;
+                }
+            }
+
+            return hasContent || hasTools;
+        });
 
 
     // Watch for tool calls
@@ -425,6 +462,36 @@ export function useChatFlow(userId?: string) {
         }
 
     }, [aiMessages, state, hasProvidedPhone]);
+
+    // ==============================================
+    // AUTO-RETRY LOGIC (Tasks 1 & 5)
+    // ==============================================
+    const [isRetrying, setIsRetrying] = useState(false);
+
+    useEffect(() => {
+        if (error) {
+            console.log("[useChatFlow] Error detected:", error);
+            // Check if it's a "real" error we should retry
+            // If retry count is < 3, try to reload
+            if (retryCountRef.current < 3) {
+                setIsRetrying(true);
+                const timeout = setTimeout(() => {
+                    console.log(`[useChatFlow] Auto - retrying... (${retryCountRef.current + 1} / 3)`);
+                    retryCountRef.current += 1;
+                    reload();
+                }, 1000 * (retryCountRef.current + 1)); // Backoff: 1s, 2s, 3s
+                return () => clearTimeout(timeout);
+            } else {
+                setIsRetrying(false);
+            }
+        } else {
+            setIsRetrying(false);
+            // Reset retry count on success (if status becomes 'streaming' again)
+            if (status === 'streaming') {
+                retryCountRef.current = 0;
+            }
+        }
+    }, [error, reload, status]);
 
 
 
@@ -570,7 +637,8 @@ export function useChatFlow(userId?: string) {
         isLoading,
         confirmedTopic,
         hasProvidedPhone,
-        error,
+        error: isRetrying ? undefined : error,
+        isRetrying,
         regenerate,
         handleUserMessage,
         handleAction,

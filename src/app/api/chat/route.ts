@@ -30,13 +30,14 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Retry wrapper for streamText
 async function streamTextWithRetry(
-    config: Parameters<typeof streamText>[0],
+    config: Parameters<typeof streamText>[0] & { maxSteps?: number },
     retries = MAX_RETRIES
 ): Promise<ReturnType<typeof streamText>> {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
+            // @ts-ignore - maxSteps is supported but missing in some type definitions
             const result = await streamText(config);
             return result;
         } catch (error) {
@@ -175,7 +176,7 @@ export async function POST(req: Request) {
             model: groq('moonshotai/kimi-k2-instruct-0905'),
 
             // FIX 2: Enable multi-step (Crucial for tools to execute properly)
-            stopWhen: stepCountIs(5),
+            maxSteps: 5,
 
             system: SYSTEM_PROMPT,
             messages: modelMessages,

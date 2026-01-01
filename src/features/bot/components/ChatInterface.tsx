@@ -26,7 +26,7 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
     const { data: session } = useSession();
     // Prioritize session user if available (client update), otherwise fallback to server passed user
     const user = session?.user || initialUser;
-    const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
+    const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder, isRetrying } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -110,7 +110,21 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
 
             {/* Sticky Error Banner */}
             <AnimatePresence>
-                {error && (
+                {isRetrying && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        className="sticky top-0 z-10 mx-4 mt-2"
+                    >
+                        <div className="flex items-center gap-3 p-3 bg-primary/10 border border-primary/20 rounded-xl text-primary backdrop-blur-md shadow-lg shadow-primary/5">
+                            <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                            <p className="text-xs font-medium flex-1">Connection unstable. Retrying...</p>
+                        </div>
+                    </motion.div>
+                )}
+                {error && !isRetrying && (
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -120,7 +134,7 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
                     >
                         <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 backdrop-blur-md shadow-lg shadow-red-500/5">
                             <AlertTriangle className="w-5 h-5 shrink-0" />
-                            <p className="text-sm flex-1">Something went wrong. Please try again.</p>
+                            <p className="text-sm flex-1">The AI is having trouble reacting. Please retry.</p>
                             <button
                                 onClick={() => regenerate?.()}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-colors"
@@ -137,12 +151,22 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
             <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
                 <ErrorBoundary>
                     <AnimatePresence>
-                        {messages.map((msg) => (
+                        {messages.map((msg, index) => (
                             <div key={msg.id} className="flex flex-col gap-2">
                                 <MessageBubble
                                     role={msg.role}
                                     content={msg.content}
                                     timestamp={msg.timestamp}
+                                    onRetry={
+                                        // Only show retry on the very last message if it is from USER
+                                        // OR if it's the last user message before an error?
+                                        // user requested "manual retry button"
+                                        // We will enable it for the last user message if the bot is NOT loading.
+                                        (index === messages.length - 1 && msg.role === 'user' && !isLoading)
+                                            ? () => regenerate?.()
+                                            : undefined
+                                    }
+                                    toolInvocations={msg.role === 'ai' ? msg.toolInvocations : undefined}
                                 />
                                 {/* Render Tool Invocations (Proposals) */}
                                 {msg.role === 'ai' && msg.toolInvocations?.map((tool: any, idx: number) => {
