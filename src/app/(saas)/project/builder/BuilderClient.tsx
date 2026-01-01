@@ -41,6 +41,10 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
         // Wait for auth to resolve before doing anything
         if (isPending) return;
 
+        // 🔧 FIX: Reset hasServerHydrated to allow fresh data on each navigation/tab
+        // This ensures that server data (especially isPaid) can always override stale localStorage
+        useBuilderStore.setState({ hasServerHydrated: false });
+
         // STEP 1: Check for Fresh Chat Handoff (Top Priority)
         // If a new handoff exists (e.g. user just clicked "Build"), it overrides any existing server draft
         // UNLESS the server draft is PAID and matches the handoff (Prevent Downgrade)
