@@ -160,7 +160,7 @@ export function UpsellBridge({ className, projectId }: UpsellBridgeProps) {
                         </div>
 
                         <Link
-                            href={`https://wa.me/2348123456789?text=${whatsappMessage}`}
+                            href={`https://wa.me/2348152657887?text=${whatsappMessage}`}
                             target="_blank"
                             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all hover:scale-105 shadow-lg shadow-primary/20"
                         >

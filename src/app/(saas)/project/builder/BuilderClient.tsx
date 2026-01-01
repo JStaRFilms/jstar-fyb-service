@@ -8,11 +8,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TopicSelector } from "@/features/builder/components/TopicSelector";
 import { AbstractGenerator } from "@/features/builder/components/AbstractGenerator";
 import { ChapterOutliner } from "@/features/builder/components/ChapterOutliner";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 import { useSession } from "@/lib/auth-client";
 import { mergeAnonymousData } from "@/features/bot/actions/chat";
+import { usePaymentVerification } from "@/features/builder/hooks/usePaymentVerification";
 
 interface BuilderClientProps {
     serverProject?: Partial<ProjectData> | null;
@@ -22,17 +23,46 @@ interface BuilderClientProps {
 export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderClientProps) {
     const { data: session, isPending } = useSession();
     const router = useRouter();
-    const { step, updateData, syncWithUser, hydrateFromChat, loadProject } = useBuilderStore();
+    const { step, updateData, syncWithUser, hydrateFromChat, loadProject, isPaid, unlockPaywall } = useBuilderStore();
     const searchParams = useSearchParams();
 
-    // 0. Hydrate from Server if available
+    // CRITICAL: Run payment verification at the TOP LEVEL so it runs on ALL steps, not just OUTLINE
+    const { isVerifying, verificationResult } = usePaymentVerification(isPaid, unlockPaywall);
+
+    // Scroll to top on mount to prevent starting at upgrade section
     useEffect(() => {
-        if (serverProject) {
-            // Only load if different from current to avoid loops, though store usually handles diffs
-            // Actually, we trust server over local stale state
-            loadProject(serverProject, serverIsPaid);
+        window.scrollTo(0, 0);
+    }, []);
+
+    // ========== CONSOLIDATED HYDRATION LOGIC ==========
+    // This single effect handles all state hydration in the correct order to prevent race conditions.
+    // Priority: Server Data > Chat Handoff > localStorage (zustand persist handles this passively)
+    useEffect(() => {
+        // Wait for auth to resolve before doing anything
+        if (isPending) return;
+
+        // STEP 1: Check for Fresh Chat Handoff (Top Priority)
+        // If a new handoff exists (e.g. user just clicked "Build"), it overrides any existing server draft
+        // UNLESS the server draft is PAID and matches the handoff (Prevent Downgrade)
+        const hasFreshHandoff = hydrateFromChat(session?.user?.id, serverProject, serverIsPaid);
+
+        if (hasFreshHandoff) {
+            console.log('[BuilderClient] Fresh chat handoff applied. Skipping server load.');
+            // We intentionally DO NOT load server project if handoff claimed priority
+            return;
         }
-    }, [serverProject, serverIsPaid, loadProject]);
+
+        // STEP 2: Load server project if available (Secondary Priority)
+        // Only if no fresh handoff occurred
+        if (serverProject) {
+            loadProject(serverProject, serverIsPaid);
+            console.log('[BuilderClient] Hydrated from server', { projectId: serverProject.projectId, isPaid: serverIsPaid });
+        }
+
+        // STEP 3: Sync with current user (only runs destructive reset on actual logout/account-switch)
+        syncWithUser(session?.user?.id || null);
+
+    }, [isPending, serverProject, serverIsPaid, session?.user?.id, loadProject, syncWithUser, hydrateFromChat]);
 
     // 1. Auth Guard: Redirect to Login if not authenticated
     useEffect(() => {
@@ -42,24 +72,6 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
             router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
         }
     }, [isPending, session, searchParams, router]);
-
-    // Sync store with current user - but wait for session to load!
-    useEffect(() => {
-        if (!isPending) {
-            syncWithUser(session?.user?.id || null);
-        }
-    }, [session?.user?.id, isPending, syncWithUser]);
-
-    // Hydrate from chat if needed (only if NO server project was loaded?)
-    // Actually, if serverProject loaded, we might have skipped chat hydration
-    useEffect(() => {
-        if (!isPending) {
-            // If we just loaded a server project, we probably don't want to hydrate from chat
-            // unless the server project IS effectively the chat project?
-            // Let's rely on hydrateFromChat checks (it checks if topic is missing)
-            hydrateFromChat(session?.user?.id);
-        }
-    }, [hydrateFromChat, session?.user?.id, isPending]);
 
     useEffect(() => {
         if (!isPending && session?.user?.id) {
@@ -83,6 +95,16 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
 
     return (
         <div className="w-full">
+            {/* Payment Verification Loading Overlay */}
+            {isVerifying && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+                    <div className="text-center">
+                        <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+                        <p className="text-white font-bold text-lg">Verifying Payment...</p>
+                        <p className="text-gray-400 text-sm">Please wait while we confirm your payment.</p>
+                    </div>
+                </div>
+            )}
             {/* Progress Toolbar */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">

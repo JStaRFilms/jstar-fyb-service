@@ -8,11 +8,30 @@ Automated payment verification and fulfillment system using Paystack webhooks. T
 - **Fulfillment Brain:** `src/services/billing.service.ts`
 - **Admin Links:** `src/app/api/admin/leads/[id]/send-payment-link/route.ts`
 - **Gateway Service:** `src/services/paystack.service.ts`
+- **Pricing Config:** `src/config/pricing.ts`
+- **Billing Logic:** `src/app/actions/billing.ts`
 - **Data Model:** `Payment` and `Project` models in Prisma.
 
 ## Key Components
 
-### 1. Webhook Handlers
+### 1. Centralized Pricing Configuration (`src/config/pricing.ts`)
+Single source of truth for all pricing tiers.
+- **Structure:**
+    - `SAAS`: DIY Plans (`PAPER` vs `SOFTWARE`).
+    - `AGENCY`: Done-For-You Plans (Mapped to tracks).
+- **Tracks:**
+    - **Paper Track**: Research & Writing focus (Base: ₦15k, Upsell Target: ₦80k).
+    - **Software Track**: Implementation focus (Base: ₦20k, Upsell Target: ₦120k).
+
+### 2. Smart Human Touch (Upsell Logic)
+Dynamically calculates upsell offers based on user history.
+- **Logic Location**: `src/app/actions/billing.ts` -> `getProjectBillingDetails`.
+- **Heuristic**: 
+    - Infers "Track" based on total amount paid (e.g., >₦18k = Software).
+    - Calculates `Discount Price = Target Tier Price - Total Paid`.
+- **UI Component**: `UpsellBridge.tsx` (Displays dynamic price or "Concierge Active" status).
+
+### 3. Webhook Handlers
 The system listens for specific Paystack events to trigger fulfillment:
 - **`charge.success`**: Triggers `recordPayment` and project unlocking.
 - **`transfer.success`**: (Planned) Handles automated refund logs.
@@ -44,6 +63,25 @@ Allows admins to send payment links to leads who haven't signed up yet.
     2. Creates a `Payment` record linked to that Project.
     3. Generates Paystack link with `paymentId` in metadata.
 - **Why:** Prevents "Record not found" errors during verification if the project didn't exist.
+
+### 5. Proration & Upgrade Links (2026-01-01)
+Allows admins to send prorated upgrade links to existing paid users.
+- **Route:** `/api/admin/projects/[id]/send-payment-link`
+- **Logic:**
+    1. Fetches `totalPaid` from existing payments on the project.
+    2. Calculates `prorated amount = target tier price - totalPaid`.
+    3. Generates Paystack link for the difference.
+- **Key Files:**
+    - `SendPaymentLinkButton.tsx` - Dropdown showing prorated prices
+    - `getProjectBillingDetails()` - Calculates total paid
+- **UI Display:** Admin sees "Paid: ₦15,000" badge and "Due: ₦65,000" for upgrades.
+
+### 6. Expert Services Add-ons (2026-01-01)
+À la carte services for DIY users who want expert help without upgrading.
+- **Config:** `PRICING_CONFIG.ADD_ONS` in `src/config/pricing.ts`
+- **Services:** Defense Speech, Code Review, Chapter Editing, Rush Delivery
+- **Route:** `/api/services/purchase`
+- **Pages:** `/services` (listing), `/services/[serviceId]` (checkout), `/services/complete` (confirmation)
 
 ## Data Flow
 ```mermaid

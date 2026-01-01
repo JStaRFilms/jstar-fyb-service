@@ -26,13 +26,14 @@ interface BuilderState {
     isGenerating: boolean;
     isPaid: boolean;
     isFromChat: boolean;
+    hasServerHydrated: boolean; // Prevents localStorage from overwriting server data
 
     setStep: (step: BuilderStep) => void;
     updateData: (data: Partial<ProjectData>) => void;
     setGenerating: (isGenerating: boolean) => void;
     unlockPaywall: () => void;
     setMode: (mode: ProjectMode) => void;
-    hydrateFromChat: (userId?: string | null) => boolean;
+    hydrateFromChat: (userId?: string | null, existingProject?: Partial<ProjectData> | null, existingIsPaid?: boolean) => boolean;
     clearChatData: () => void;
     syncWithUser: (userId: string | null) => void;
     loadProject: (data: Partial<ProjectData>, isPaid?: boolean) => void;
@@ -57,6 +58,7 @@ export const useBuilderStore = create<BuilderState>()(
             isGenerating: false,
             isPaid: false,
             isFromChat: false,
+            hasServerHydrated: false,
 
             setStep: (step) => set({ step }),
             updateData: (newData) => set((state) => ({
@@ -69,8 +71,14 @@ export const useBuilderStore = create<BuilderState>()(
             })),
 
             // Hydrate topic/twist from localStorage (set by chat handoff)
-            hydrateFromChat: (currentUserId) => {
+            hydrateFromChat: (currentUserId, existingProject, existingIsPaid) => {
                 if (typeof window === 'undefined') return false;
+
+                // Don't overwrite if server already hydrated
+                if (get().hasServerHydrated) {
+                    console.log('[Builder] Server already hydrated, skipping chat hydration');
+                    return false;
+                }
 
                 const stored = localStorage.getItem(CHAT_HANDOFF_KEY);
                 if (!stored) return false;
@@ -94,7 +102,48 @@ export const useBuilderStore = create<BuilderState>()(
                         return false;
                     }
 
-                    // Only hydrate if we don't already have data
+                    // CRITICAL FIX: Prevent downgrading a Paid Project
+                    // If the server project matches the handoff topic and is PAID, ignore the handoff
+                    if (existingProject && existingIsPaid) {
+                        // Normalize strings for comparison
+                        const serverTopic = existingProject.topic?.trim().toLowerCase();
+                        const handoffTopic = topic?.trim().toLowerCase();
+
+                        if (serverTopic === handoffTopic) {
+                            console.log('[Builder] Server project is PAID and matches handoff. Ignoring handoff to prevent downgrade.');
+                            localStorage.removeItem(CHAT_HANDOFF_KEY); // Safe to remove as it's now represented by the server
+                            return false;
+                        }
+                    }
+
+                    // LOGIC CHANGE: If handoff is VERY fresh (< 5 mins), valid user intent overrides server state
+                    const minutesOld = hoursOld * 60;
+                    const isFreshHandoff = minutesOld < 5;
+
+                    // If it's a fresh handoff, we prioritize it even if server data exists (UNLESS it was paid above)
+                    if (isFreshHandoff) {
+                        console.log('[Builder] Fresh handoff detected, overriding server data', { minutesOld });
+                        // ... (rest of logic)
+                        set({
+                            data: {
+                                ...get().data, // Keep valid fields like userId
+                                topic,
+                                twist: twist || '',
+                                abstract: '', // Reset derivative fields
+                                outline: [],
+                                projectId: null, // Reset ID to ensure new project creation
+                                status: 'OUTLINE_GENERATED' // Reset status
+                            },
+                            step: 'TOPIC', // Reset step to confirm topic
+                            isFromChat: true,
+                            isPaid: false // Reset payment status for new flow
+                        });
+                        // Clear the key immediately after consuming to prevent loop on refresh
+                        localStorage.removeItem(CHAT_HANDOFF_KEY);
+                        return true;
+                    }
+
+                    // Standard hydration (only if empty)
                     if (!get().data.topic) {
                         set({
                             data: { ...get().data, topic, twist: twist || '', userId: currentUserId || null },
@@ -122,7 +171,13 @@ export const useBuilderStore = create<BuilderState>()(
 
             // Sync state with current authenticated user
             syncWithUser: (userId) => {
-                const currentData = get().data;
+                const { data: currentData, hasServerHydrated } = get();
+
+                // If server has already hydrated, don't let localStorage-based logic overwrite
+                if (hasServerHydrated) {
+                    console.log('[Builder] Server already hydrated, skipping syncWithUser reset');
+                    return;
+                }
 
                 // CASE 1: Transitioning from Anonymous to Authenticated
                 // If we have valid generated content but no user owner, allow the new user to claim it
@@ -134,10 +189,34 @@ export const useBuilderStore = create<BuilderState>()(
                     return;
                 }
 
-                // CASE 2: User changed (Account switch or Logout)
-                // If user changed, or if we have data but no userId associated, or if we are switching to null (logout)
-                if (currentData.userId !== userId) {
-                    console.log('[Builder] Account change detected. Syncing store.', { old: currentData.userId, new: userId });
+                // CASE 2: Explicit logout (userId becomes null from a valid user)
+                // Only reset if we're actually logging out, not on initial load from localStorage
+                if (currentData.userId !== null && userId === null) {
+                    console.log('[Builder] Logout detected. Clearing store.');
+                    set({
+                        data: {
+                            userId: null,
+                            projectId: null,
+                            topic: '',
+                            twist: '',
+                            abstract: '',
+                            outline: [],
+                            mode: null,
+                            status: 'OUTLINE_GENERATED'
+                        },
+                        step: 'TOPIC',
+                        isPaid: false,
+                        isFromChat: false,
+                        hasServerHydrated: false
+                    });
+                    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                    return;
+                }
+
+                // CASE 3: Different authenticated user (account switch)
+                // Only reset if BOTH are valid users and they differ
+                if (currentData.userId !== null && userId !== null && currentData.userId !== userId) {
+                    console.log('[Builder] Account switch detected.', { old: currentData.userId, new: userId });
                     set({
                         data: {
                             userId,
@@ -151,16 +230,23 @@ export const useBuilderStore = create<BuilderState>()(
                         },
                         step: 'TOPIC',
                         isPaid: false,
-                        isFromChat: false
+                        isFromChat: false,
+                        hasServerHydrated: false
                     });
-                    // Also clear potential chat handoff if switching accounts
                     localStorage.removeItem(CHAT_HANDOFF_KEY);
                 }
             },
 
             // Load a full project object (e.g. from server)
+            // This is the source of truth - marks hasServerHydrated to prevent overwrites
             loadProject: (projectData, isPaid = false) => {
                 console.log('[Builder] Hydrating from server project', { id: projectData.projectId, isPaid, outlineLen: projectData.outline?.length });
+
+                // Clear any stale chat handoff data - BUT wait for effective consumption
+                // if (typeof window !== 'undefined') {
+                //    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                // }
+
                 set((state) => ({
                     // Determine step based on data presence
                     step: (projectData.outline && projectData.outline.length > 0) ? 'OUTLINE'
@@ -171,8 +257,9 @@ export const useBuilderStore = create<BuilderState>()(
                         ...state.data,
                         ...projectData
                     },
-                    isPaid: isPaid ?? false, // Hydrate payment status
-                    isFromChat: false
+                    isPaid: isPaid ?? false, // Hydrate payment status from server
+                    isFromChat: false,
+                    hasServerHydrated: true // Mark that server data is now loaded - prevents overwrites
                 }));
             }
         }),
@@ -180,10 +267,11 @@ export const useBuilderStore = create<BuilderState>()(
             name: 'jstar-builder-storage', // unique name
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
-                // Only persist data and step, not UI flags like isGenerating
-                step: state.step,
+                // Only persist data, not step or UI flags
+                // NOTE: step is NOT persisted - server determines step from data presence
+                // NOTE: isPaid is NOT persisted - server is source of truth for payment
+                // NOTE: hasServerHydrated is NOT persisted - resets each session
                 data: state.data,
-                isPaid: state.isPaid,
                 isFromChat: state.isFromChat
             }),
         }

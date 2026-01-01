@@ -10,7 +10,15 @@ async function getProject(id: string) {
         where: { id },
         include: {
             documents: {
-                orderBy: { createdAt: "desc" }
+                orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    fileName: true,
+                    fileType: true,
+                    fileUrl: true,
+                    status: true,
+                    createdAt: true,
+                }
             },
             messages: {
                 orderBy: { createdAt: "asc" }
@@ -20,17 +28,24 @@ async function getProject(id: string) {
     });
 }
 
+import { getProjectBillingDetails } from "@/app/actions/billing";
+
 export default async function AdminProjectPage({
     params
 }: {
     params: Promise<{ id: string }>
 }) {
     const { id } = await params;
-    const project = await getProject(id);
+
+    // Parallel fetch for speed
+    const [project, billing] = await Promise.all([
+        getProject(id),
+        getProjectBillingDetails(id)
+    ]);
 
     if (!project) {
         notFound();
     }
 
-    return <AdminProjectDetail project={project} />;
+    return <AdminProjectDetail project={project} billing={billing} />;
 }

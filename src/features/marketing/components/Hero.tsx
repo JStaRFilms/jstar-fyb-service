@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { Code, Cpu, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useSession } from '@/lib/auth-client';
 
 export function Hero() {
+    const session = useSession();
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
     useEffect(() => {
@@ -118,10 +120,10 @@ export function Hero() {
                     className="flex flex-col md:flex-row gap-6 justify-center items-center"
                 >
                     <Link
-                        href="/auth/register"
+                        href={session?.data ? "/dashboard" : "/auth/register"}
                         className="px-10 py-5 bg-primary rounded-xl font-display font-bold tracking-wide uppercase hover:scale-105 transition-transform duration-300 glow-box w-full md:w-auto text-white flex items-center justify-center"
                     >
-                        Get Started Now
+                        {session?.data ? "Go to Dashboard" : "Get Started Now"}
                     </Link>
                     <Link
                         href="#showcase"

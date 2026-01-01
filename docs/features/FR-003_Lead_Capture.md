@@ -35,6 +35,10 @@ model Lead {
 - **Hook**: `src/features/bot/hooks/useChatFlow.tsx`
     - In `state === "CLOSING"`, captures WhatsApp number and calls `saveLeadAction`.
     - Automatically links to authenticated WorkOS `userId` if the user is signed in.
+    - **Intelligent Trigger**: 
+        - Scans AI messages for "WhatsApp" keyword.
+        - Injects synthetic tool calls if the AI forgets to trigger the UI explicitly.
+        - **Smart Loop Prevention**: Suppresses triggers if user already provided a phone number in the current session or last 3 messages.
 - **Action**: `src/features/bot/actions/chat.ts`
     - `saveLeadAction`: Validates and upserts lead data into the SQLite database.
     - **Anonymous Tracking**: Captures `anonymousId` from cookies to link leads to users post-signup.

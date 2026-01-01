@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 export const UpsellBanner = () => {
     return (
@@ -9,9 +10,12 @@ export const UpsellBanner = () => {
                 <p className="text-white/80 text-sm mb-4">
                     Our agency experts can review your code or write your defense speech.
                 </p>
-                <button className="px-6 py-3 bg-white text-primary font-bold rounded-xl text-sm hover:scale-105 transition-transform shadow-lg">
+                <Link
+                    href="/services"
+                    className="inline-block px-6 py-3 bg-white text-primary font-bold rounded-xl text-sm hover:scale-105 transition-transform shadow-lg"
+                >
                     Hire an Expert
-                </button>
+                </Link>
             </div>
         </div>
     );

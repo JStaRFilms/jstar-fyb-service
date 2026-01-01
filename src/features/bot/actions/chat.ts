@@ -6,9 +6,9 @@ import { z } from 'zod';
 
 // Input validation schema
 const saveConversationSchema = z.object({
-    conversationId: z.string().uuid().optional(),
-    anonymousId: z.string().optional(), // Relaxed to allow empty string during initialization
-    userId: z.string().uuid().optional(),
+    conversationId: z.string().optional(),
+    anonymousId: z.string().optional(),
+    userId: z.string().optional(), // Removed .uuid() to support CUIDs (better-auth)
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant', 'system']),
         content: z.union([z.string(), z.array(z.any())]),
@@ -58,6 +58,9 @@ export async function saveConversation({
             userId,
             messages,
         });
+
+        // Validated
+
 
         if (!validation.success) {
             console.error('Validation failed:', validation.error);
@@ -176,8 +179,8 @@ export async function getLatestConversation({
         return await prisma.conversation.findFirst({
             where: {
                 userId: userId,
-                // CRITICAL SECURITY FIX: Ensure no anonymousId conflicts - exclude any conversations with anonymousId
-                anonymousId: null
+                // Note: We allow conversations with anonymousId set, as these are migrated sessions.
+                // The userId check is sufficient for security.
             },
             include: {
                 messages: {
@@ -219,6 +222,11 @@ export async function mergeAnonymousData(anonymousId: string, userId: string) {
             }),
             // Update Leads
             prisma.lead.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
+            }),
+            // Update Projects (Fix for stranded anonymous projects)
+            prisma.project.updateMany({
                 where: { anonymousId: anonymousId, userId: null },
                 data: { userId: userId },
             })

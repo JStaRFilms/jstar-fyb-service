@@ -24,7 +24,15 @@ const STATUS_OPTIONS = [
     "PROJECT_COMPLETE"
 ];
 
-export function AdminProjectDetail({ project }: { project: Project }) {
+import { SendPaymentLinkButton } from "./SendPaymentLinkButton"; // Import Button
+
+type BillingDetails = {
+    totalPaid: number;
+    currentTrack: string;
+    isAgencyMode: boolean;
+};
+
+export function AdminProjectDetail({ project, billing }: { project: Project, billing: BillingDetails }) {
     const [status, setStatus] = useState(project.status);
     const [messages, setMessages] = useState(project.messages);
     const [newMessage, setNewMessage] = useState("");
@@ -79,14 +87,28 @@ export function AdminProjectDetail({ project }: { project: Project }) {
                 <header className="mb-8">
                     <div className="flex items-start justify-between">
                         <div>
-                            <h1 className="text-2xl font-display font-bold mb-1">{project.topic}</h1>
+                            <div className="flex items-center gap-3 mb-1">
+                                <h1 className="text-2xl font-display font-bold">{project.topic}</h1>
+                                {billing.totalPaid > 0 && (
+                                    <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-[10px] font-bold uppercase tracking-wider rounded border border-green-500/20">
+                                        Paid: ₦{billing.totalPaid.toLocaleString()}
+                                    </span>
+                                )}
+                            </div>
                             <p className="text-gray-500 text-sm">{project.twist}</p>
                         </div>
                         <div className="flex items-center gap-4">
+                            {/* NEW: Payment Link Button for PRORATED Upgrades */}
+                            <SendPaymentLinkButton
+                                projectId={project.id}
+                                totalPaid={billing.totalPaid}
+                            />
+
                             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${project.mode === "CONCIERGE" ? "bg-accent" : "bg-gray-600"
                                 }`}>
                                 {project.mode}
                             </span>
+
                             <select
                                 value={status}
                                 onChange={(e) => handleStatusChange(e.target.value)}

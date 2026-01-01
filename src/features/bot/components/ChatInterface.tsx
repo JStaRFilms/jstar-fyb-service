@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User, AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
@@ -8,6 +9,7 @@ import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ComplexityMeter } from "./ComplexityMeter";
 import { SuggestionChips } from "./SuggestionChips";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,10 +17,16 @@ import { useSession } from "@/lib/auth-client";
 import { mergeAnonymousData } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
-export function ChatInterface() {
+interface ChatInterfaceProps {
+    initialUser?: any; // Replace 'any' with proper User type if available, e.g. from better-auth
+}
+
+export function ChatInterface({ initialUser }: ChatInterfaceProps) {
+    const router = useRouter();
     const { data: session } = useSession();
-    const user = session?.user;
-    const { messages, state, complexity, isLoading, confirmedTopic, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
+    // Prioritize session user if available (client update), otherwise fallback to server passed user
+    const user = session?.user || initialUser;
+    const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +37,7 @@ export function ChatInterface() {
             // Merge it!
             mergeAnonymousData(anonymousId, user.id || "")
                 .then(() => {
-                    // console.log("Merged history");
+                    console.log("Merged history");
                     // specific cleanup if needed, keeping anonymousId is fine for session continuity
                 })
                 .catch((err) => {
@@ -58,9 +66,9 @@ export function ChatInterface() {
             {/* Header */}
             <header className="h-16 flex items-center justify-between px-4 border-b border-white/5 bg-dark/80 backdrop-blur-md z-20 shrink-0">
                 <div className="flex items-center gap-3">
-                    <Link href="/" className="p-2 rounded-full hover:bg-white/5 text-gray-400">
+                    <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-white/5 text-gray-400">
                         <ArrowLeft className="w-5 h-5" />
-                    </Link>
+                    </button>
                     <div>
                         <h1 className="font-display font-bold text-lg tracking-wide hidden md:block">Project Consultant</h1>
                         <h1 className="font-display font-bold text-lg tracking-wide md:hidden">Jay</h1>
@@ -80,9 +88,7 @@ export function ChatInterface() {
                     {/* Auth Button */}
                     {user ? (
                         <div className="flex items-center gap-3 pl-3 border-l border-white/10">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold ring-2 ring-white/10">
-                                {user.name?.charAt(0) || "U"}
-                            </div>
+                            <UserAvatar name={user.name} image={user.image} size="sm" />
                             <button
                                 onClick={() => signOutAction()}
                                 className="p-2 rounded-full hover:bg-white/5 text-gray-400 hover:text-red-400 transition-colors"
@@ -92,7 +98,7 @@ export function ChatInterface() {
                         </div>
                     ) : (
                         <button
-                            onClick={() => signInAction()}
+                            onClick={() => router.push('/auth/login?callbackUrl=' + encodeURIComponent('/chat'))}
                             className="px-4 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 text-xs font-bold text-primary transition-all flex items-center gap-2"
                         >
                             <User className="w-3 h-3" />
@@ -102,12 +108,17 @@ export function ChatInterface() {
                 </div>
             </header>
 
-            {/* Chat Area */}
-            <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
-                <ErrorBoundary>
-                    {/* Error Alert */}
-                    {error && (
-                        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400">
+            {/* Sticky Error Banner */}
+            <AnimatePresence>
+                {error && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        className="sticky top-0 z-10 mx-4 mt-2"
+                    >
+                        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 backdrop-blur-md shadow-lg shadow-red-500/5">
                             <AlertTriangle className="w-5 h-5 shrink-0" />
                             <p className="text-sm flex-1">Something went wrong. Please try again.</p>
                             <button
@@ -118,7 +129,13 @@ export function ChatInterface() {
                                 Retry
                             </button>
                         </div>
-                    )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Chat Area */}
+            <main className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
+                <ErrorBoundary>
                     <AnimatePresence>
                         {messages.map((msg) => (
                             <div key={msg.id} className="flex flex-col gap-2">
@@ -215,12 +232,34 @@ export function ChatInterface() {
 
                     {/* Smart Suggestion Chips - shown after last AI message */}
                     {messages.length > 0 && messages[messages.length - 1].role === 'ai' && (
-                        <div className="ml-0 md:ml-14 max-w-2xl">
+                        <div className="ml-0 md:ml-14 max-w-2xl space-y-4">
+                            {/* Fallback Context Card - When bot stuck but we have user's info */}
+                            {hasProvidedPhone && !confirmedTopic && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-gradient-to-r from-accent/20 to-primary/20 border border-accent/30 rounded-2xl p-4 shadow-lg"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-accent/30 flex items-center justify-center shrink-0">
+                                            <span className="text-xl">✅</span>
+                                        </div>
+                                        <div>
+                                            <h3 className="font-display font-bold text-white text-sm">Got Your Info!</h3>
+                                            <p className="text-xs text-gray-300 mt-1">
+                                                We've saved your details. Jay got a bit tangled up, but no worries — you can head straight to the Builder to start your project!
+                                            </p>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
                             <SuggestionChips
                                 confirmedTopic={confirmedTopic}
                                 onAction={handleAction}
                                 onProceed={proceedToBuilder}
                                 isLoading={isLoading}
+                                hasProvidedPhone={hasProvidedPhone}
                             />
                         </div>
                     )}

@@ -74,35 +74,25 @@ export async function POST(req: Request) {
             prompt: `Write the abstract for "${topic}" with enhanced context.`,
         });
 
-        // Store the abstract in the database
+        // Store the abstract in the database IF there's an existing project
+        // NOTE: We don't CREATE projects here - that's handled by createProjectAction
+        // We only UPDATE existing projects to avoid title conflicts
         const abstractText = await result.text;
         if (abstractText) {
             try {
-                // Check if we have a project context (for authenticated users)
                 const user = await getCurrentUser();
                 if (user) {
-                    // Find existing project or create a new one
-                    let project = await prisma.project.findFirst({
+                    // Only update existing project - don't create new ones
+                    const existingProject = await prisma.project.findFirst({
                         where: {
                             topic: topic,
                             userId: user.id
                         }
                     });
 
-                    if (!project) {
-                        // Create new project
-                        project = await prisma.project.create({
-                            data: {
-                                topic: topic,
-                                twist: twist,
-                                abstract: abstractText,
-                                userId: user.id
-                            }
-                        });
-                    } else {
-                        // Update existing project with abstract
+                    if (existingProject) {
                         await prisma.project.update({
-                            where: { id: project.id },
+                            where: { id: existingProject.id },
                             data: {
                                 twist: twist,
                                 abstract: abstractText,
@@ -110,6 +100,7 @@ export async function POST(req: Request) {
                             }
                         });
                     }
+                    // If no existing project, the abstract will be saved when user clicks "Confirm & Generate"
                 }
             } catch (dbError) {
                 console.error('[GenerateAbstract] Failed to store abstract in database:', dbError);

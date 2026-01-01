@@ -109,6 +109,7 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String       // 'user' | 'assistant'
   content        String
+  toolInvocations Json?   // Store AI tool calls/results
   createdAt      DateTime     @default(now())
 }
 
@@ -246,6 +247,7 @@ model ProjectChatMessage {
   conversation   ProjectConversation @relation(fields: [conversationId], references: [id])
   role           String   // 'user' | 'assistant'
   content        String
+  toolInvocations Json?   // Store AI tool calls/results
   createdAt      DateTime @default(now())
 }
 

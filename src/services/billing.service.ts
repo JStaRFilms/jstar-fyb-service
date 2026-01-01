@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getTierByPrice } from "@/config/pricing";
 
 export interface PaymentData {
     reference: string;
@@ -23,7 +24,7 @@ export const BillingService = {
      */
     async recordPayment(data: PaymentData) {
         const projectId = data.metadata?.projectId;
-        
+
         if (!projectId) {
             console.error('[BillingService] No projectId found in payment metadata', data.reference);
             // We might still want to record the payment, but we can't link it to a project easily without the ID.
@@ -53,7 +54,7 @@ export const BillingService = {
         if (!project) {
             throw new Error(`Project not found for ID: ${projectId}`);
         }
-        
+
         // If the project has no user assigned yet (e.g. anonymous), we might want to attach this user?
         // For now, assume the user exists or is handled. The Payment model requires userId.
         // If project.userId is null (anonymous), we need a userId.
@@ -61,10 +62,10 @@ export const BillingService = {
         let userId = project.userId;
 
         if (!userId) {
-             const user = await prisma.user.findUnique({
-                 where: { email: data.customer.email }
-             });
-             userId = user?.id || null;
+            const user = await prisma.user.findUnique({
+                where: { email: data.customer.email }
+            });
+            userId = user?.id || null;
         }
 
         if (!userId) {
@@ -89,7 +90,7 @@ export const BillingService = {
         });
 
         // 4. Unlock Project
-        await this.updateProjectUnlock(projectId);
+        await this.updateProjectUnlock(projectId, data.amount);
 
         return payment;
     },
@@ -97,13 +98,31 @@ export const BillingService = {
     /**
      * Unlock a project for full access
      */
-    async updateProjectUnlock(projectId: string) {
+    async updateProjectUnlock(projectId: string, amountKobo?: number) {
+        let updateData: any = {
+            isUnlocked: true,
+            status: 'RESEARCH_IN_PROGRESS' // Or whatever the next state should be after payment
+        };
+
+        if (amountKobo) {
+            // Paystack sends amount in Kobo
+            const amountNaira = amountKobo / 100;
+            const tier = getTierByPrice(amountNaira);
+
+            if (tier) {
+                // Infer Mode from Tier ID
+                // Agency tiers start with 'AGENCY'
+                const isAgency = tier.id.startsWith('AGENCY');
+                updateData.mode = isAgency ? 'CONCIERGE' : 'DIY';
+                console.log(`[BillingService] Inferred mode from price ${amountNaira}: ${updateData.mode}`);
+            } else {
+                console.warn(`[BillingService] Could not find tier for price ${amountNaira}`);
+            }
+        }
+
         await prisma.project.update({
             where: { id: projectId },
-            data: { 
-                isUnlocked: true,
-                status: 'RESEARCH_IN_PROGRESS' // Or whatever the next state should be after payment
-            }
+            data: updateData
         });
         console.log(`[BillingService] Unlocked project: ${projectId}`);
     },
