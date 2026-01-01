@@ -8,11 +8,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TopicSelector } from "@/features/builder/components/TopicSelector";
 import { AbstractGenerator } from "@/features/builder/components/AbstractGenerator";
 import { ChapterOutliner } from "@/features/builder/components/ChapterOutliner";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 import { useSession } from "@/lib/auth-client";
 import { mergeAnonymousData } from "@/features/bot/actions/chat";
+import { usePaymentVerification } from "@/features/builder/hooks/usePaymentVerification";
 
 interface BuilderClientProps {
     serverProject?: Partial<ProjectData> | null;
@@ -22,8 +23,11 @@ interface BuilderClientProps {
 export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderClientProps) {
     const { data: session, isPending } = useSession();
     const router = useRouter();
-    const { step, updateData, syncWithUser, hydrateFromChat, loadProject } = useBuilderStore();
+    const { step, updateData, syncWithUser, hydrateFromChat, loadProject, isPaid, unlockPaywall } = useBuilderStore();
     const searchParams = useSearchParams();
+
+    // CRITICAL: Run payment verification at the TOP LEVEL so it runs on ALL steps, not just OUTLINE
+    const { isVerifying, verificationResult } = usePaymentVerification(isPaid, unlockPaywall);
 
     // Scroll to top on mount to prevent starting at upgrade section
     useEffect(() => {
@@ -39,7 +43,8 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
 
         // STEP 1: Check for Fresh Chat Handoff (Top Priority)
         // If a new handoff exists (e.g. user just clicked "Build"), it overrides any existing server draft
-        const hasFreshHandoff = hydrateFromChat(session?.user?.id);
+        // UNLESS the server draft is PAID and matches the handoff (Prevent Downgrade)
+        const hasFreshHandoff = hydrateFromChat(session?.user?.id, serverProject, serverIsPaid);
 
         if (hasFreshHandoff) {
             console.log('[BuilderClient] Fresh chat handoff applied. Skipping server load.');
@@ -90,6 +95,16 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
 
     return (
         <div className="w-full">
+            {/* Payment Verification Loading Overlay */}
+            {isVerifying && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+                    <div className="text-center">
+                        <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+                        <p className="text-white font-bold text-lg">Verifying Payment...</p>
+                        <p className="text-gray-400 text-sm">Please wait while we confirm your payment.</p>
+                    </div>
+                </div>
+            )}
             {/* Progress Toolbar */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">

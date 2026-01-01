@@ -33,7 +33,7 @@ interface BuilderState {
     setGenerating: (isGenerating: boolean) => void;
     unlockPaywall: () => void;
     setMode: (mode: ProjectMode) => void;
-    hydrateFromChat: (userId?: string | null) => boolean;
+    hydrateFromChat: (userId?: string | null, existingProject?: Partial<ProjectData> | null, existingIsPaid?: boolean) => boolean;
     clearChatData: () => void;
     syncWithUser: (userId: string | null) => void;
     loadProject: (data: Partial<ProjectData>, isPaid?: boolean) => void;
@@ -71,7 +71,7 @@ export const useBuilderStore = create<BuilderState>()(
             })),
 
             // Hydrate topic/twist from localStorage (set by chat handoff)
-            hydrateFromChat: (currentUserId) => {
+            hydrateFromChat: (currentUserId, existingProject, existingIsPaid) => {
                 if (typeof window === 'undefined') return false;
 
                 // Don't overwrite if server already hydrated
@@ -102,13 +102,28 @@ export const useBuilderStore = create<BuilderState>()(
                         return false;
                     }
 
+                    // CRITICAL FIX: Prevent downgrading a Paid Project
+                    // If the server project matches the handoff topic and is PAID, ignore the handoff
+                    if (existingProject && existingIsPaid) {
+                        // Normalize strings for comparison
+                        const serverTopic = existingProject.topic?.trim().toLowerCase();
+                        const handoffTopic = topic?.trim().toLowerCase();
+
+                        if (serverTopic === handoffTopic) {
+                            console.log('[Builder] Server project is PAID and matches handoff. Ignoring handoff to prevent downgrade.');
+                            localStorage.removeItem(CHAT_HANDOFF_KEY); // Safe to remove as it's now represented by the server
+                            return false;
+                        }
+                    }
+
                     // LOGIC CHANGE: If handoff is VERY fresh (< 5 mins), valid user intent overrides server state
                     const minutesOld = hoursOld * 60;
                     const isFreshHandoff = minutesOld < 5;
 
-                    // If it's a fresh handoff, we prioritize it even if server data exists
+                    // If it's a fresh handoff, we prioritize it even if server data exists (UNLESS it was paid above)
                     if (isFreshHandoff) {
                         console.log('[Builder] Fresh handoff detected, overriding server data', { minutesOld });
+                        // ... (rest of logic)
                         set({
                             data: {
                                 ...get().data, // Keep valid fields like userId

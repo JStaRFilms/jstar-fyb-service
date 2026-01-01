@@ -224,6 +224,11 @@ export async function mergeAnonymousData(anonymousId: string, userId: string) {
             prisma.lead.updateMany({
                 where: { anonymousId: anonymousId, userId: null },
                 data: { userId: userId },
+            }),
+            // Update Projects (Fix for stranded anonymous projects)
+            prisma.project.updateMany({
+                where: { anonymousId: anonymousId, userId: null },
+                data: { userId: userId },
             })
         ]);
         return { success: true };

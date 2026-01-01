@@ -102,7 +102,7 @@ export async function POST(
                     { display_name: "Tier", variable_name: "tier", value: tier }
                 ]
             },
-            callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/project/builder?payment_ref=${reference}` // Redirect back to builder
+            callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/project/builder?projectId=${project.id}&payment_ref=${reference}` // Redirect back to builder with projectId
         });
 
         // 6. Notify (Optional - Internal Log)

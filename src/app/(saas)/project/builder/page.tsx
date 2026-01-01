@@ -5,22 +5,42 @@ import { ProjectData } from "@/features/builder/store/useBuilderStore";
 import { BuilderClient } from "./BuilderClient"; // We'll assume it's in the same folder
 import { Chapter } from "@/features/builder/schemas/outlineSchema";
 
-export default async function BuilderPage() {
+interface PageProps {
+    searchParams: Promise<{ projectId?: string; payment_ref?: string }>;
+}
+
+export default async function BuilderPage({ searchParams }: PageProps) {
     const user = await getCurrentUser();
+    const params = await searchParams;
+    const targetProjectId = params?.projectId; // From upgrade callback URL
+
     let serverProject: Partial<ProjectData> | null = null;
 
     if (user) {
-        // Find the most recent incomplete project or just the most recent one?
-        // Dashboard picks the most recent. Let's do the same.
-        // Also maybe exclude 'PROJECT_COMPLETE' if we want to force new?
-        // For now, let's just pick the latest project period, to match Dashboard.
-        const recentProject = await prisma.project.findFirst({
-            where: { userId: user.id },
-            orderBy: { updatedAt: 'desc' },
-            include: {
-                outline: true
+        let recentProject = null;
+
+        // Priority 1: If projectId is specified in URL (e.g., from upgrade callback), load THAT project
+        if (targetProjectId) {
+            console.log(`[BuilderPage] Loading specific project from URL: ${targetProjectId}`);
+            recentProject = await prisma.project.findUnique({
+                where: { id: targetProjectId },
+                include: { outline: true }
+            });
+            // Security: Verify the project belongs to this user (or is anonymous and claimable)
+            if (recentProject && recentProject.userId && recentProject.userId !== user.id) {
+                console.warn(`[BuilderPage] User ${user.id} tried to access project ${targetProjectId} owned by ${recentProject.userId}`);
+                recentProject = null; // Don't load someone else's project
             }
-        });
+        }
+
+        // Priority 2: Otherwise, load the user's most recent project
+        if (!recentProject) {
+            recentProject = await prisma.project.findFirst({
+                where: { userId: user.id },
+                orderBy: { updatedAt: 'desc' },
+                include: { outline: true }
+            });
+        }
 
         if (recentProject) {
             // Map to ProjectData

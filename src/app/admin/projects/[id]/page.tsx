@@ -20,17 +20,24 @@ async function getProject(id: string) {
     });
 }
 
+import { getProjectBillingDetails } from "@/app/actions/billing";
+
 export default async function AdminProjectPage({
     params
 }: {
     params: Promise<{ id: string }>
 }) {
     const { id } = await params;
-    const project = await getProject(id);
+
+    // Parallel fetch for speed
+    const [project, billing] = await Promise.all([
+        getProject(id),
+        getProjectBillingDetails(id)
+    ]);
 
     if (!project) {
         notFound();
     }
 
-    return <AdminProjectDetail project={project} />;
+    return <AdminProjectDetail project={project} billing={billing} />;
 }
