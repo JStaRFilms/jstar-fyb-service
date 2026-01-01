@@ -37,22 +37,26 @@ export function BuilderClient({ serverProject, serverIsPaid = false }: BuilderCl
         // Wait for auth to resolve before doing anything
         if (isPending) return;
 
-        // STEP 1: Load server project FIRST if available (highest priority)
-        // This marks hasServerHydrated=true which blocks other hydration
+        // STEP 1: Check for Fresh Chat Handoff (Top Priority)
+        // If a new handoff exists (e.g. user just clicked "Build"), it overrides any existing server draft
+        const hasFreshHandoff = hydrateFromChat(session?.user?.id);
+
+        if (hasFreshHandoff) {
+            console.log('[BuilderClient] Fresh chat handoff applied. Skipping server load.');
+            // We intentionally DO NOT load server project if handoff claimed priority
+            return;
+        }
+
+        // STEP 2: Load server project if available (Secondary Priority)
+        // Only if no fresh handoff occurred
         if (serverProject) {
             loadProject(serverProject, serverIsPaid);
             console.log('[BuilderClient] Hydrated from server', { projectId: serverProject.projectId, isPaid: serverIsPaid });
         }
 
-        // STEP 2: Sync with current user (only runs destructive reset on actual logout/account-switch)
-        // The store's syncWithUser now checks hasServerHydrated to avoid resetting server data
+        // STEP 3: Sync with current user (only runs destructive reset on actual logout/account-switch)
         syncWithUser(session?.user?.id || null);
 
-        // STEP 3: Only try chat hydration if NO server project was loaded
-        // hydrateFromChat only fills in if topic is empty, so it won't overwrite
-        if (!serverProject) {
-            hydrateFromChat(session?.user?.id);
-        }
     }, [isPending, serverProject, serverIsPaid, session?.user?.id, loadProject, syncWithUser, hydrateFromChat]);
 
     // 1. Auth Guard: Redirect to Login if not authenticated

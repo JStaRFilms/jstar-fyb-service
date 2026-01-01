@@ -55,9 +55,11 @@ The Builder now uses a **Hybrid Hydration Strategy**:
     - **Benefit**: Fixes sync issues across devices and ensures payment status is truthful.
 
 2.  **Client-Side (Handoff)**:
-    - IF no server project exists (new user from chat):
-    - `hydrateFromChat()` checks `localStorage`.
-    - Populates topic/twist from the Chat session.
+    - **Fresh Override Strategy**:
+        - `hydrateFromChat()` checks if handoff data is **< 5 minutes old**.
+        - If FRESH: It **overrides** any existing server draft (forcing "New Project" state).
+        - If STALE/EMPTY: It only hydrates if the current project is empty.
+    - **Outcome**: Users coming effectively from Chat always see their new topic, even if they have an old draft.
 
 ---
 
@@ -200,4 +202,9 @@ const PLACEHOLDER_CHAPTERS = [
 - `hydrateFromChat()` now checks `hasServerHydrated` before attempting hydration.
 - Fixed PDF upload validation (broken EOF check was rejecting valid PDFs).
 - Abstract generation API no longer creates duplicate projects (only updates existing).
+
+### 2026-01-01: Critical Handoff Fix
+- **Problem**: Login via Chat Handoff was loading old server drafts instead of the new chat topic.
+- **Solution**: Implemented "Freshness Override" in `BuilderClient`. If chat data is < 5 mins old, it takes priority over server data.
+- **Logic**: `hydrateFromChat` now accepts a user ID and performs a time-check before wiping/setting state.
 

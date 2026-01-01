@@ -127,11 +127,6 @@ export async function saveConversation({
                 prisma.message.createMany({
                     data: messagesToCreate,
                 }),
-                // Update timestamp so this conversation floats to the top
-                prisma.conversation.update({
-                    where: { id: conversation.id },
-                    data: { updatedAt: new Date() }
-                })
             ]);
         } catch (error) {
             console.error('[saveConversation] Failed to update messages:', error);
@@ -220,13 +215,10 @@ export async function getLatestConversation({
 export async function mergeAnonymousData(anonymousId: string, userId: string) {
     try {
         await prisma.$transaction([
-            // Update Conversations - Touch updatedAt to ensure it appears as latest
+            // Update Conversations
             prisma.conversation.updateMany({
                 where: { anonymousId: anonymousId, userId: null },
-                data: {
-                    userId: userId,
-                    updatedAt: new Date()
-                },
+                data: { userId: userId },
             }),
             // Update Leads
             prisma.lead.updateMany({

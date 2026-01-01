@@ -102,7 +102,33 @@ export const useBuilderStore = create<BuilderState>()(
                         return false;
                     }
 
-                    // Only hydrate if we don't already have data
+                    // LOGIC CHANGE: If handoff is VERY fresh (< 5 mins), valid user intent overrides server state
+                    const minutesOld = hoursOld * 60;
+                    const isFreshHandoff = minutesOld < 5;
+
+                    // If it's a fresh handoff, we prioritize it even if server data exists
+                    if (isFreshHandoff) {
+                        console.log('[Builder] Fresh handoff detected, overriding server data', { minutesOld });
+                        set({
+                            data: {
+                                ...get().data, // Keep valid fields like userId
+                                topic,
+                                twist: twist || '',
+                                abstract: '', // Reset derivative fields
+                                outline: [],
+                                projectId: null, // Reset ID to ensure new project creation
+                                status: 'OUTLINE_GENERATED' // Reset status
+                            },
+                            step: 'TOPIC', // Reset step to confirm topic
+                            isFromChat: true,
+                            isPaid: false // Reset payment status for new flow
+                        });
+                        // Clear the key immediately after consuming to prevent loop on refresh
+                        localStorage.removeItem(CHAT_HANDOFF_KEY);
+                        return true;
+                    }
+
+                    // Standard hydration (only if empty)
                     if (!get().data.topic) {
                         set({
                             data: { ...get().data, topic, twist: twist || '', userId: currentUserId || null },
@@ -201,10 +227,10 @@ export const useBuilderStore = create<BuilderState>()(
             loadProject: (projectData, isPaid = false) => {
                 console.log('[Builder] Hydrating from server project', { id: projectData.projectId, isPaid, outlineLen: projectData.outline?.length });
 
-                // Clear any stale chat handoff data to prevent topic conflicts
-                if (typeof window !== 'undefined') {
-                    localStorage.removeItem(CHAT_HANDOFF_KEY);
-                }
+                // Clear any stale chat handoff data - BUT wait for effective consumption
+                // if (typeof window !== 'undefined') {
+                //    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                // }
 
                 set((state) => ({
                     // Determine step based on data presence

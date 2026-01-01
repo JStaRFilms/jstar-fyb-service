@@ -18,6 +18,32 @@ export interface ConfirmedTopic {
     twist: string;
 }
 
+// ==============================================
+// Phone Number Detection Utility
+// ==============================================
+// Robust regex to detect phone numbers with:
+// - Optional country code (+234, +1, etc.)
+// - Spaces, dashes, parentheses
+// - Nigerian format (0803..., 234803...)
+// - Minimum 10 digits to avoid false positives
+const detectPhoneNumber = (text: string): string | null => {
+    const cleanedText = text.replace(/[\s\-().]/g, '');
+    // Match international or local phone patterns
+    const phoneRegex = /^\+?\d{10,15}$/;
+    if (phoneRegex.test(cleanedText)) {
+        return cleanedText; // Return cleaned number
+    }
+    // Try to extract phone from longer text (e.g., "My number is 08012345678")
+    const extractMatch = text.match(/(?:\+?\d[\d\s\-().]{9,17}\d)/);
+    if (extractMatch) {
+        const extracted = extractMatch[0].replace(/[\s\-().]/g, '');
+        if (extracted.length >= 10 && extracted.length <= 15) {
+            return extracted;
+        }
+    }
+    return null;
+};
+
 export function useChatFlow(userId?: string) {
     const router = useRouter();
     const [state, setState] = useState<ChatState>("INITIAL");
@@ -110,7 +136,7 @@ export function useChatFlow(userId?: string) {
 
             if (!currentUserId && !currentAnonymousId) return;
 
-            console.log('[useChatFlow] Persisting conversation (Client-First)...');
+            // console.log('[useChatFlow] Persisting conversation (Client-First)...');
 
 
             // Ensure the final message is included
@@ -206,7 +232,7 @@ export function useChatFlow(userId?: string) {
 
     // Transform AI SDK messages to our UI format
     const messages: Message[] = aiMessages
-        .map((m: any) => {
+        .map((m: any, index: number) => {
             let textContent = '';
             if (m.parts) {
                 const textPart = m.parts.find((p: any) => p.type === 'text');
@@ -222,11 +248,88 @@ export function useChatFlow(userId?: string) {
                 p.type?.startsWith('tool-')
             );
 
+            // ============================================================
+            // INTELLIGENT TRIGGER: Check for WhatsApp mentions in text
+            // ============================================================
+            // If the AI asks for WhatsApp but forgets to call the tool, we inject it manually.
+            const hasContactTool = toolParts?.some((p: any) => p.type === 'tool-requestContactInfo');
+            const mentionsWhatsApp = textContent.toLowerCase().includes('whatsapp');
+
+            // HEURISTIC: Prevent double-triggering logic
+            // 1. If user ALREADY provided phone in this session, don't trigger.
+            // 2. If user provided phone in the last 3 messages (lookback), don't trigger (handles reloads).
+            let recentlyProvidedPhone = false;
+            if (mentionsWhatsApp && !hasContactTool) {
+                const lookbackCount = 3;
+                const startCheck = Math.max(0, index - lookbackCount);
+                // We need to check relevant AI messages source array `aiMessages`
+                // Note: `m` comes from `aiMessages.map` but we don't have index `i` in the filter/map signature above easily unless we change it.
+                // Actually we do: .map((m: any, index: number) => {
+
+                // Let's use the index from the map function
+                for (let k = index - 1; k >= startCheck; k--) {
+                    const prevMsg = aiMessages[k];
+                    if (prevMsg && prevMsg.role === 'user') {
+                        // Extract content
+                        let prevContent = '';
+                        if (typeof prevMsg.content === 'string') prevContent = prevMsg.content;
+                        else if (prevMsg.parts) prevContent = prevMsg.parts.find((p: any) => p.type === 'text')?.text || '';
+
+                        if (detectPhoneNumber(prevContent)) {
+                            recentlyProvidedPhone = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const shouldTrigger = mentionsWhatsApp && !hasContactTool && m.role !== 'user' && !hasProvidedPhone && !recentlyProvidedPhone;
+
+            if (shouldTrigger) {
+                // Determine reason based on context (simple heuristic)
+                const reason = textContent.toLowerCase().includes('send')
+                    ? "To send you the details"
+                    : "To proceed with your project";
+
+                // Inject synthetic tool invocation
+                if (!toolParts) {
+                    // m.toolInvocations = []; // Can't mutate m directly if it's from SDK, use local vars
+                }
+
+                // We'll return a new object anyway, so we can append to the toolInvocations array we build
+                // Note: We use a specific ID format to identify it's synthetic if needed, but UI doesn't care.
+                toolParts?.push({
+                    type: 'tool-requestContactInfo',
+                    state: 'output-available',
+                    toolCallId: `synthetic - whatsapp - ${m.id} `,
+                    output: { reason }
+                });
+
+                // If toolParts was undefined/empty and we just pushed, it might handle incorrectly if we don't init
+                // Actually, if toolParts is undefined, the optional chaining above returns undefined.
+                // We need to be more explicit.
+            }
+
+            // Re-build tool invocations array properly
+            let finalToolInvocations = toolParts || [];
+            if (shouldTrigger) {
+                // Double check if we already pushed it (if toolParts existed)
+                const alreadyAdded = finalToolInvocations.some((p: any) => p.type === 'tool-requestContactInfo');
+                if (!alreadyAdded) {
+                    finalToolInvocations.push({
+                        type: 'tool-requestContactInfo',
+                        state: 'output-available',
+                        toolCallId: `synthetic - whatsapp - ${m.id} `,
+                        output: { reason: "To proceed with the next steps" }
+                    });
+                }
+            }
+
             return {
                 id: m.id,
                 role: (m.role === 'user' ? 'user' : 'ai') as 'user' | 'ai',
                 content: textContent,
-                toolInvocations: toolParts,
+                toolInvocations: finalToolInvocations.length > 0 ? finalToolInvocations : undefined,
                 timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'
             };
         })
@@ -281,33 +384,49 @@ export function useChatFlow(userId?: string) {
                 }
             }
         }
-    }, [aiMessages, state]);
 
-    // ==============================================
-    // Phone Number Detection Utility
-    // ==============================================
-    // Robust regex to detect phone numbers with:
-    // - Optional country code (+234, +1, etc.)
-    // - Spaces, dashes, parentheses
-    // - Nigerian format (0803..., 234803...)
-    // - Minimum 10 digits to avoid false positives
-    const detectPhoneNumber = (text: string): string | null => {
-        const cleanedText = text.replace(/[\s\-().]/g, '');
-        // Match international or local phone patterns
-        const phoneRegex = /^\+?\d{10,15}$/;
-        if (phoneRegex.test(cleanedText)) {
-            return cleanedText; // Return cleaned number
+        // ============================================================
+        // INTELLIGENT TRIGGER (State Logic)
+        // ============================================================
+        // Check if the latest message mentions WhatsApp but we aren't in CLOSING yet
+        // This keeps the state in sync with the synthetic UI we render above
+        let content = '';
+        if (lastMessage.parts) {
+            const textPart = lastMessage.parts.find((p: any) => p.type === 'text');
+            content = textPart?.text || '';
+        } else if (typeof lastMessage.content === 'string') {
+            content = lastMessage.content;
         }
-        // Try to extract phone from longer text (e.g., "My number is 08012345678")
-        const extractMatch = text.match(/(?:\+?\d[\d\s\-().]{9,17}\d)/);
-        if (extractMatch) {
-            const extracted = extractMatch[0].replace(/[\s\-().]/g, '');
-            if (extracted.length >= 10 && extracted.length <= 15) {
-                return extracted;
+
+        // Apply same heuristics as the UI map
+        let recentlyProvidedPhone = false;
+        if (content.toLowerCase().includes('whatsapp')) {
+            const lookbackCount = 3;
+            const startCheck = Math.max(0, aiMessages.length - 1 - lookbackCount);
+            for (let k = aiMessages.length - 2; k >= startCheck; k--) { // Start from message BEFORE last one
+                const prevMsg = aiMessages[k];
+                if (prevMsg && prevMsg.role === 'user') {
+                    let prevContent = '';
+                    if (typeof prevMsg.content === 'string') prevContent = prevMsg.content;
+                    else if (prevMsg.parts) prevContent = prevMsg.parts.find((p: any) => p.type === 'text')?.text || '';
+
+                    if (detectPhoneNumber(prevContent)) {
+                        recentlyProvidedPhone = true;
+                        break;
+                    }
+                }
             }
         }
-        return null;
-    };
+
+        if (content.toLowerCase().includes('whatsapp') && state !== 'CLOSING' && state !== 'COMPLETED' && !hasProvidedPhone && !recentlyProvidedPhone) {
+            // Only force closing if we haven't already finished
+            console.log('[useChatFlow] Detected "whatsapp" keyword, forcing CLOSING state.');
+            setState("CLOSING");
+        }
+
+    }, [aiMessages, state, hasProvidedPhone]);
+
+
 
     const handleUserMessage = async (text: string) => {
         // ==============================================
@@ -380,7 +499,7 @@ export function useChatFlow(userId?: string) {
                 }
 
                 // Send the message to AI so flow continues naturally
-                await sendMessage({ text: `My WhatsApp number is ${text}` });
+                await sendMessage({ text: `My WhatsApp number is ${text} ` });
             } catch (err) {
                 console.error("[useChatFlow] Lead save failed:", err);
                 // Still send to AI so user isn't stuck
@@ -431,7 +550,7 @@ export function useChatFlow(userId?: string) {
 
     // New: Handle when user clicks on a specific topic card
     const handleSelectTopic = (topic: { title: string; twist: string; difficulty: string }) => {
-        sendMessage({ text: `I want to go with "${topic.title}" - the ${topic.twist} approach. Let's do this!` });
+        sendMessage({ text: `I want to go with "${topic.title}" - the ${topic.twist} approach.Let's do this!` });
     };
 
     const proceedToBuilder = () => {
