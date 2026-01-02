@@ -1,16 +1,23 @@
 'use client';
 
 import { Bold, Italic, List, Sparkles, Maximize2 } from 'lucide-react';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState, ReactNode } from 'react';
 
 interface WritingCanvasProps {
     title?: string;
     content?: string;
     onValidChange?: (content: string) => void;
+    headerRight?: ReactNode;
 }
 
-export function WritingCanvas({ title, content, onValidChange }: WritingCanvasProps) {
+export function WritingCanvas({ title, content, onValidChange, headerRight }: WritingCanvasProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [localContent, setLocalContent] = useState(content || '');
+
+    // Sync local state when content prop changes (e.g., chapter switching)
+    useEffect(() => {
+        setLocalContent(content || '');
+    }, [content]);
 
     // Auto-resize textarea to fit content
     const adjustHeight = useCallback(() => {
@@ -26,11 +33,13 @@ export function WritingCanvas({ title, content, onValidChange }: WritingCanvasPr
     // Adjust height on content change and initial mount
     useEffect(() => {
         adjustHeight();
-    }, [content, adjustHeight]);
+    }, [localContent, adjustHeight]);
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        setLocalContent(newValue);
         adjustHeight();
-        onValidChange?.(e.target.value);
+        onValidChange?.(newValue);
     };
 
     return (
@@ -56,7 +65,7 @@ export function WritingCanvas({ title, content, onValidChange }: WritingCanvasPr
                         <Sparkles className="w-3 h-3" /> Enhance
                     </button>
                 </div>
-                <div className="w-4 md:w-24"></div>
+                {headerRight || <div className="w-4 md:w-24"></div>}
             </div>
 
             {/* Scrollable Canvas - This is the only scroll container */}
@@ -67,7 +76,7 @@ export function WritingCanvas({ title, content, onValidChange }: WritingCanvasPr
                         className="w-full min-h-[600px] bg-transparent outline-none text-lg md:text-xl leading-relaxed text-gray-200 resize-none font-serif placeholder-gray-700 focus:placeholder-gray-600 transition-colors px-4"
                         spellCheck={false}
                         placeholder="Start writing or generate content..."
-                        defaultValue={content}
+                        value={localContent}
                         onChange={handleChange}
                     />
                 </div>

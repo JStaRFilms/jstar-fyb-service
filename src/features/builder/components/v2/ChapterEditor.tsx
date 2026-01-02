@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { TimelineSidebar } from './TimelineSidebar';
 import { WritingCanvas } from './WritingCanvas';
 import { MobileTimelineView } from './MobileTimelineView';
 import { SectionEditor } from './SectionEditor';
 import { MobileFloatingNav } from './MobileFloatingNav';
 import { useMediaQuery } from '../../../../hooks/use-media-query';
-import { Search, BrainCircuit, ArrowRight, FileText, Globe } from 'lucide-react';
+import { Search, BrainCircuit, ArrowRight, FileText, Globe, Cloud, Loader2, Check, CloudOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Chapter {
     id: string;
@@ -35,10 +36,23 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     const [projectTitle, setProjectTitle] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
+    // Save Status State
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+    const pendingContentRef = useRef<string | null>(null);
+
     // Mobile State
     const [mobileView, setMobileView] = useState<'timeline' | 'editor'>('timeline');
     const [activeSection, setActiveSection] = useState<{ title: string; content: string } | null>(null);
     const isDesktop = useMediaQuery("(min-width: 768px)");
+
+    // Auto-clear saved status after 2s
+    useEffect(() => {
+        if (saveStatus === 'saved') {
+            const timer = setTimeout(() => setSaveStatus('idle'), 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [saveStatus]);
 
     // Fetch Data
     useEffect(() => {
@@ -110,7 +124,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
         return content.match(/^##\s+(.+)$/gm)?.map(s => s.replace(/^##\s+/, '')) || [];
     };
 
-    const handleSave = async (content: string) => {
+    const handleSave = useCallback(async (content: string) => {
+        // Store pending content for manual save
+        pendingContentRef.current = content;
+
         // Optimistic update
         setChapters(prev => prev.map(c =>
             c.number === activeChapterNumber
@@ -118,16 +135,65 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 : c
         ));
 
+        // Show saving status
+        setSaveStatus('saving');
+
         // API Call
         try {
-            await fetch(`/api/projects/${projectId}/chapters/${activeChapterNumber}`, {
+            const response = await fetch(`/api/projects/${projectId}/chapters/${activeChapterNumber}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content })
             });
+
+            if (response.ok) {
+                setSaveStatus('saved');
+                setLastSavedAt(new Date());
+            } else {
+                setSaveStatus('error');
+            }
         } catch (error) {
             console.error('Failed to save chapter', error);
+            setSaveStatus('error');
         }
+    }, [activeChapterNumber, projectId]);
+
+    // Manual save trigger
+    const triggerManualSave = useCallback(() => {
+        const chapter = chapters.find(c => c.number === activeChapterNumber);
+        if (chapter) {
+            handleSave(chapter.content);
+        }
+    }, [chapters, activeChapterNumber, handleSave]);
+
+    // Save Status Indicator Component (inline)
+    const SaveStatusBadge = ({ showText = true }: { showText?: boolean }) => {
+        const config = {
+            idle: { icon: <Cloud className="w-4 h-4" />, text: lastSavedAt ? 'Saved' : 'Ready', className: 'text-gray-400 bg-white/5' },
+            saving: { icon: <Loader2 className="w-4 h-4 animate-spin" />, text: 'Saving...', className: 'text-primary bg-primary/20' },
+            saved: { icon: <Check className="w-4 h-4" />, text: 'Saved!', className: 'text-green-400 bg-green-500/20' },
+            error: { icon: <CloudOff className="w-4 h-4" />, text: 'Failed', className: 'text-red-400 bg-red-500/20' },
+        }[saveStatus];
+
+        return (
+            <button
+                onClick={triggerManualSave}
+                disabled={saveStatus === 'saving'}
+                className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 transition-all duration-300',
+                    'hover:scale-105 active:scale-95 disabled:hover:scale-100',
+                    config.className
+                )}
+                title={saveStatus === 'error' ? 'Click to retry' : 'Click to save now'}
+            >
+                {config.icon}
+                {showText && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                        {config.text}
+                    </span>
+                )}
+            </button>
+        );
     };
 
     const activeChapter = chapters.find(c => c.number === activeChapterNumber);
@@ -158,7 +224,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                             ? activeChapter.title
                             : `Chapter ${activeChapterNumber} / ${activeChapter?.title || 'Untitled'}`}
                         content={activeChapter?.content}
-                        onValidChange={handleSave} // Debounce inside canvas ideally, or here
+                        onValidChange={handleSave}
+                        headerRight={<SaveStatusBadge />}
                     />
                 </main>
 
@@ -241,9 +308,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     <span className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1">Project Workspace</span>
                     <h1 className="font-display font-bold text-2xl leading-tight text-white line-clamp-2 max-w-[200px]">{projectTitle || "Workspace"}</h1>
                 </div>
-                <div className="glass-panel rounded-full px-3 py-1 flex items-center gap-2 pointer-events-auto mt-2 shrink-0">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white">Online</span>
+                <div className="pointer-events-auto mt-2 shrink-0">
+                    <SaveStatusBadge />
                 </div>
             </header>
 
@@ -251,9 +317,12 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 <MobileTimelineView
                     chapters={chapters}
                     onChapterClick={(id) => {
-                        // Find chapter and open editor
-                        // Simplified for Phase 1
-                        setMobileView('editor');
+                        // Find chapter by ID and set as active
+                        const clickedChapter = chapters.find(c => c.id === id);
+                        if (clickedChapter) {
+                            setActiveChapterNumber(clickedChapter.number);
+                            setMobileView('editor');
+                        }
                     }}
                 />
             </main>

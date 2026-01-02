@@ -107,7 +107,7 @@ This document outlines the implementation of the **core writing workflow** for D
 
 ---
 
-## PHASE 1 [PLANNED]: Core Writing Loop
+## PHASE 1 [COMPLETE ✅]: Core Writing Loop
 
 > **Goal**: Enable users to generate, view, edit, and save chapter content with full context awareness.
 
@@ -260,12 +260,12 @@ Key sections to inject from the prompt:
 
 Before moving to Phase 2, verify:
 
-- [ ] `Chapter` model created and migrated
-- [ ] User can generate Chapter 1 and it saves to DB
-- [ ] User can view previously generated chapters on page refresh
-- [ ] User can edit a section and changes persist
-- [ ] Version is incremented on significant edits
-- [ ] Word count updates automatically
+- [x] `Chapter` model created and migrated
+- [x] User can generate Chapter 1 and it saves to DB ✅ *(onFinish callback in /api/generate/chapter)*
+- [x] User can view previously generated chapters on page refresh ✅ *(GET /chapters endpoint + ChapterEditor fetch)*
+- [x] User can edit a section and changes persist ✅ *(SectionEditor w/ controlled state + PATCH endpoint)*
+- [x] Version is incremented on significant edits ✅ *(Auto-versioning in PATCH endpoint)*
+- [x] Word count updates automatically ✅ *(Live useMemo in SectionEditor + server-side in PATCH)*
 
 ---
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { X, Bold, Heading, List, Image, Mic, Sparkles } from 'lucide-react';
 
 interface SectionEditorProps {
@@ -10,7 +11,18 @@ interface SectionEditorProps {
     onSave: (content: string) => void;
 }
 
-export function SectionEditor({ title, content, wordCount = 0, onClose, onSave }: SectionEditorProps) {
+export function SectionEditor({ title, content: initialContent, wordCount: initialWordCount = 0, onClose, onSave }: SectionEditorProps) {
+    const [editedContent, setEditedContent] = useState(initialContent);
+
+    // Calculate word count on the fly
+    const currentWordCount = useMemo(() => {
+        return editedContent.trim() ? editedContent.trim().split(/\s+/).length : 0;
+    }, [editedContent]);
+
+    const handleSave = () => {
+        onSave(editedContent);
+    };
+
     return (
         <div className="fixed inset-0 z-50 bg-[#030014] text-white flex flex-col animate-in slide-in-from-bottom duration-300">
 
@@ -22,10 +34,10 @@ export function SectionEditor({ title, content, wordCount = 0, onClose, onSave }
                 <div className="text-center">
                     <h2 className="font-bold text-sm text-gray-200">{title}</h2>
                     <span className="text-[10px] text-green-400 flex items-center justify-center gap-1">
-                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div> Saved
+                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div> Editing
                     </span>
                 </div>
-                <button onClick={() => onSave(content)} className="text-primary font-bold text-sm px-2 -mr-2">
+                <button onClick={handleSave} className="text-primary font-bold text-sm px-2 -mr-2">
                     Done
                 </button>
             </header>
@@ -35,7 +47,8 @@ export function SectionEditor({ title, content, wordCount = 0, onClose, onSave }
                 <textarea
                     className="w-full h-full bg-transparent outline-none text-lg leading-loose resize-none text-gray-200 placeholder-gray-700 font-light font-sans"
                     placeholder="Structure your thoughts here..."
-                    defaultValue={content}
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
                 />
             </main>
 
@@ -50,7 +63,7 @@ export function SectionEditor({ title, content, wordCount = 0, onClose, onSave }
 
             {/* Bottom Action Bar */}
             <footer className="h-16 border-t border-white/10 bg-black/40 px-6 flex items-center justify-between shrink-0 mb-safe">
-                <span className="text-xs text-gray-500 font-mono">{wordCount} words</span>
+                <span className="text-xs text-gray-500 font-mono">{currentWordCount} words</span>
 
                 {/* Smart Action Button */}
                 <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent rounded-lg text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-105 transition-transform">

@@ -109,38 +109,47 @@ export async function PATCH(
             return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
         }
 
+        // Fetch current chapter for versioning check
+        const currentChapter = await prisma.chapter.findUnique({
+            where: { projectId_number: { projectId: id, number: num } }
+        });
+
+        if (!currentChapter) {
+            return new Response(JSON.stringify({ error: 'Chapter not found' }), { status: 404 });
+        }
+
         // Update logic
         let updateData: any = {
             lastEditedAt: new Date()
         };
 
         if (content) {
+            // Auto-versioning: Create snapshot if content changed significantly (>100 chars difference)
+            const contentDiff = Math.abs(content.length - (currentChapter.content?.length || 0));
+            const isSignificantChange = contentDiff > 100 ||
+                (currentChapter.content && content !== currentChapter.content);
+
+            if (isSignificantChange && currentChapter.content) {
+                // Create version snapshot before updating
+                const newVersionSnapshot = {
+                    version: currentChapter.version,
+                    content: currentChapter.content,
+                    createdAt: new Date().toISOString()
+                };
+
+                const existingVersions = (currentChapter.previousVersions as any[]) || [];
+
+                // Limit stored versions to last 10 to prevent bloat
+                const updatedVersions = [...existingVersions, newVersionSnapshot].slice(-10);
+
+                updateData.previousVersions = updatedVersions;
+                updateData.version = currentChapter.version + 1;
+            }
+
             updateData.content = content;
             updateData.wordCount = content.split(/\s+/).length;
             updateData.sections = parseSections(content);
-        } else if (sectionTitle && sectionContent !== undefined) {
-            // For section updates, we need to read the current content and patch it using the regex logic 
-            // OR rely on the frontend sending the full content. 
-            // To keep it simple and robust, it's safer for the frontend to send the full updated chapter content for now.
-            // But if we want granular updates, we'd need to fetch -> replace -> save.
-
-            const currentChapter = await prisma.chapter.findUnique({
-                where: { projectId_number: { projectId: id, number: num } }
-            });
-
-            if (!currentChapter) return new Response('Chapter not found', { status: 404 });
-
-            // Simple regex replace for the specific section? 
-            // Actually, "section-level editing" in the UI usually means sending back the modified section text.
-            // We need to reconstruct the full document. 
-            // For Phase 1, let's assume the frontend sends the FULL content for simplicity and reliability, 
-            // OR we implement a robust "replace section" logic here.
-
-            // Let's rely on FULL CONTENT update for now (`content` field) to be safe.
-            // If frontend sends section update, it should ideally assume it has the latest state.
-
-            // If the user strictly wants section patch:
-            // We would need to parse the existing content, find the section by title/order, replace it, and reconstruct.
+            updateData.status = 'EDITING';
         }
 
         const updatedChapter = await prisma.chapter.update({
