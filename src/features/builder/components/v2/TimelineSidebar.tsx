@@ -38,14 +38,15 @@ function ChapterNode({ number, title, status, subsections, isActive, onClick }: 
                 "font-bold text-sm mb-1",
                 isActive ? "text-white" : "text-gray-300"
             )}>
-                {title}
+                {/* Only show title if it's not just "Chapter N" (avoid duplication) */}
+                {title.toLowerCase().startsWith('chapter') ? null : title}
             </h3>
 
             {isActive && subsections && (
                 <div className="space-y-1 pl-2 border-l border-primary/20 mt-2">
                     {subsections.map((sub, idx) => (
                         <p key={idx} className="text-xs text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-2">
-                            <span>{number}.{idx + 1} {sub}</span>
+                            <span>{sub}</span>
                         </p>
                     ))}
                 </div>

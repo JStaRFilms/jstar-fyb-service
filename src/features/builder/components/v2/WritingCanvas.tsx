@@ -1,6 +1,7 @@
 'use client';
 
 import { Bold, Italic, List, Sparkles, Maximize2 } from 'lucide-react';
+import { useRef, useEffect, useCallback } from 'react';
 
 interface WritingCanvasProps {
     title?: string;
@@ -9,8 +10,31 @@ interface WritingCanvasProps {
 }
 
 export function WritingCanvas({ title, content, onValidChange }: WritingCanvasProps) {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-resize textarea to fit content
+    const adjustHeight = useCallback(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            // Reset height to auto to get the correct scrollHeight
+            textarea.style.height = 'auto';
+            // Set to scrollHeight to fit content, with a minimum height
+            textarea.style.height = `${Math.max(textarea.scrollHeight, 600)}px`;
+        }
+    }, []);
+
+    // Adjust height on content change and initial mount
+    useEffect(() => {
+        adjustHeight();
+    }, [content, adjustHeight]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        adjustHeight();
+        onValidChange?.(e.target.value);
+    };
+
     return (
-        <div className="flex-1 flex flex-col relative bg-[#050508] h-full">
+        <div className="flex-1 flex flex-col relative bg-[#050508] h-full overflow-hidden">
 
             {/* Editor Toolbar */}
             <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-dark/50 backdrop-blur z-10 shrink-0">
@@ -35,15 +59,16 @@ export function WritingCanvas({ title, content, onValidChange }: WritingCanvasPr
                 <div className="w-4 md:w-24"></div>
             </div>
 
-            {/* Scrollable Canvas */}
-            <div className="flex-1 overflow-y-auto w-full flex justify-center p-4 md:p-8 bg-[#050508] custom-scrollbar">
+            {/* Scrollable Canvas - This is the only scroll container */}
+            <div className="flex-1 overflow-y-auto w-full flex justify-center p-4 md:p-8 bg-[#050508]">
                 <div className="w-full max-w-5xl pb-32">
                     <textarea
-                        className="w-full h-[1500px] bg-transparent outline-none text-lg md:text-xl leading-relaxed text-gray-200 resize-none font-serif placeholder-gray-700 focus:placeholder-gray-600 transition-colors px-4 overflow-hidden"
+                        ref={textareaRef}
+                        className="w-full min-h-[600px] bg-transparent outline-none text-lg md:text-xl leading-relaxed text-gray-200 resize-none font-serif placeholder-gray-700 focus:placeholder-gray-600 transition-colors px-4"
                         spellCheck={false}
                         placeholder="Start writing or generate content..."
                         defaultValue={content}
-                        onChange={(e) => onValidChange?.(e.target.value)}
+                        onChange={handleChange}
                     />
                 </div>
             </div>
@@ -59,3 +84,4 @@ export function WritingCanvas({ title, content, onValidChange }: WritingCanvasPr
         </div>
     );
 }
+

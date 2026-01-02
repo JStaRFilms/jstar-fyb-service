@@ -154,7 +154,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 {/* Main Content */}
                 <main className="flex-1 flex flex-col relative h-full w-full">
                     <WritingCanvas
-                        title={`Chapter ${activeChapterNumber}: ${activeChapter?.title}`}
+                        title={activeChapter?.title?.toLowerCase().startsWith('chapter')
+                            ? activeChapter.title
+                            : `Chapter ${activeChapterNumber} / ${activeChapter?.title || 'Untitled'}`}
                         content={activeChapter?.content}
                         onValidChange={handleSave} // Debounce inside canvas ideally, or here
                     />
