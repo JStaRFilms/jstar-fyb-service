@@ -23,6 +23,7 @@ export const maxDuration = 120;
 const requestSchema = z.object({
     topic: z.string().min(1, 'Topic is required'),
     abstract: z.string().min(1, 'Abstract is required'),
+    projectId: z.string().optional(), // Client may pass existing project ID
 });
 
 export async function POST(req: Request) {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
         );
     }
 
-    const { topic, abstract } = validation.data;
+    const { topic, abstract, projectId: clientProjectId } = validation.data;
 
     try {
         // Use the new Builder AI service to generate outline with context
@@ -73,16 +74,26 @@ export async function POST(req: Request) {
                 if (outlineData?.chapters) {
                     try {
                         if (user) {
-                            // Find existing project or create a new one
-                            let project = await prisma.project.findFirst({
-                                where: {
-                                    topic: topic,
-                                    userId: user.id
-                                }
-                            });
+                            // PRIORITY 1: Use projectId from client if provided
+                            let project = clientProjectId
+                                ? await prisma.project.findUnique({
+                                    where: { id: clientProjectId }
+                                })
+                                : null;
 
+                            // PRIORITY 2: Fall back to topic-based lookup (legacy behavior)
                             if (!project) {
-                                // Create new project
+                                project = await prisma.project.findFirst({
+                                    where: {
+                                        topic: topic,
+                                        userId: user.id
+                                    }
+                                });
+                            }
+
+                            // PRIORITY 3: Create new project only if nothing found
+                            if (!project) {
+                                console.log('[GenerateOutline] No existing project found, creating new one');
                                 project = await prisma.project.create({
                                     data: {
                                         topic: topic,
@@ -92,16 +103,22 @@ export async function POST(req: Request) {
                                 });
                             }
 
+                            // CRITICAL FIX: Normalize to array (streaming can return object with numeric keys)
+                            const rawChapters = outlineData.chapters;
+                            const chaptersArray = Array.isArray(rawChapters)
+                                ? rawChapters
+                                : Object.values(rawChapters);
+
                             // Create or update the chapter outline
                             await prisma.chapterOutline.upsert({
                                 where: { projectId: project.id },
                                 update: {
-                                    content: JSON.stringify(outlineData.chapters),
+                                    content: JSON.stringify(chaptersArray),
                                     updatedAt: new Date()
                                 },
                                 create: {
                                     projectId: project.id,
-                                    content: JSON.stringify(outlineData.chapters)
+                                    content: JSON.stringify(chaptersArray)
                                 }
                             });
                         }

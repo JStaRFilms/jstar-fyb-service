@@ -184,6 +184,27 @@ CREATE TABLE "ChapterOutline" (
 );
 
 -- CreateTable
+CREATE TABLE "Chapter" (
+    "id" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "number" INTEGER NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "sections" JSONB,
+    "version" INTEGER NOT NULL DEFAULT 1,
+    "previousVersions" JSONB,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "wordCount" INTEGER NOT NULL DEFAULT 0,
+    "generatedAt" TIMESTAMP(3),
+    "lastEditedAt" TIMESTAMP(3),
+    "generationPrompt" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Chapter_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ProjectMessage" (
     "id" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
@@ -263,6 +284,12 @@ CREATE UNIQUE INDEX "Payment_reference_key" ON "Payment"("reference");
 CREATE UNIQUE INDEX "ChapterOutline_projectId_key" ON "ChapterOutline"("projectId");
 
 -- CreateIndex
+CREATE INDEX "Chapter_projectId_idx" ON "Chapter"("projectId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Chapter_projectId_number_key" ON "Chapter"("projectId", "number");
+
+-- CreateIndex
 CREATE INDEX "InAppNotification_userId_readAt_idx" ON "InAppNotification"("userId", "readAt");
 
 -- CreateIndex
@@ -294,6 +321,9 @@ ALTER TABLE "ResearchDocument" ADD CONSTRAINT "ResearchDocument_projectId_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "ChapterOutline" ADD CONSTRAINT "ChapterOutline_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Chapter" ADD CONSTRAINT "Chapter_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProjectMessage" ADD CONSTRAINT "ProjectMessage_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

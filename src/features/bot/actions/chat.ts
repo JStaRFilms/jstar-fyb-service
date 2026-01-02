@@ -237,6 +237,42 @@ export async function mergeAnonymousData(anonymousId: string, userId: string) {
         return { success: false, error };
     }
 }
+
+/**
+ * Clear all conversations for a user or anonymous session.
+ * This is used for the "Clear Chat" functionality.
+ * Messages are cascade-deleted automatically via the Prisma schema.
+ */
+export async function clearAllConversations({
+    userId,
+    anonymousId
+}: { userId?: string; anonymousId?: string }) {
+    try {
+        if (!userId && !anonymousId) {
+            return { success: false, error: 'Either userId or anonymousId must be provided' };
+        }
+
+        // Build the where clause based on what identifiers we have
+        const whereClause: { userId?: string; anonymousId?: string } = {};
+
+        if (userId) {
+            whereClause.userId = userId;
+        } else if (anonymousId) {
+            whereClause.anonymousId = anonymousId;
+        }
+
+        // Delete all conversations (messages cascade-delete via schema)
+        const result = await prisma.conversation.deleteMany({
+            where: whereClause
+        });
+
+        console.log(`[clearAllConversations] Deleted ${result.count} conversations`);
+        return { success: true, deletedCount: result.count };
+    } catch (error) {
+        console.error('[clearAllConversations] Failed:', error);
+        return { success: false, error: 'Failed to clear conversations' };
+    }
+}
 // -----------------------------------------------------------------------------
 // LEAD CAPTURE
 // -----------------------------------------------------------------------------

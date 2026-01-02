@@ -120,17 +120,16 @@ export const useBuilderStore = create<BuilderState>()(
                     }
 
                     // CRITICAL FIX: Prevent downgrading a Paid Project
-                    // If the server project matches the handoff topic and is PAID, ignore the handoff
-                    if (existingProject && existingIsPaid) {
-                        // Normalize strings for comparison
-                        const serverTopic = existingProject.topic?.trim().toLowerCase();
-                        const handoffTopic = topic?.trim().toLowerCase();
-
-                        if (serverTopic === handoffTopic) {
-                            console.log('[Builder] Server project is PAID and matches handoff. Ignoring handoff to prevent downgrade.');
-                            localStorage.removeItem(CHAT_HANDOFF_KEY); // Safe to remove as it's now represented by the server
-                            return false;
-                        }
+                    // If the server project is PAID, NEVER let a chat handoff overwrite it automatically.
+                    // Prior logic checked for topic match, but string mismatches caused accidental resets.
+                    if (existingIsPaid) {
+                        console.log('[Builder] Server project is PAID. Ignoring chat handoff to prevent downgrade.', {
+                            serverTopic: existingProject?.topic,
+                            handoffTopic: topic
+                        });
+                        // We safely remove the handoff key because the user is clearly engaged with a paid project
+                        localStorage.removeItem(CHAT_HANDOFF_KEY);
+                        return false;
                     }
 
                     // LOGIC CHANGE: If handoff is VERY fresh (< 5 mins), valid user intent overrides server state
@@ -259,11 +258,13 @@ export const useBuilderStore = create<BuilderState>()(
             loadProject: (projectData, isPaid = false) => {
                 console.log('[Builder] Hydrating from server project', { id: projectData.projectId, isPaid, outlineLen: projectData.outline?.length });
 
-                // Clear any stale chat handoff data - BUT wait for effective consumption
-                // if (typeof window !== 'undefined') {
-                //    localStorage.removeItem(CHAT_HANDOFF_KEY);
-                // }
+                // CRITICAL: Clear stale chat handoff to prevent it from overwriting on next render
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem(CHAT_HANDOFF_KEY);
+                }
 
+                // IMPORTANT: Use server data as the complete source of truth for critical fields
+                // We merge but ensure server projectId, topic, outline ALWAYS win
                 set((state) => ({
                     // Determine step based on data presence
                     step: (projectData.outline && projectData.outline.length > 0) ? 'OUTLINE'
@@ -271,7 +272,16 @@ export const useBuilderStore = create<BuilderState>()(
                             : projectData.topic ? 'ABSTRACT' // If topic exists, go to Abstract
                                 : 'TOPIC',
                     data: {
-                        ...state.data,
+                        // Start with defaults to ensure type safety
+                        userId: null,
+                        projectId: null,
+                        topic: '',
+                        twist: '',
+                        abstract: '',
+                        outline: [],
+                        mode: null,
+                        status: 'OUTLINE_GENERATED' as const,
+                        // Then spread server data to override
                         ...projectData
                     },
                     isPaid: isPaid ?? false, // Hydrate payment status from server

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { Check, Loader2, RefreshCw } from "lucide-react";
 import { toast } from 'sonner';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
-import { outlineSchema } from '../schemas/outlineSchema';
+import { outlineSchema, Chapter } from '../schemas/outlineSchema';
 import { PricingOverlay } from "@/features/builder/components/PricingOverlay";
 import { ProjectActionCenter } from "./ProjectActionCenter";
 import { ModeSelection } from "./ModeSelection";
@@ -66,9 +66,14 @@ export function ChapterOutliner() {
         schema: outlineSchema,
         onFinish: ({ object }) => {
             if (object?.chapters) {
-                // Map AI response format to store format
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const newOutline = object.chapters as any;
+                // CRITICAL FIX: Convert to proper array format
+                // useObject can return {0: {...}, 1: {...}} instead of [{...}, {...}]
+                // This happens during streaming - we need to normalize it
+                const rawChapters = object.chapters;
+                const newOutline = (Array.isArray(rawChapters)
+                    ? rawChapters
+                    : Object.values(rawChapters)) as Chapter[];
+
                 updateData({ outline: newOutline });
 
                 // Auto-save to DB
@@ -121,7 +126,7 @@ export function ChapterOutliner() {
         if (data.abstract && data.topic && !hasSubmittedRef.current && !data.outline?.length && !isLoading) {
             hasSubmittedRef.current = true;
             console.log('[ChapterOutliner] Generating free outline...');
-            submit({ topic: data.topic, abstract: data.abstract });
+            submit({ topic: data.topic, abstract: data.abstract, projectId: data.projectId });
         }
     }, [data.abstract, data.topic, data.outline?.length, submit, isLoading]);
 
@@ -144,7 +149,7 @@ export function ChapterOutliner() {
 
     const handleRetry = () => {
         hasSubmittedRef.current = false;
-        submit({ topic: data.topic, abstract: data.abstract });
+        submit({ topic: data.topic, abstract: data.abstract, projectId: data.projectId });
     };
 
     // Verify Loading State

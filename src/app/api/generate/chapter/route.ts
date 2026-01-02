@@ -4,14 +4,6 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-server';
 import { BuilderAiService } from '@/features/builder/services/builderAiService';
-import { JsonObject } from '@prisma/client/runtime/library';
-
-function checkJsonObject(json: any): JsonObject | null {
-    if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
-        return json as JsonObject;
-    }
-    return null;
-}
 
 // Validate environment variables
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -31,6 +23,39 @@ const requestSchema = z.object({
     projectId: z.string().min(1, 'Project ID is required'),
     chapterNumber: z.number().min(1).max(5),
 });
+
+// Helper to parse sections from markdown
+function parseSections(markdown: string) {
+    const sections: any[] = [];
+    const lines = markdown.split('\n');
+    let currentSection: { title: string; content: string } | null = null;
+    let order = 0;
+
+    for (const line of lines) {
+        if (line.match(/^##\s+/)) {
+            // New section detected
+            if (currentSection) {
+                sections.push({ ...currentSection, order: order++ });
+            }
+            currentSection = {
+                title: line.replace(/^##\s+/, '').trim(),
+                content: ''
+            };
+        } else if (currentSection) {
+            currentSection.content += line + '\n';
+        } else {
+            // Content before first section (intro text)
+            // Optional: Handle this if needed, or append to a "Preamble" section
+        }
+    }
+
+    // Push the last section
+    if (currentSection) {
+        sections.push({ ...currentSection, order: order++ });
+    }
+
+    return sections;
+}
 
 export async function POST(req: Request) {
     try {
@@ -76,136 +101,78 @@ export async function POST(req: Request) {
             });
         }
 
-        if (!project.isUnlocked) {
-            return new Response(JSON.stringify({ error: 'Project not unlocked. Please complete payment.' }), {
-                status: 402,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
+        // 4. Use Builder AI service to generate chapter content
+        const aiGeneratedContent = await BuilderAiService.generateChapterContent(
+            projectId,
+            chapterNumber,
+            `Chapter ${chapterNumber}`
+        );
 
-        // 4. Use the new Builder AI service to generate chapter content with context
-        try {
-            const aiGeneratedContent = await BuilderAiService.generateChapterContent(
-                projectId,
-                chapterNumber,
-                `Chapter ${chapterNumber}`
-            );
+        // 5. Stream response & Save to DB on completion
+        const result = streamText({
+            model: groq('llama-3.3-70b-versatile'),
+            system: `You are an expert academic writer specializing in Final Year Project (FYP) documentation for university students.
+            
+            STRICT ACADEMIC GUIDELINES:
+            1. TONE: Formal, objective, and analytical. Avoid first-person ("I", "we") and conversational language.
+            2. ENGLISH: Use British English (UK) spelling (e.g., "analyse", "colour", "programme").
+            3. CITATIONS: Use APA 7th Edition format for in-text citations where necessary (e.g., (Smith, 2023)). If exact sources are not provided in context, use realistic placeholders or general academic statements.
+            4. STRUCTURE: Use clear paragraphing. Each paragraph must have a topic sentence, supporting evidence, and a concluding sentence.
+            5. FORMATTING: Use Markdown.
+               - ## for Main Sections (e.g., "1.1 Background of Study")
+               - ### for Sub-sections
+               - **Bold** for key terms
+            
+            PROJECT CONTEXT:
+            TITLE: ${project.topic}
+            CONTEXT: ${aiGeneratedContent}`,
+            prompt: `Generate the full content for Chapter ${chapterNumber}. Ensure it meets the word count requirements for a standard FYP chapter (approx 1500-2000 words if possible, but focused on quality). Start directly with the first section heading.`,
+            onFinish: async ({ text }) => {
+                // Save to Chapter Model
+                const sections = parseSections(text);
+                const wordCount = text.split(/\s+/).length;
 
-            // Stream the enhanced chapter content
-            const result = streamText({
-                model: groq('llama-3.3-70b-versatile'),
-                system: `You are an expert academic writer specializing in final year project documentation for Nigerian universities.
-                
-Write in formal academic English. Use proper paragraph structure. Ensure content is original and plagiarism-free.
-Do NOT include references to specific years or dates that would make the content outdated.
-Format headings using markdown (## for main sections, ### for subsections).
-
-PROJECT CONTEXT:
-PROJECT TITLE: ${project.topic}
-PROJECT ABSTRACT: ${project.abstract || 'Not provided'}
-PROJECT TWIST/UNIQUE ANGLE: ${project.twist || 'Not specified'}
-EXISTING OUTLINE: ${project.outline?.content || 'No outline available'}
-
-CONTEXT FROM BUILDER AI:
-${aiGeneratedContent}
-
-Use this context to generate a comprehensive chapter that builds upon the existing project context and AI-generated content.`,
-                prompt: `Generate Chapter ${chapterNumber} with enhanced context and project-specific details.`,
-            });
-
-            // Store the chapter content in the database
-            const chapterContent = await result.text;
-            if (chapterContent) {
                 try {
-                    // Update the Project contentProgress with the generated content
-                    // We fetch the current contentProgress first (or use what we have if we included it)
-                    // Since we didn't include it in the findUnique above, let's just do an atomic update if possible?
-                    // Prisma doesn't support deep merge on JSON easily without fetching.
-
-                    const currentProject = await prisma.project.findUnique({
-                        where: { id: projectId },
-                        select: { contentProgress: true }
-                    });
-
-                    const currentContent = checkJsonObject(currentProject?.contentProgress) || {};
-
-                    await prisma.project.update({
-                        where: { id: projectId },
-                        data: {
-                            contentProgress: {
-                                ...currentContent,
-                                [`chapter_${chapterNumber}`]: chapterContent
-                            },
-                            updatedAt: new Date()
+                    await prisma.chapter.upsert({
+                        where: {
+                            projectId_number: {
+                                projectId,
+                                number: chapterNumber
+                            }
+                        },
+                        update: {
+                            content: text,
+                            sections: sections,
+                            wordCount,
+                            status: 'GENERATED',
+                            lastEditedAt: new Date(),
+                            generationPrompt: 'Universal Research Prompt v1' // Placeholder for actual prompt if dynamic
+                        },
+                        create: {
+                            projectId,
+                            number: chapterNumber,
+                            title: `Chapter ${chapterNumber}`, // Should ideally get real title from outline
+                            content: text,
+                            sections: sections,
+                            wordCount,
+                            status: 'GENERATED',
+                            version: 1,
                         }
                     });
-                } catch (dbError) {
-                    console.error('[GenerateChapter] Failed to store chapter in database:', dbError);
-                    // Continue with the response even if database storage fails
-                }
-            }
 
-            return result.toTextStreamResponse();
-        } catch (aiError) {
-            console.error('[GenerateChapter] Error using Builder AI service:', aiError);
-
-            // Fallback to original implementation
-            const projectContext = `
-PROJECT TITLE: ${project.topic}
-
-PROJECT ABSTRACT:
-${project.abstract || 'Not provided'}
-
-PROJECT TWIST/UNIQUE ANGLE:
-${project.twist || 'Not specified'}
-
-EXISTING OUTLINE:
-${project.outline?.content || 'No outline available'}
-`;
-
-            const result = streamText({
-                model: groq('llama-3.3-70b-versatile'),
-                system: `You are an expert academic writer specializing in final year project documentation for Nigerian universities.
-                
-Write in formal academic English. Use proper paragraph structure. Ensure content is original and plagiarism-free.
-Do NOT include references to specific years or dates that would make the content outdated.
-Format headings using markdown (## for main sections, ### for subsections).
-
-PROJECT CONTEXT:
-${projectContext}`,
-                prompt: `Generate Chapter ${chapterNumber} with standard academic structure.`,
-            });
-
-            // Store the chapter content in the database (fallback)
-            const fallbackChapterContent = await result.text;
-            if (fallbackChapterContent) {
-                try {
-                    const currentProject = await prisma.project.findUnique({
-                        where: { id: projectId },
-                        select: { contentProgress: true }
-                    });
-
-                    const currentContent = checkJsonObject(currentProject?.contentProgress) || {};
-
-                    // Update the Project contentProgress with the generated content
+                    // Update project progress
                     await prisma.project.update({
                         where: { id: projectId },
-                        data: {
-                            contentProgress: {
-                                ...currentContent,
-                                [`chapter_${chapterNumber}`]: fallbackChapterContent
-                            },
-                            updatedAt: new Date()
-                        }
+                        data: { updatedAt: new Date() }
                     });
+
                 } catch (dbError) {
-                    console.error('[GenerateChapter] Failed to store chapter in database (fallback):', dbError);
-                    // Continue with the response even if database storage fails
+                    console.error('[GenerateChapter] Failed to save chapter:', dbError);
                 }
             }
+        });
 
-            return result.toTextStreamResponse();
-        }
+        return result.toTextStreamResponse();
 
     } catch (error: unknown) {
         console.error('[GenerateChapter] Error:', error);

@@ -149,6 +149,7 @@ model Project {
   outline     ChapterOutline?
   messages    ProjectMessage[]
   conversations ProjectConversation[]
+  chapters    Chapter[]
   user        User?   @relation(fields: [userId], references: [id])
   payments    Payment[]
 }
@@ -219,6 +220,40 @@ model ChapterOutline {
   content   String   // JSON or Markdown of the outline
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Chapter {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  number    Int      // 1-5
+  title     String   // e.g., "Introduction"
+  
+  // Content
+  content   String   @db.Text // The full generated markdown
+  
+  // Section-level content (for granular edits)
+  sections  Json?    // Array of { id, title, content, order }
+  
+  // Versioning
+  version   Int      @default(1)
+  previousVersions Json? // Array of { version, content, createdAt }
+  
+  // Status
+  status    String   @default("DRAFT") // DRAFT, GENERATED, EDITING, FINALIZED
+  wordCount Int      @default(0)
+  
+  // Generation metadata
+  generatedAt   DateTime?
+  lastEditedAt  DateTime?
+  generationPrompt String? // Store the prompt used for regeneration debugging
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([projectId, number])
+  @@index([projectId])
 }
 
 model ProjectMessage {

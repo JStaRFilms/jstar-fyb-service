@@ -33,13 +33,29 @@ export default async function BuilderPage({ searchParams }: PageProps) {
             }
         }
 
-        // Priority 2: Otherwise, load the user's most recent project
+        // Priority 2: Try to load the user's UNLOCKED (paid) project first
+        // This prevents accidentally loading a stale unpaid draft if multiple projects exist
+        if (!recentProject) {
+            recentProject = await prisma.project.findFirst({
+                where: { userId: user.id, isUnlocked: true },
+                orderBy: { updatedAt: 'desc' },
+                include: { outline: true }
+            });
+            if (recentProject) {
+                console.log(`[BuilderPage] Loaded user's UNLOCKED project: ${recentProject.id}`);
+            }
+        }
+
+        // Priority 3: Fall back to most recent project (even if not paid)
         if (!recentProject) {
             recentProject = await prisma.project.findFirst({
                 where: { userId: user.id },
                 orderBy: { updatedAt: 'desc' },
                 include: { outline: true }
             });
+            if (recentProject) {
+                console.log(`[BuilderPage] Loaded user's most recent project: ${recentProject.id}`);
+            }
         }
 
         if (recentProject) {
@@ -47,7 +63,12 @@ export default async function BuilderPage({ searchParams }: PageProps) {
             let parsedOutline: Chapter[] = [];
             if (recentProject.outline && recentProject.outline.content) {
                 try {
-                    parsedOutline = JSON.parse(recentProject.outline.content);
+                    const rawOutline = JSON.parse(recentProject.outline.content);
+                    // DEFENSIVE FIX: Normalize object format to array
+                    // (streaming can save {0: {...}} instead of [{...}])
+                    parsedOutline = Array.isArray(rawOutline)
+                        ? rawOutline
+                        : Object.values(rawOutline);
                 } catch (e) {
                     console.error("Failed to parse outline content", e);
                 }

@@ -37,16 +37,15 @@ export function ChapterGenerator({ projectId }: ChapterGeneratorProps) {
                 const response = await fetch(`/api/projects/${projectId}/chapters`);
                 if (response.ok) {
                     const result = await response.json();
-                    if (result.chapters) {
-                        // Convert stored chapters to our format
+                    if (result.chapters && Array.isArray(result.chapters)) {
+                        // Convert stored chapters array to our Record format
                         const storedChapters: Record<number, GeneratedChapter> = {};
-                        Object.entries(result.chapters).forEach(([key, content]) => {
-                            const chapterNumber = parseInt(key.replace('chapter_', ''));
-                            if (chapterNumber >= 1 && chapterNumber <= 5) {
-                                storedChapters[chapterNumber] = {
-                                    number: chapterNumber,
-                                    title: CHAPTER_INFO[chapterNumber - 1].title,
-                                    content: content as string,
+                        result.chapters.forEach((chapter: { number: number; title?: string; content: string }) => {
+                            if (chapter.number >= 1 && chapter.number <= 5) {
+                                storedChapters[chapter.number] = {
+                                    number: chapter.number,
+                                    title: chapter.title || CHAPTER_INFO[chapter.number - 1].title,
+                                    content: chapter.content,
                                     isGenerating: false
                                 };
                             }

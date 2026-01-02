@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User, AlertTriangle, RefreshCw } from "lucide-react";
+import { Mic, SendHorizontal, Plus, ArrowLeft, LogOut, User, AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { MessageBubble } from "./MessageBubble";
 import { ThinkingIndicator } from "./ThinkingIndicator";
@@ -14,7 +14,7 @@ import { useChatFlow } from "../hooks/useChatFlow";
 import { ProposalCard } from "./ProposalCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
-import { mergeAnonymousData } from "../actions/chat";
+import { mergeAnonymousData, clearAllConversations } from "../actions/chat";
 import { signInAction, signOutAction } from "@/features/auth/actions";
 
 interface ChatInterfaceProps {
@@ -26,8 +26,9 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
     const { data: session } = useSession();
     // Prioritize session user if available (client update), otherwise fallback to server passed user
     const user = session?.user || initialUser;
-    const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder } = useChatFlow(user?.id);
+    const { messages, state, complexity, isLoading, confirmedTopic, hasProvidedPhone, error, regenerate, handleUserMessage, handleAction, handleSelectTopic, proceedToBuilder, clearChat, anonymousId } = useChatFlow(user?.id);
     const [inputValue, setInputValue] = useState("");
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -61,6 +62,29 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
         setInputValue("");
     };
 
+    const handleClearChat = async () => {
+        try {
+            // 1. Clear from database
+            await clearAllConversations({
+                userId: user?.id,
+                anonymousId: anonymousId
+            });
+
+            // 2. Clear localStorage
+            localStorage.removeItem('jstar_confirmed_topic');
+            // Generate fresh anonymous ID
+            const newId = crypto.randomUUID();
+            localStorage.setItem('jstar_anonymous_id', newId);
+
+            // 3. Clear local state
+            clearChat();
+
+            setShowClearConfirm(false);
+        } catch (err) {
+            console.error('Failed to clear chat:', err);
+        }
+    };
+
     return (
         <div className="flex flex-col h-[100dvh] bg-dark text-white overflow-hidden font-sans">
             {/* Header */}
@@ -85,6 +109,15 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
                         <ComplexityMeter score={complexity} />
                     </div>
 
+                    {/* Clear Chat Button */}
+                    <button
+                        onClick={() => setShowClearConfirm(true)}
+                        className="p-2 rounded-full hover:bg-white/5 text-gray-400 hover:text-red-400 transition-colors"
+                        title="Clear Chat"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+
                     {/* Auth Button */}
                     {user ? (
                         <div className="flex items-center gap-3 pl-3 border-l border-white/10">
@@ -107,6 +140,51 @@ export function ChatInterface({ initialUser }: ChatInterfaceProps) {
                     )}
                 </div>
             </header>
+
+            {/* Clear Chat Confirmation Modal */}
+            <AnimatePresence>
+                {showClearConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                        onClick={() => setShowClearConfirm(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-dark border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                    <Trash2 className="w-5 h-5 text-red-400" />
+                                </div>
+                                <h3 className="font-display font-bold text-lg">Clear Chat?</h3>
+                            </div>
+                            <p className="text-sm text-gray-400 mb-6">
+                                This will delete all messages and start fresh. This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowClearConfirm(false)}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-bold transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleClearChat}
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm font-bold transition-colors"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Sticky Error Banner */}
             <AnimatePresence>
