@@ -19,7 +19,9 @@ export function MobileTimelineView({ chapters, onChapterClick }: MobileTimelineV
                         <div className="absolute right-0 top-0 w-16 h-16 bg-primary/10 rounded-full -mr-8 -mt-8"></div>
                         <Type className="w-5 h-5 text-gray-400" />
                         <div>
-                            <span className="text-2xl font-display font-bold text-white">2.4k</span>
+                            <span className="text-2xl font-display font-bold text-white">
+                                {chapters?.reduce((acc, curr) => acc + (curr.wordCount || 0), 0).toLocaleString() ?? 0}
+                            </span>
                             <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mt-1">Words</p>
                         </div>
                     </div>
@@ -28,7 +30,12 @@ export function MobileTimelineView({ chapters, onChapterClick }: MobileTimelineV
                         <div className="absolute right-0 top-0 w-16 h-16 bg-accent/10 rounded-full -mr-8 -mt-8"></div>
                         <Clock className="w-5 h-5 text-gray-400" />
                         <div>
-                            <span className="text-2xl font-display font-bold text-white">15%</span>
+                            <span className="text-2xl font-display font-bold text-white">
+                                {Math.round((
+                                    (chapters?.filter(c => c.status === 'complete').length || 0) +
+                                    ((chapters?.filter(c => c.status === 'in-progress').length || 0) * 0.5)
+                                ) / (chapters?.length || 1) * 100)}%
+                            </span>
                             <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mt-1">Complete</p>
                         </div>
                     </div>

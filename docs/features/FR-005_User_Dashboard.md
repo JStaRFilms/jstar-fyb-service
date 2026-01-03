@@ -35,7 +35,10 @@ Located at `/profile`.
 Displays a summary of a single project, including:
 - Dynamic status badge (Active, Completed, etc.)
 - Progress indicator
-- Quick actions (View, Download)
+- Dynamic status badge (Active, Completed, etc.)
+- Progress indicator
+- **Enter Workspace** button (Primary Action)
+- Abstract quick view
 
 ### StatusTimeline
 A visual stepper showing the project's lifecycle:
@@ -75,4 +78,8 @@ Reusable avatar component used across all authenticated pages.
 - Removed broken "Start New Project" button from empty state (was non-functional).
 - Created unified `UserAvatar` component for consistent profile pictures.
 - Updated `SaasShell`, `ChatInterface`, and `ProfilePage` to use `UserAvatar`.
+
+### 2026-01-03: Workspace Entry Points
+- **ProjectCard**: "Full Doc" button (disabled) replaced with "Enter Workspace" (active).
+- **Navigation**: Project title in card now links directly to workspace.
 

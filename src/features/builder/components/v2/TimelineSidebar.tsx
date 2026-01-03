@@ -1,6 +1,7 @@
 'use client';
 
 import { LucideIcon, CheckCircle2, Lock, MoreHorizontal, Download, ChevronRight, Circle } from 'lucide-react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 interface ChapterNodeProps {
@@ -77,12 +78,12 @@ export function TimelineSidebar({ projectTitle, chapters, activeChapterNumber, o
     return (
         <aside className="w-80 flex flex-col glass-panel z-20 h-full border-r border-white/5 bg-dark/50 backdrop-blur-xl">
             {/* Brand Header */}
-            <div className="h-16 flex items-center px-6 border-b border-white/5 shrink-0">
+            <Link href="/dashboard" className="h-16 flex items-center px-6 border-b border-white/5 shrink-0 hover:bg-white/5 transition-colors">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center font-display font-bold text-white mr-3">
                     J
                 </div>
                 <span className="font-display font-bold text-lg text-white tracking-wide">J Star</span>
-            </div>
+            </Link>
 
             {/* Project Info */}
             <div className="p-6 border-b border-white/5 shrink-0">

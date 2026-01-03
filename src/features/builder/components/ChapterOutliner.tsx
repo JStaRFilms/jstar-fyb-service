@@ -231,7 +231,7 @@ export function ChapterOutliner() {
                 ) : (
                     <>
                         <div className="mt-16">
-                            <ProjectActionCenter />
+                            <ProjectActionCenter projectId={data.projectId!} />
                         </div>
 
                         {data.projectId && (

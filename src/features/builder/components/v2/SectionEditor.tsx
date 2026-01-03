@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X, Bold, Heading, List, Image, Mic, Sparkles } from 'lucide-react';
+import { X, Bold, Heading, List, Image, Mic, Sparkles, MessageSquare } from 'lucide-react';
 
 interface SectionEditorProps {
     title: string;
@@ -9,9 +9,10 @@ interface SectionEditorProps {
     wordCount?: number;
     onClose: () => void;
     onSave: (content: string) => void;
+    onOpenChat?: () => void;
 }
 
-export function SectionEditor({ title, content: initialContent, wordCount: initialWordCount = 0, onClose, onSave }: SectionEditorProps) {
+export function SectionEditor({ title, content: initialContent, wordCount: initialWordCount = 0, onClose, onSave, onOpenChat }: SectionEditorProps) {
     const [editedContent, setEditedContent] = useState(initialContent);
 
     // Calculate word count on the fly
@@ -70,9 +71,22 @@ export function SectionEditor({ title, content: initialContent, wordCount: initi
                     <Sparkles className="w-4 h-4 fill-white" /> Enhance
                 </button>
 
-                <button className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
-                    <Mic className="w-4 h-4 text-gray-400" />
-                </button>
+                <div className="flex gap-2">
+                    {onOpenChat && (
+                        <button
+                            onClick={() => {
+                                handleSave();
+                                onOpenChat();
+                            }}
+                            className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors text-gray-400 hover:text-white"
+                        >
+                            <MessageSquare className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+                        <Mic className="w-4 h-4 text-gray-400" />
+                    </button>
+                </div>
             </footer>
 
         </div>

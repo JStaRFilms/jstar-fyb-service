@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { Cpu, FileText, Lock, X } from "lucide-react";
+import { Cpu, FileText, Lock, X, Layout } from "lucide-react";
 import { StatusTimeline } from "./StatusTimeline";
+import Link from "next/link";
 
 import { Project } from "@prisma/client";
 
@@ -23,7 +24,9 @@ export const ProjectCard = ({ project }: ProjectCardProps) => {
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> {project.status || "Active"}
             </div>
 
-            <h2 className="text-2xl font-bold font-display mb-2 pr-8">{project.topic || "Untitled Project"}</h2>
+            <Link href={`/project/${project.id}/workspace`} className="block group-hover:text-primary transition-colors">
+                <h2 className="text-2xl font-bold font-display mb-2 pr-8">{project.topic || "Untitled Project"}</h2>
+            </Link>
             <p className="text-gray-400 text-sm mb-6 line-clamp-2">
                 {project.abstract || "No abstract available."}
             </p>
@@ -38,12 +41,12 @@ export const ProjectCard = ({ project }: ProjectCardProps) => {
                 >
                     <FileText className="w-4 h-4" /> Abstract
                 </button>
-                <button
-                    disabled
-                    className="py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-colors flex items-center justify-center gap-2 opacity-50 cursor-not-allowed"
+                <Link
+                    href={`/project/${project.id}/workspace`}
+                    className="py-3 bg-primary/10 border border-primary/20 rounded-xl text-sm font-bold text-primary hover:bg-primary/20 transition-colors flex items-center justify-center gap-2"
                 >
-                    <Lock className="w-4 h-4" /> Full Doc
-                </button>
+                    <Layout className="w-4 h-4" /> Enter Workspace
+                </Link>
             </div>
 
             {/* Abstract Modal - Rendered via Portal to escape parent clipping */}

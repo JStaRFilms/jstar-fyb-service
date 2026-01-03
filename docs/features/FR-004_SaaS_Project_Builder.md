@@ -247,3 +247,7 @@ const PLACEHOLDER_CHAPTERS = [
 | [builderAiService.ts](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/services/builderAiService.ts) | Removed faulty DB upsert in `generateChapterContent()` |
 | [ChapterGenerator.tsx](file:///c:/CreativeOS/01_Projects/Code/Personal_Stuff/Final%20Year%20Project%20service/2025-12-15_jstar-fyb-service/src/features/builder/components/ChapterGenerator.tsx) | Parse chapters array format instead of object format |
 
+### 2026-01-03: Workspace Transition
+- **ProjectActionCenter**: Added "Open in Workspace" button as primary action after project unlock.
+- **Completion Flow**: Users are guided to the Workspace immediately after outline generation.
+

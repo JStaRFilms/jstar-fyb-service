@@ -295,7 +295,22 @@ Before moving to Phase 2, verify:
 - [ ] Version history UI (dropdown to view/restore previous versions)
 - [ ] Debounced auto-save (currently saves on every keystroke via `onValidChange`)
 - [ ] "Enhance with AI" button functionality (placeholder)
+- [ ] "Enhance with AI" button functionality (placeholder)
 - [ ] Rich text formatting buttons (placeholder icons only)
+
+### 1.7 Workspace UX Refinements (2026-01-03)
+> **Goal**: Seamless navigation and mobile-first experience.
+
+#### Navigation Updates
+- **Dashboard**: `ProjectCard` now has a direct "Enter Workspace" button.
+- **Builder**: `ChapterOutliner` (Action Center) now guides users to "Open in Workspace" after unlock.
+- **Back Navigation**: Added "Back to Dashboard" links in:
+  - Desktop Sidebar (`TimelineSidebar`)
+  - Mobile Header (`ChapterEditor`)
+
+#### Mobile & AI Features
+- **Mobile Chat**: Integrated "AI Chat" tab in `MobileFloatingNav` and "Enhance" button in `SectionEditor` (saves content -> opens chat).
+- **Dynamic Stats**: Replaced hardcoded word count/progress with live data calculations.
 
 ---
 

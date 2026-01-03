@@ -7,8 +7,9 @@ import { MobileTimelineView } from './MobileTimelineView';
 import { SectionEditor } from './SectionEditor';
 import { MobileFloatingNav } from './MobileFloatingNav';
 import { useMediaQuery } from '../../../../hooks/use-media-query';
-import { Search, BrainCircuit, ArrowRight, FileText, Globe, Cloud, Loader2, Check, CloudOff, MessageSquare, Layout } from 'lucide-react';
+import { Search, BrainCircuit, ArrowRight, FileText, Globe, Cloud, Loader2, Check, CloudOff, MessageSquare, Layout, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import { DocumentUpload } from '../DocumentUpload';
 import { ResearchStatus } from '../ResearchStatus';
 import { AcademicCopilot } from './AcademicCopilot';
@@ -331,7 +332,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
         <div className="flex flex-col min-h-screen bg-dark text-white font-sans">
             <header className="fixed top-0 w-full z-40 px-6 pt-6 pb-4 flex justify-between items-start bg-gradient-to-b from-dark via-dark/80 to-transparent pointer-events-none">
                 <div className="flex flex-col pointer-events-auto mt-2">
-                    <span className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1">Project Workspace</span>
+                    <Link href="/dashboard" className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase tracking-widest mb-1 hover:underline">
+                        <ChevronLeft className="w-3 h-3" /> Back to Dashboard
+                    </Link>
                     <h1 className="font-display font-bold text-2xl leading-tight text-white line-clamp-2 max-w-[200px]">{projectTitle || "Workspace"}</h1>
                 </div>
                 <div className="pointer-events-auto mt-2 shrink-0">
@@ -368,6 +371,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     onSave={(content) => {
                         handleSave(content);
                         setMobileView('timeline');
+                    }}
+                    onOpenChat={() => {
+                        handleMobileTabChange('chat');
                     }}
                 />
             )}
