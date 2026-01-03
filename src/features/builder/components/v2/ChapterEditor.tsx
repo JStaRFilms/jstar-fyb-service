@@ -7,8 +7,10 @@ import { MobileTimelineView } from './MobileTimelineView';
 import { SectionEditor } from './SectionEditor';
 import { MobileFloatingNav } from './MobileFloatingNav';
 import { useMediaQuery } from '../../../../hooks/use-media-query';
-import { Search, BrainCircuit, ArrowRight, FileText, Globe, Cloud, Loader2, Check, CloudOff } from 'lucide-react';
+import { Search, BrainCircuit, ArrowRight, FileText, Globe, Cloud, Loader2, Check, CloudOff, MessageSquare, Layout } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DocumentUpload } from '../DocumentUpload';
+import { ResearchStatus } from '../ResearchStatus';
 
 interface Chapter {
     id: string;
@@ -40,6 +42,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const pendingContentRef = useRef<string | null>(null);
+
+    // Right Panel State
+    const [activeTab, setActiveTab] = useState<'research' | 'chat' | 'diagrams'>('research');
 
     // Mobile State
     const [mobileView, setMobileView] = useState<'timeline' | 'editor'>('timeline');
@@ -233,9 +238,33 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 <aside className="hidden lg:flex w-96 flex-col glass-panel border-l border-white/5 bg-dark/95 backdrop-blur-xl z-20">
                     {/* Context Tabs */}
                     <div className="flex border-b border-white/5 shrink-0">
-                        <button className="flex-1 py-4 text-sm font-bold border-b-2 border-primary text-white">Research</button>
-                        <button className="flex-1 py-4 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-300">AI Chat</button>
-                        <button className="flex-1 py-4 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-300">Diagrams</button>
+                        <button
+                            onClick={() => setActiveTab('research')}
+                            className={cn(
+                                "flex-1 py-4 text-sm font-bold border-b-2 transition-colors",
+                                activeTab === 'research' ? "border-primary text-white" : "border-transparent text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            Research
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('chat')}
+                            className={cn(
+                                "flex-1 py-4 text-sm font-bold border-b-2 transition-colors",
+                                activeTab === 'chat' ? "border-primary text-white" : "border-transparent text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            AI Chat
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('diagrams')}
+                            className={cn(
+                                "flex-1 py-4 text-sm font-bold border-b-2 transition-colors",
+                                activeTab === 'diagrams' ? "border-primary text-white" : "border-transparent text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            Diagrams
+                        </button>
                     </div>
 
                     {/* Smart Search */}
@@ -251,49 +280,45 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        {activeTab === 'research' ? (
+                            <div className="p-4 space-y-4">
+                                {/* Research Status Widget */}
+                                <ResearchStatus projectId={projectId} />
 
-                        {/* Deep Research Promo */}
-                        <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-white/5 rounded-xl p-4 relative overflow-hidden group hover:border-primary/30 transition-colors cursor-pointer">
-                            <div className="absolute right-0 top-0 w-20 h-20 bg-primary/20 blur-2xl rounded-full -mr-10 -mt-10"></div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <BrainCircuit className="w-4 h-4 text-primary" />
-                                <span className="text-xs font-bold text-primary uppercase tracking-wider">Research Agent</span>
-                            </div>
-                            <h3 className="font-bold text-sm mb-1 text-white">Deep Dive Needed?</h3>
-                            <p className="text-xs text-gray-400 leading-relaxed mb-3">Let AI scan web sources and academic papers to find facts for this chapter.</p>
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-white bg-primary px-2 py-1 rounded w-fit">
-                                Start Job <ArrowRight className="w-3 h-3" />
-                            </div>
-                        </div>
+                                {/* Document Upload & List */}
+                                <DocumentUpload projectId={projectId} />
 
-                        {/* Reference List */}
-                        <div className="space-y-3">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Saved Sources</h3>
-
-                            {/* Source Item 1 */}
-                            <div className="bg-white/5 p-3 rounded-lg flex gap-3 hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/5">
-                                <div className="w-8 h-8 rounded bg-red-500/20 flex items-center justify-center shrink-0">
-                                    <FileText className="w-4 h-4 text-red-400" />
-                                </div>
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-200 line-clamp-1">Lagos_Urban_Planning.pdf</h4>
-                                    <p className="text-[10px] text-gray-500 mt-1">Page 4 • "Waste generation stats"</p>
+                                {/* Legacy Content (kept for reference or secondary view if needed) */}
+                                <div className="hidden">
+                                    {/* ... previous content ... */}
                                 </div>
                             </div>
-
-                            {/* Source Item 2 */}
-                            <div className="bg-white/5 p-3 rounded-lg flex gap-3 hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/5">
-                                <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center shrink-0">
-                                    <Globe className="w-4 h-4 text-blue-400" />
-                                </div>
-                                <div>
-                                    <h4 className="text-xs font-bold text-gray-200 line-clamp-1">IEEE Smart Cities Survey</h4>
-                                    <p className="text-[10px] text-gray-500 mt-1">Web Link • Cited 12 times</p>
+                        ) : activeTab === 'chat' ? (
+                            <div className="flex flex-col h-full bg-black/20">
+                                {/* We could embed the Jay/Copilot chat here */}
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                    <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                                        <BrainCircuit className="w-6 h-6 text-primary" />
+                                    </div>
+                                    <h3 className="font-bold text-white mb-2">Academic Copilot</h3>
+                                    <p className="text-xs text-gray-400 mb-6">
+                                        Ask questions about your research library or get help writing this chapter.
+                                    </p>
+                                    <a
+                                        href={`/project/${projectId}/chat`}
+                                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                                    >
+                                        Open Full Chat <ArrowRight className="w-3 h-3" />
+                                    </a>
                                 </div>
                             </div>
-                        </div>
-
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                                <Layout className="w-12 h-12 text-gray-600 mb-4" />
+                                <h3 className="text-gray-400 font-medium">Diagrams coming soon</h3>
+                            </div>
+                        )}
                     </div>
                 </aside>
             </div>

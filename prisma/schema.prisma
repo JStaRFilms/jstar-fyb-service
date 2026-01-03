@@ -144,6 +144,10 @@ model Project {
   estimatedCompletion DateTime? // Estimated completion date
   actualCompletion   DateTime? // Actual completion date
 
+  // Gemini File Search Store (for RAG/Q&A)
+  fileSearchStoreId        String?   // e.g., "fileSearchStores/abc123"
+  fileSearchStoreCreatedAt DateTime?
+
   // Relations
   documents   ResearchDocument[]
   outline     ChapterOutline?
@@ -207,6 +211,11 @@ model ResearchDocument {
   insights     String? // JSON array of insights
   extractedContent String?
   aiInsights   String?
+
+  // Gemini File Search integration
+  importedToFileSearch Boolean @default(false)
+  fileSearchFileId     String? // ID returned from File Search upload
+  importError          String? // Error message if import failed
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, Link as LinkIcon, FileText, Loader2, Trash2, CheckCircle, XCircle, Eye, Sparkles } from "lucide-react";
+import { Upload, Link as LinkIcon, FileText, Loader2, Trash2, CheckCircle, XCircle, Eye, Sparkles, BrainCircuit, RefreshCw } from "lucide-react";
 import { useBuilderStore } from "../store/useBuilderStore";
 import { DocumentViewerModal } from "./DocumentViewerModal";
 import { ResearchDocument } from "@prisma/client";
@@ -14,6 +14,7 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
     const [isExtracting, setIsExtracting] = useState(false);
     const [documents, setDocuments] = useState<any[]>([]);
     const [extractionStatus, setExtractionStatus] = useState<Record<string, string>>({});
+    const [syncingDocs, setSyncingDocs] = useState<Record<string, boolean>>({}); // Track manual syncs
     const [selectedDocument, setSelectedDocument] = useState<ResearchDocument | null>(null);
 
     // Fetch existing documents
@@ -134,6 +135,25 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
         }
     };
 
+    const handleRetrySync = async () => {
+        setSyncingDocs(prev => ({ ...prev, global: true }));
+        try {
+            const res = await fetch(`/api/projects/${projectId}/research/sync`, { method: 'POST' });
+            if (res.ok) {
+                await fetchDocuments(); // Refresh to get new statuses
+                alert('Sync completed successfully');
+            } else {
+                alert('Sync failed');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Sync failed');
+        } finally {
+            setSyncingDocs(prev => ({ ...prev, global: false }));
+        }
+    };
+
+
     const getStatusIcon = (status: string) => {
         switch (status) {
             case "PROCESSED": return <CheckCircle className="w-4 h-4 text-green-400" />;
@@ -250,6 +270,20 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                                         </p>
                                     )}
                                 </div>
+                                {/* AI Sync Badge */}
+                                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/5 ml-2">
+                                    {doc.importedToFileSearch ? (
+                                        <>
+                                            <BrainCircuit className="w-3 h-3 text-purple-400" />
+                                            <span className="text-[10px] text-gray-300 font-medium tracking-wide">AI READY</span>
+                                        </>
+                                    ) : doc.fileType !== 'link' ? (
+                                        <>
+                                            <Loader2 className="w-3 h-3 text-gray-500 animate-spin" />
+                                            <span className="text-[10px] text-gray-500">SYNCING...</span>
+                                        </>
+                                    ) : null}
+                                </div>
                             </div>
 
                             <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
@@ -286,19 +320,33 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
                         </div>
                     ))}
                 </div>
-            )}
+            )
+            }
 
             {/* Processing Info */}
-            <div className="mt-4 text-xs text-gray-500">
-                <p><strong>Note:</strong> Documents are automatically processed to extract metadata, content, and insights for AI content generation.</p>
-                <p className="mt-1">Processed documents become available as context for chapter generation and research assistance.</p>
+            <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-white/5 pt-4">
+                <div className="text-xs text-gray-500">
+                    <p><strong>Note:</strong> Processed documents become available as context for chapter generation and research assistance.</p>
+                </div>
+
+                {/* Manual Sync Retry */}
+                <button
+                    onClick={handleRetrySync}
+                    disabled={syncingDocs['global']}
+                    className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                    title="Force sync documents to AI search index"
+                >
+                    <RefreshCw className={`w-3 h-3 ${syncingDocs['global'] ? "animate-spin" : ""}`} />
+                    Retry AI Sync
+                </button>
             </div>
+
             {/* Document Viewer Modal */}
             <DocumentViewerModal
                 researchDoc={selectedDocument}
                 isOpen={!!selectedDocument}
                 onClose={() => setSelectedDocument(null)}
             />
-        </div>
+        </div >
     );
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { GeminiFileSearchService } from "@/lib/gemini-file-search";
 
 // Security constants
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB limit
@@ -188,6 +189,69 @@ export async function POST(req: Request) {
                     status: "PENDING"
                 }
             });
+
+            // -----------------------------------------------------
+            // PHASE 2: Gemini File Search Integration (Async)
+            // -----------------------------------------------------
+            (async () => {
+                try {
+                    // 1. Get or Create FileSearchStore for this project
+                    let project = await prisma.project.findUnique({
+                        where: { id: projectId },
+                        select: { fileSearchStoreId: true }
+                    });
+
+                    let storeId = project?.fileSearchStoreId;
+
+                    if (!storeId) {
+                        console.log('[DocumentUpload] Creating new FileSearchStore for project:', projectId);
+                        storeId = await GeminiFileSearchService.createStore(projectId);
+
+                        await prisma.project.update({
+                            where: { id: projectId },
+                            data: {
+                                fileSearchStoreId: storeId,
+                                fileSearchStoreCreatedAt: new Date()
+                            }
+                        });
+                    }
+
+                    // 2. Upload file to FileSearchStore
+                    if (storeId) {
+                        const result = await GeminiFileSearchService.uploadDocument(
+                            storeId,
+                            buffer,
+                            sanitizedFileName,
+                            file.type
+                        );
+
+                        // 3. Update ResearchDocument status
+                        if (result.success) {
+                            await prisma.researchDocument.update({
+                                where: { id: doc.id },
+                                data: {
+                                    importedToFileSearch: true,
+                                    fileSearchFileId: result.fileId
+                                }
+                            });
+                        } else {
+                            console.error('[DocumentUpload] File Search upload failed:', result.error);
+                            await prisma.researchDocument.update({
+                                where: { id: doc.id },
+                                data: { importError: result.error || 'Upload failed' }
+                            });
+                        }
+                    }
+                } catch (error: any) {
+                    console.error('[DocumentUpload] Async File Search sync error:', error);
+                    // Update document with error
+                    await prisma.researchDocument.update({
+                        where: { id: doc.id },
+                        data: { importError: error.message || 'Async sync failed' }
+                    });
+                }
+            })();
+            // -----------------------------------------------------
 
             return NextResponse.json({ success: true, doc });
         }

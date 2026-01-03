@@ -191,5 +191,27 @@ async function streamTextWithRetry(config, retries = MAX_RETRIES) {
 
 ---
 
+## Type Safety & SDK Patterns
+
+### Proper Tool Definition
+Always use `inputSchema` rather than `parameters` for tool definitions to ensure consistency with the J Star FYB codebase patterns.
+
+### Explicit Message Typing
+When mapping messages from requests, explicitly type them as `CoreMessage[]` from `ai` to avoid overload resolution issues in `streamText`.
+
+```typescript
+import { streamText, type CoreMessage } from 'ai';
+
+const coreMessages: CoreMessage[] = messages.map((m: any) => ({
+    role: m.role as 'user' | 'assistant' | 'system',
+    content: m.content
+}));
+```
+
+### Multi-Step Control
+While `maxSteps` is preferred in newer AI SDK versions, some configurations in this project use `stopWhen: stepCountIs(n)` for more granular control or legacy compatibility.
+
+---
+
 ## Reference
 See `docs/Vercel Ai SDK.md` for full SDK documentation.

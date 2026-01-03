@@ -267,6 +267,36 @@ Before moving to Phase 2, verify:
 - [x] Version is incremented on significant edits ✅ *(Auto-versioning in PATCH endpoint)*
 - [x] Word count updates automatically ✅ *(Live useMemo in SectionEditor + server-side in PATCH)*
 
+### 1.6 Implementation Notes (2026-01-02)
+
+#### Files Modified/Created
+
+| File | Change |
+|------|--------|
+| `prisma/schema.prisma` | Added `Chapter` model with versioning fields |
+| `src/app/api/projects/[id]/chapters/route.ts` | GET all chapters |
+| `src/app/api/projects/[id]/chapters/[chapterNumber]/route.ts` | GET/PATCH single chapter with auto-versioning |
+| `src/app/api/projects/[id]/chapters/[chapterNumber]/versions/route.ts` | GET/POST version snapshots |
+| `src/app/api/generate/chapter/route.ts` | Modified to save to `Chapter` model on `onFinish` |
+| `src/features/builder/components/v2/ChapterEditor.tsx` | Full workspace UI with save status indicator |
+| `src/features/builder/components/v2/WritingCanvas.tsx` | Controlled textarea with prop sync on chapter switch |
+| `src/features/builder/components/v2/SectionEditor.tsx` | Mobile editor with controlled state + live word count |
+| `src/features/builder/components/v2/SaveStatusIndicator.tsx` | Reusable save status context (placeholder for later) |
+
+#### Key Decisions
+
+1. **Controlled vs Uncontrolled Textareas**: Used `useState` + `useEffect` sync pattern to ensure content updates when switching chapters
+2. **Auto-Versioning**: Snapshots created automatically in PATCH when content length differs by >100 chars, stored in `previousVersions` JSON (max 10 kept)
+3. **Inline SaveStatusBadge**: Component defined inside ChapterEditor to avoid prop drilling, shows idle/saving/saved/error states
+4. **Mobile vs Desktop**: Different layouts - mobile uses full-screen `SectionEditor` overlay, desktop uses inline `WritingCanvas`
+
+#### Known Gaps (Deferred to Future)
+
+- [ ] Version history UI (dropdown to view/restore previous versions)
+- [ ] Debounced auto-save (currently saves on every keystroke via `onValidChange`)
+- [ ] "Enhance with AI" button functionality (placeholder)
+- [ ] Rich text formatting buttons (placeholder icons only)
+
 ---
 
 ## PHASE 2 [PLANNED]: Research Integration
