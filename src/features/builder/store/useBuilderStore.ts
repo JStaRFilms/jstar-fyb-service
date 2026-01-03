@@ -35,6 +35,7 @@ export interface ProjectData {
     outline: Chapter[];
     mode: ProjectMode;
     status: ProjectStatus;
+    isLocked?: boolean;
 }
 
 interface BuilderState {
@@ -70,7 +71,8 @@ export const useBuilderStore = create<BuilderState>()(
                 abstract: '',
                 outline: [],
                 mode: null,
-                status: 'OUTLINE_GENERATED'
+                status: 'OUTLINE_GENERATED',
+                isLocked: false
             },
             isGenerating: false,
             isPaid: false,
@@ -281,6 +283,7 @@ export const useBuilderStore = create<BuilderState>()(
                         outline: [],
                         mode: null,
                         status: 'OUTLINE_GENERATED' as const,
+                        isLocked: false,
                         // Then spread server data to override
                         ...projectData
                     },

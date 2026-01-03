@@ -51,8 +51,11 @@ export function MobileFloatingNav({ activeTab, onTabChange }: MobileFloatingNavP
                         : "w-12 h-12 justify-center text-gray-400 hover:bg-white/10 hover:text-white"
                 )}
             >
-                <MessageSquare className="w-5 h-5" />
-                {activeTab === 'chat' && <span className="font-bold text-xs uppercase animate-in fade-in slide-in-from-left-2">Chat</span>}
+                <div className="relative">
+                    <MessageSquare className="w-5 h-5" />
+                    {/* Optional: Add unread indicator here if needed */}
+                </div>
+                {activeTab === 'chat' && <span className="font-bold text-xs uppercase animate-in fade-in slide-in-from-left-2">AI Chat</span>}
             </button>
 
             <button

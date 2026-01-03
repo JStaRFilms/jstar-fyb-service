@@ -98,12 +98,12 @@ Ensure the content descriptions are specific to the project's domain (e.g., if b
                         // PRIORITY 3: Create new project only if nothing found
                         if (!project) {
                             console.log('[GenerateOutline] No existing project found, creating new one');
-                            project = await prisma.project.create({
-                                data: {
-                                    topic: topic,
-                                    abstract: abstract,
-                                    userId: user.id
-                                }
+                            // Use ProjectsService to enforce lock
+                            const { ProjectsService } = await import('@/services/projects.service');
+                            project = await ProjectsService.createProject({
+                                topic,
+                                abstract,
+                                userId: user.id
                             });
                         }
 

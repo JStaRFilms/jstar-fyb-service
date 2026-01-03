@@ -111,6 +111,8 @@ CREATE TABLE "Project" (
     "assignedTo" TEXT,
     "isUnlocked" BOOLEAN NOT NULL DEFAULT false,
     "outlineGenerated" BOOLEAN NOT NULL DEFAULT false,
+    "isLocked" BOOLEAN NOT NULL DEFAULT false,
+    "lockedAt" TIMESTAMP(3),
     "progressPercentage" INTEGER NOT NULL DEFAULT 0,
     "contentProgress" JSONB,
     "documentProgress" JSONB,
@@ -119,6 +121,14 @@ CREATE TABLE "Project" (
     "milestones" JSONB,
     "estimatedCompletion" TIMESTAMP(3),
     "actualCompletion" TIMESTAMP(3),
+    "fileSearchStoreId" TEXT,
+    "fileSearchStoreCreatedAt" TIMESTAMP(3),
+    "department" TEXT,
+    "course" TEXT,
+    "institution" TEXT,
+    "complexity" INTEGER DEFAULT 3,
+    "jayContextSummary" TEXT,
+    "contextComplete" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
 );
@@ -166,6 +176,9 @@ CREATE TABLE "ResearchDocument" (
     "insights" TEXT,
     "extractedContent" TEXT,
     "aiInsights" TEXT,
+    "importedToFileSearch" BOOLEAN NOT NULL DEFAULT false,
+    "fileSearchFileId" TEXT,
+    "importError" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -235,6 +248,22 @@ CREATE TABLE "ProjectChatMessage" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ProjectChatMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TopicSwitchRequest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "projectId" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "proofUrl" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "fee" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+    "resolvedBy" TEXT,
+
+    CONSTRAINT "TopicSwitchRequest_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable

@@ -134,6 +134,10 @@ model Project {
   isUnlocked       Boolean @default(false) // Has paid for full project
   outlineGenerated Boolean @default(false)
 
+  // Topic Lock Mechanism
+  isLocked   Boolean   @default(false)
+  lockedAt   DateTime?
+
   // Enhanced Progress Tracking
   progressPercentage Int     @default(0) // 0-100
   contentProgress    Json?   // JSON object tracking content generation progress
@@ -301,6 +305,20 @@ model ProjectChatMessage {
   content        String
   toolInvocations Json?   // Store AI tool calls/results
   createdAt      DateTime @default(now())
+}
+
+model TopicSwitchRequest {
+  id           String   @id @default(cuid())
+  userId       String
+  projectId    String
+  reason       String   // "changed_mind" | "lecturer_rejected"
+  explanation  String?  // Added this
+  proofUrl     String?  // Screenshot URL
+  status       String   @default("pending") // pending | approved | denied
+  fee          Int?     // null if free (rejection), 2000 if paid
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+  resolvedBy   String?  // Admin user ID
 }
 
 // ============================================

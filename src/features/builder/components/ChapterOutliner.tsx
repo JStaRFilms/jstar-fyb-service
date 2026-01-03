@@ -18,6 +18,8 @@ import { OutlinePreview } from "./OutlinePreview";
 import { usePaymentVerification } from "../hooks/usePaymentVerification";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { TopicLockModal } from "@/features/billing/components/TopicLockModal";
 
 export function ChapterOutliner() {
     const { data, isPaid, unlockPaywall, updateData, setMode } = useBuilderStore();
@@ -28,8 +30,18 @@ export function ChapterOutliner() {
     // Payment verification hook (handles ?reference= URL param)
     const { isVerifying } = usePaymentVerification(isPaid, unlockPaywall);
 
-    // Handle unlock - Initialize Paystack
-    const handleUnlock = async () => {
+    // Lock Warning Logic
+    const [isLockModalOpen, setIsLockModalOpen] = useState(false);
+
+    // Initial Trigger (opens modal)
+    const handleUnlock = () => {
+        setIsLockModalOpen(true);
+    };
+
+    // Actual Payment (after confirmation)
+    const proceedToPayment = async () => {
+        setIsLockModalOpen(false); // Close modal
+
         if (!data.projectId) {
             console.error('[ChapterOutliner] No projectId for unlock');
             return;
@@ -201,10 +213,22 @@ export function ChapterOutliner() {
                         ? 'AI is crafting your distinction-grade outline...'
                         : "We've crafted a distinction-grade abstract and outline for your project."}
                 </p>
-            </div>
+
+                {/* Navigation Recovery: Allow changing topic if needed */}
+                {!isLoading && (
+                    <button
+                        onClick={() => {
+                            useBuilderStore.setState({ step: 'TOPIC' });
+                        }}
+                        className="mt-4 text-xs text-gray-500 hover:text-white underline transition-colors"
+                    >
+                        Change Topic
+                    </button>
+                )}
+            </div >
 
             {/* The Content */}
-            <div className="relative">
+            < div className="relative" >
                 <OutlinePreview
                     displayTitle={displayTitle}
                     abstractPreview={abstractPreview}
@@ -213,51 +237,61 @@ export function ChapterOutliner() {
                 />
 
                 {/* Pricing Overlay - Show if not paid */}
-                {!isPaid ? (
-                    <div className="mt-8">
-                        <PricingOverlay onUnlock={handleUnlock} />
-                    </div>
-                ) : data.mode === null ? (
-                    <div className="mt-16">
-                        <ModeSelection
-                            projectId={data.projectId!}
-                            onModeSelected={(mode) => setMode(mode)}
-                        />
-                    </div>
-                ) : data.mode === "CONCIERGE" ? (
-                    <div className="mt-16">
-                        <ConciergeWaiting projectId={data.projectId!} status={data.status} />
-                    </div>
-                ) : (
-                    <>
+                {
+                    !isPaid ? (
+                        <div className="mt-8">
+                            <PricingOverlay onUnlock={handleUnlock} />
+                        </div>
+                    ) : data.mode === null ? (
                         <div className="mt-16">
-                            <ProjectActionCenter projectId={data.projectId!} />
+                            <ModeSelection
+                                projectId={data.projectId!}
+                                onModeSelected={(mode) => setMode(mode)}
+                            />
                         </div>
-
-                        {data.projectId && (
-                            <div className="mt-16">
-                                <ProjectAssistant projectId={data.projectId} />
-                            </div>
-                        )}
-
-                        {data.projectId && (
-                            <div className="mt-16">
-                                <ChapterGenerator projectId={data.projectId} />
-                            </div>
-                        )}
-
-                        <div className="mt-20 mb-10">
-                            <UpsellBridge projectId={data.projectId} />
+                    ) : data.mode === "CONCIERGE" ? (
+                        <div className="mt-16">
+                            <ConciergeWaiting projectId={data.projectId!} status={data.status} />
                         </div>
-
-                        {data.projectId && (
+                    ) : (
+                        <>
                             <div className="mt-16">
-                                <DocumentUpload projectId={data.projectId} />
+                                <ProjectActionCenter projectId={data.projectId!} />
                             </div>
-                        )}
-                    </>
-                )}
-            </div>
+
+                            {data.projectId && (
+                                <div className="mt-16">
+                                    <ProjectAssistant projectId={data.projectId} />
+                                </div>
+                            )}
+
+                            {data.projectId && (
+                                <div className="mt-16">
+                                    <ChapterGenerator projectId={data.projectId} />
+                                </div>
+                            )}
+
+                            <div className="mt-20 mb-10">
+                                <UpsellBridge projectId={data.projectId} />
+                            </div>
+
+                            {data.projectId && (
+                                <div className="mt-16">
+                                    <DocumentUpload projectId={data.projectId} />
+                                </div>
+                            )}
+                        </>
+                    )
+                }
+            </div >
+
+
+            <TopicLockModal
+                isOpen={isLockModalOpen}
+                onClose={() => setIsLockModalOpen(false)}
+                onConfirm={proceedToPayment}
+                topic={data.topic || "Your Project"}
+            />
         </>
     );
 }

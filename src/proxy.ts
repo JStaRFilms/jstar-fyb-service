@@ -28,7 +28,7 @@ const adminAuthMiddleware = (req: NextRequest) => {
     });
 };
 
-export default async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
     // Admin Path -> Basic Auth
     if (req.nextUrl.pathname.startsWith('/admin')) {
         return adminAuthMiddleware(req);

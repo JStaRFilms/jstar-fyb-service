@@ -78,11 +78,14 @@ export function TimelineSidebar({ projectTitle, chapters, activeChapterNumber, o
     return (
         <aside className="w-80 flex flex-col glass-panel z-20 h-full border-r border-white/5 bg-dark/50 backdrop-blur-xl">
             {/* Brand Header */}
-            <Link href="/dashboard" className="h-16 flex items-center px-6 border-b border-white/5 shrink-0 hover:bg-white/5 transition-colors">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center font-display font-bold text-white mr-3">
+            <Link href="/dashboard" className="h-16 flex items-center px-6 border-b border-white/5 shrink-0 hover:bg-white/5 transition-colors group">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center font-display font-bold text-white mr-3 group-hover:scale-105 transition-transform">
                     J
                 </div>
-                <span className="font-display font-bold text-lg text-white tracking-wide">J Star</span>
+                <div className="flex flex-col">
+                    <span className="font-display font-bold text-lg text-white tracking-wide">J Star</span>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider group-hover:text-primary transition-colors">← Dashboard</span>
+                </div>
             </Link>
 
             {/* Project Info */}

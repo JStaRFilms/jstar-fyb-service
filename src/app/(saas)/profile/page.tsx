@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { SaasShell } from "@/features/ui/SaasShell";
 import { ProfileClient } from "./ProfileClient";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import { prisma } from "@/lib/prisma";
+import { TopicSwitchRequestForm } from "@/features/support/components/TopicSwitchRequestForm";
 
 export default async function ProfilePage() {
     const user = await getCurrentUser();
@@ -39,6 +41,23 @@ export default async function ProfilePage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Project Settings / Topic Switch */}
+                {await (async () => {
+                    const project = await prisma.project.findFirst({
+                        where: { userId: user.id },
+                        orderBy: { createdAt: 'desc' }
+                    });
+
+                    if (!project) return null;
+
+                    return (
+                        <div className="mt-8">
+                            <h2 className="text-xl font-display font-bold mb-4">Project Settings</h2>
+                            <TopicSwitchRequestForm project={project} />
+                        </div>
+                    );
+                })()}
 
                 <div className="mt-8 text-center text-sm text-gray-500">
                     <p>J-Star FYB Service &copy; {new Date().getFullYear()}</p>

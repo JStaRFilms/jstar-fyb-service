@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getTierByPrice } from "@/config/pricing";
 import { EmailService } from "@/services/email.service";
+import { ProjectsService } from "./projects.service";
 
 export interface PaymentData {
     reference: string;
@@ -130,7 +131,9 @@ export const BillingService = {
             where: { id: projectId },
             data: updateData
         });
-        console.log(`[BillingService] Unlocked project: ${projectId}`);
+        // Also lock the topic (Business Rule: Topic Lock)
+        await ProjectsService.lockProject(projectId);
+        console.log(`[BillingService] Unlocked project (paid) and Locked topic: ${projectId}`);
     },
 
     async sendReceiptEmail(userId: string, paymentId: string) {

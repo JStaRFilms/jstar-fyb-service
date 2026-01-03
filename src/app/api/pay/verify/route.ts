@@ -166,6 +166,8 @@ const processPaymentVerification = async (reference: string) => {
                 where: { id: projectId },
                 data: {
                     isUnlocked: true,
+                    isLocked: true, // Fix: Enforce topic lock on payment
+                    lockedAt: new Date(),
                     status: isConciergeTier ? "RESEARCH_IN_PROGRESS" : "UNLOCKED",
                     mode: isConciergeTier ? "CONCIERGE" : "DIY",
                     updatedAt: new Date()
