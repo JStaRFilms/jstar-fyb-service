@@ -114,7 +114,7 @@ ${outlineData}
     }));
 
     const result = streamText({
-        model: groq('openai/gpt-oss-120b'), // Llama 3 70B
+        model: groq('openai/gpt-oss-120b'), // openai/gpt-oss-120b
         system: systemPrompt,
         messages: coreMessages,
         stopWhen: stepCountIs(5), // Allow tool usage steps

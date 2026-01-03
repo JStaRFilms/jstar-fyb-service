@@ -6,7 +6,7 @@ import { useBuilderStore } from "../store/useBuilderStore";
 import { DocumentViewerModal } from "./DocumentViewerModal";
 import { ResearchDocument } from "@prisma/client";
 
-export function DocumentUpload({ projectId }: { projectId: string }) {
+export function DocumentUpload({ projectId, searchQuery = "" }: { projectId: string, searchQuery?: string }) {
     const [mode, setMode] = useState<"upload" | "link">("upload");
     const [file, setFile] = useState<File | null>(null);
     const [link, setLink] = useState("");
@@ -249,76 +249,87 @@ export function DocumentUpload({ projectId }: { projectId: string }) {
             {/* Document List */}
             {documents.length > 0 && (
                 <div className="space-y-3">
-                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Uploaded Documents</h4>
-                    {documents.map((doc) => (
-                        <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5 gap-4">
-                            <div className="flex items-start gap-3 min-w-0">
-                                <div className="mt-0.5 shrink-0">
-                                    {doc.fileType === 'file' ? (
-                                        <FileText className="w-5 h-5 text-blue-400" />
-                                    ) : (
-                                        <LinkIcon className="w-5 h-5 text-purple-400" />
-                                    )}
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
+                        {searchQuery ? `Search Results (${documents.filter(d =>
+                            d.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            d.title?.toLowerCase().includes(searchQuery.toLowerCase())
+                        ).length})` : "Uploaded Documents"}
+                    </h4>
+                    {documents
+                        .filter(doc =>
+                            !searchQuery ||
+                            doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            (doc.title && doc.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                        )
+                        .map((doc) => (
+                            <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5 gap-4">
+                                <div className="flex items-start gap-3 min-w-0">
+                                    <div className="mt-0.5 shrink-0">
+                                        {doc.fileType === 'file' ? (
+                                            <FileText className="w-5 h-5 text-blue-400" />
+                                        ) : (
+                                            <LinkIcon className="w-5 h-5 text-purple-400" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="text-sm font-medium text-white block truncate" title={doc.fileName}>
+                                            {doc.fileName}
+                                        </span>
+                                        {doc.title && (
+                                            <p className="text-xs text-gray-400 truncate mt-0.5" title={doc.title}>
+                                                {doc.title}
+                                            </p>
+                                        )}
+                                    </div>
+                                    {/* AI Sync Badge */}
+                                    <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/5 ml-2">
+                                        {doc.importedToFileSearch ? (
+                                            <>
+                                                <BrainCircuit className="w-3 h-3 text-purple-400" />
+                                                <span className="text-[10px] text-gray-300 font-medium tracking-wide">AI READY</span>
+                                            </>
+                                        ) : doc.fileType !== 'link' ? (
+                                            <>
+                                                <Loader2 className="w-3 h-3 text-gray-500 animate-spin" />
+                                                <span className="text-[10px] text-gray-500">SYNCING...</span>
+                                            </>
+                                        ) : null}
+                                    </div>
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <span className="text-sm font-medium text-white block truncate" title={doc.fileName}>
-                                        {doc.fileName}
-                                    </span>
-                                    {doc.title && (
-                                        <p className="text-xs text-gray-400 truncate mt-0.5" title={doc.title}>
-                                            {doc.title}
-                                        </p>
-                                    )}
-                                </div>
-                                {/* AI Sync Badge */}
-                                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/5 ml-2">
-                                    {doc.importedToFileSearch ? (
-                                        <>
-                                            <BrainCircuit className="w-3 h-3 text-purple-400" />
-                                            <span className="text-[10px] text-gray-300 font-medium tracking-wide">AI READY</span>
-                                        </>
-                                    ) : doc.fileType !== 'link' ? (
-                                        <>
-                                            <Loader2 className="w-3 h-3 text-gray-500 animate-spin" />
-                                            <span className="text-[10px] text-gray-500">SYNCING...</span>
-                                        </>
-                                    ) : null}
+
+                                <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
+                                    {/* Status */}
+                                    <div className="flex items-center gap-2">
+                                        {getStatusIcon(doc.status)}
+                                        <span className="text-xs text-gray-400 whitespace-nowrap">{getStatusText(doc.status)}</span>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-2">
+                                        {doc.status === "PENDING" && (
+                                            <button
+                                                onClick={() => handleExtract(doc.id)}
+                                                disabled={isExtracting}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-xs transition-colors border border-blue-500/20"
+                                            >
+                                                <Sparkles className="w-3 h-3" />
+                                                Process
+                                            </button>
+                                        )}
+
+                                        {doc.status === "PROCESSED" && (
+                                            <button
+                                                onClick={() => setSelectedDocument(doc)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-md text-xs transition-colors border border-green-500/20"
+                                            >
+                                                <Eye className="w-3 h-3" />
+                                                View
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-
-                            <div className="flex items-center justify-between sm:justify-end gap-4 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
-                                {/* Status */}
-                                <div className="flex items-center gap-2">
-                                    {getStatusIcon(doc.status)}
-                                    <span className="text-xs text-gray-400 whitespace-nowrap">{getStatusText(doc.status)}</span>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-2">
-                                    {doc.status === "PENDING" && (
-                                        <button
-                                            onClick={() => handleExtract(doc.id)}
-                                            disabled={isExtracting}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-md text-xs transition-colors border border-blue-500/20"
-                                        >
-                                            <Sparkles className="w-3 h-3" />
-                                            Process
-                                        </button>
-                                    )}
-
-                                    {doc.status === "PROCESSED" && (
-                                        <button
-                                            onClick={() => setSelectedDocument(doc)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-md text-xs transition-colors border border-green-500/20"
-                                        >
-                                            <Eye className="w-3 h-3" />
-                                            View
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             )
             }

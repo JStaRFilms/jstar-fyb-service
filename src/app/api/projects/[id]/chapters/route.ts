@@ -54,7 +54,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
         return new Response(JSON.stringify({
             success: true,
-            chapters: project.chapters
+            chapters: project.chapters,
+            topic: project.topic,
+            twist: project.twist
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }

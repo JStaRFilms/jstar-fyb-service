@@ -4,16 +4,20 @@ import { PenTool, Library, Network, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
-type Tab = 'write' | 'research' | 'diagrams' | 'settings';
+type Tab = 'write' | 'research' | 'chat' | 'diagrams' | 'settings';
 
-export function MobileFloatingNav() {
-    const [activeTab, setActiveTab] = useState<Tab>('write');
+interface MobileFloatingNavProps {
+    activeTab: Tab;
+    onTabChange: (tab: Tab) => void;
+}
+
+export function MobileFloatingNav({ activeTab, onTabChange }: MobileFloatingNavProps) {
 
     return (
         <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#030014]/90 backdrop-blur-2xl border border-white/10 rounded-full p-2 shadow-2xl flex items-center gap-2 z-50 max-w-[90vw] overflow-x-auto no-scrollbar">
 
             <button
-                onClick={() => setActiveTab('write')}
+                onClick={() => onTabChange('write')}
                 className={cn(
                     "flex items-center gap-2 rounded-full transition-all duration-300 shrink-0",
                     activeTab === 'write'
@@ -26,20 +30,20 @@ export function MobileFloatingNav() {
             </button>
 
             <button
-                onClick={() => setActiveTab('research')}
+                onClick={() => onTabChange('research')}
                 className={cn(
                     "flex items-center gap-2 rounded-full transition-all duration-300 shrink-0",
-                    activeTab === 'research'
+                    activeTab === 'research' || activeTab === 'chat'
                         ? "px-6 py-3 bg-accent text-white shadow-lg shadow-accent/30"
                         : "w-12 h-12 justify-center text-gray-400 hover:bg-white/10 hover:text-white"
                 )}
             >
                 <Library className="w-5 h-5" />
-                {activeTab === 'research' && <span className="font-bold text-xs uppercase animate-in fade-in slide-in-from-left-2">Research</span>}
+                {(activeTab === 'research' || activeTab === 'chat') && <span className="font-bold text-xs uppercase animate-in fade-in slide-in-from-left-2">Research</span>}
             </button>
 
             <button
-                onClick={() => setActiveTab('diagrams')}
+                onClick={() => onTabChange('diagrams')}
                 className={cn(
                     "flex items-center gap-2 rounded-full transition-all duration-300 shrink-0",
                     activeTab === 'diagrams'
@@ -52,7 +56,7 @@ export function MobileFloatingNav() {
             </button>
 
             <button
-                onClick={() => setActiveTab('settings')}
+                onClick={() => onTabChange('settings')}
                 className={cn(
                     "flex items-center gap-2 rounded-full transition-all duration-300 shrink-0",
                     activeTab === 'settings'
