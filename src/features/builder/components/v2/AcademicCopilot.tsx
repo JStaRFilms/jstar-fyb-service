@@ -29,9 +29,15 @@ export function AcademicCopilot({ projectId, activeChapterId, activeChapterNumbe
     const scrollRef = useRef<HTMLDivElement>(null);
     const [localInput, setLocalInput] = useState('');
 
+    // Debug: Log the API endpoint being used
+    const apiEndpoint = projectId ? `/api/projects/${projectId}/chat` : '/api/chat';
+    console.log('[AcademicCopilot] Using API endpoint:', apiEndpoint, 'projectId:', projectId);
+
     // Using 'as any' as a workaround for mismatched AI SDK types in this project environment
+    // CRITICAL: The 'api' prop MUST be explicitly set to override the default '/api/chat'
     const { messages, sendMessage, status, error, setMessages } = useChat({
-        api: `/api/projects/${projectId}/chat`,
+        api: apiEndpoint,
+        id: projectId ? `academic-copilot-${projectId}` : 'academic-copilot-fallback',
         initialMessages: [],
         body: {
             projectId,
@@ -48,6 +54,16 @@ export function AcademicCopilot({ projectId, activeChapterId, activeChapterNumbe
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    // CRITICAL: Guard against undefined projectId AFTER all hooks
+    if (!projectId) {
+        console.error('[AcademicCopilot] projectId is undefined!');
+        return (
+            <div className="flex items-center justify-center h-full text-red-400 text-sm p-4">
+                Error: Project ID is missing. Please refresh the page.
+            </div>
+        );
+    }
 
     const quickActions = [
         { id: 'fact-check', icon: Search, label: 'Deep Fact Check', color: 'text-accent', prompt: 'Fact check the last paragraph I wrote using my research library.' },
@@ -68,7 +84,11 @@ export function AcademicCopilot({ projectId, activeChapterId, activeChapterNumbe
         setLocalInput('');
 
         try {
-            await sendMessage({ text: userMessage });
+            // Use the correct message format expected by useChat
+            await sendMessage({
+                role: 'user',
+                content: userMessage,
+            });
         } catch (err) {
             console.error('[AcademicCopilot] Send failed:', err);
         }

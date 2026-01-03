@@ -148,6 +148,14 @@ model Project {
   fileSearchStoreId        String?   // e.g., "fileSearchStores/abc123"
   fileSearchStoreCreatedAt DateTime?
 
+  // User Context (extracted from Jay onboarding or fallback)
+  department        String?   // e.g., "Computer Science"
+  course            String?   // e.g., "CSC 499"
+  institution       String?   // e.g., "University of Lagos"
+  complexity        Int?      @default(3) // 1-5 scale
+  jayContextSummary String?   // AI-generated summary of Jay onboarding chat
+  contextComplete   Boolean   @default(false) // All required fields present
+
   // Relations
   documents   ResearchDocument[]
   outline     ChapterOutline?

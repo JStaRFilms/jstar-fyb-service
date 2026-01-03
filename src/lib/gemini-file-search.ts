@@ -108,7 +108,7 @@ export const GeminiFileSearchService = {
     async generateWithGrounding(
         prompt: string,
         fileSearchStoreIds: string[],
-        model: string = 'gemini-1.5-flash-002' // Use latest flash for speed/cost
+        model: string = 'gemini-2.5-flash' // Using Gemini 2.5 Flash for RAG
     ): Promise<GroundedGenerationResult> {
         try {
             // Using the models.generateContent method from the new SDK
