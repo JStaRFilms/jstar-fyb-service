@@ -108,10 +108,9 @@ export const GeminiFileSearchService = {
     async generateWithGrounding(
         prompt: string,
         fileSearchStoreIds: string[],
-        model: string = 'gemini-2.5-flash' // Using Gemini 2.5 Flash for RAG
+        model: string = 'gemini-2.5-flash'
     ): Promise<GroundedGenerationResult> {
         try {
-            // Using the models.generateContent method from the new SDK
             const response = await genai.models.generateContent({
                 model,
                 contents: prompt,
@@ -136,6 +135,34 @@ export const GeminiFileSearchService = {
 
         } catch (error) {
             console.error('[GeminiFileSearch] Generation failed:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Generate content stream with File Search grounding
+     */
+    async generateWithGroundingStream(
+        prompt: string,
+        fileSearchStoreIds: string[],
+        model: string = 'gemini-2.5-flash'
+    ) {
+        try {
+            const result = await genai.models.generateContentStream({
+                model,
+                contents: prompt,
+                config: {
+                    tools: [{
+                        fileSearch: {
+                            fileSearchStoreNames: fileSearchStoreIds
+                        }
+                    }]
+                }
+            });
+
+            return result;
+        } catch (error) {
+            console.error('[GeminiFileSearch] Stream generation failed:', error);
             throw error;
         }
     },

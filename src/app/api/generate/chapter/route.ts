@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth-server';
 import { BuilderAiService } from '@/features/builder/services/builderAiService';
+import { GeminiFileSearchService } from '@/lib/gemini-file-search';
 
 // Validate environment variables
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -16,7 +17,7 @@ const groq = createOpenAI({
     apiKey: groqApiKey,
 });
 
-export const maxDuration = 120;
+export const maxDuration = 300; // Increased duration for RAG
 
 // Input validation schema
 const requestSchema = z.object({
@@ -45,7 +46,6 @@ function parseSections(markdown: string) {
             currentSection.content += line + '\n';
         } else {
             // Content before first section (intro text)
-            // Optional: Handle this if needed, or append to a "Preamble" section
         }
     }
 
@@ -55,6 +55,48 @@ function parseSections(markdown: string) {
     }
 
     return sections;
+}
+
+// Database saving helper
+async function saveChapterToDb(projectId: string, chapterNumber: number, text: string) {
+    const sections = parseSections(text);
+    const wordCount = text.split(/\s+/).length;
+
+    try {
+        await prisma.chapter.upsert({
+            where: {
+                projectId_number: {
+                    projectId,
+                    number: chapterNumber
+                }
+            },
+            update: {
+                content: text,
+                sections: sections,
+                wordCount,
+                status: 'GENERATED',
+                lastEditedAt: new Date(),
+            },
+            create: {
+                projectId,
+                number: chapterNumber,
+                title: `Chapter ${chapterNumber}`,
+                content: text,
+                sections: sections,
+                wordCount,
+                status: 'GENERATED',
+                version: 1,
+            }
+        });
+
+        await prisma.project.update({
+            where: { id: projectId },
+            data: { updatedAt: new Date() }
+        });
+        console.log('[GenerateChapter] Chapter saved successfully');
+    } catch (dbError) {
+        console.error('[GenerateChapter] Failed to save chapter:', dbError);
+    }
 }
 
 export async function POST(req: Request) {
@@ -84,7 +126,10 @@ export async function POST(req: Request) {
         // 3. Fetch project and verify ownership + unlock status
         const project = await prisma.project.findUnique({
             where: { id: projectId },
-            include: { outline: true }
+            include: {
+                outline: true,
+                documents: { select: { summary: true } } // Fetch summaries
+            }
         });
 
         if (!project) {
@@ -101,78 +146,120 @@ export async function POST(req: Request) {
             });
         }
 
-        // 4. Use Builder AI service to generate chapter content
-        const aiGeneratedContent = await BuilderAiService.generateChapterContent(
+        // 4. Use Builder AI service to generate chapter context string
+        // This now includes injected summaries if available
+        const aiGeneratedContext = await BuilderAiService.generateChapterContent(
             projectId,
             chapterNumber,
             `Chapter ${chapterNumber}`
         );
 
-        // 5. Stream response & Save to DB on completion
-        const result = streamText({
-            model: groq('llama-3.3-70b-versatile'),
-            system: `You are an expert academic writer specializing in Final Year Project (FYP) documentation for university students.
-            
-            STRICT ACADEMIC GUIDELINES:
-            1. TONE: Formal, objective, and analytical. Avoid first-person ("I", "we") and conversational language.
-            2. ENGLISH: Use British English (UK) spelling (e.g., "analyse", "colour", "programme").
-            3. CITATIONS: Use APA 7th Edition format for in-text citations where necessary (e.g., (Smith, 2023)). If exact sources are not provided in context, use realistic placeholders or general academic statements.
-            4. STRUCTURE: Use clear paragraphing. Each paragraph must have a topic sentence, supporting evidence, and a concluding sentence.
-            5. FORMATTING: Use Markdown.
-               - ## for Main Sections (e.g., "1.1 Background of Study")
-               - ### for Sub-sections
-               - **Bold** for key terms
-            
-            PROJECT CONTEXT:
-            TITLE: ${project.topic}
-            CONTEXT: ${aiGeneratedContent}`,
-            prompt: `Generate the full content for Chapter ${chapterNumber}. Ensure it meets the word count requirements for a standard FYP chapter (approx 1500-2000 words if possible, but focused on quality). Start directly with the first section heading.`,
-            onFinish: async ({ text }) => {
-                // Save to Chapter Model
-                const sections = parseSections(text);
-                const wordCount = text.split(/\s+/).length;
+        // 5. DETERMINE MODE: Standard or Grounded
+        const fileSearchStoreId = project.fileSearchStoreId;
+        const useGroundedParams = !!fileSearchStoreId;
 
+        console.log(`[GenerateChapter] Mode: ${useGroundedParams ? 'GROUNDED (Gemini)' : 'STANDARD (Standard)'}`);
+
+        // ==========================================================
+        // MODE A: STANDARD GENERATION (Moonshot AI / Kimi)
+        // ==========================================================
+        if (!useGroundedParams) {
+            const result = streamText({
+                model: groq('moonshotai/kimi-k2-instruct-0905'), // Use specified model
+                system: `You are an expert academic writer specializing in Final Year Project (FYP) documentation.
+                
+                STRICT ACADEMIC GUIDELINES:
+                1. TONE: Formal, objective, and analytical.
+                2. ENGLISH: Use British English (UK) spelling.
+                3. CITATIONS: Use APA 7th Edition format where necessary.
+                4. STRUCTURE: Use clear paragraphing.
+                5. FORMATTING: Use Markdown.
+                   - ## for Main Sections
+                   - ### for Sub-sections
+                   - **Bold** for key terms
+                
+                PROJECT CONTEXT & SUMMARIES:
+                ${aiGeneratedContext}`,
+                prompt: `Generate the full content for Chapter ${chapterNumber}. ensure it meets academic standards (approx 1500 words). Start directly with the first section heading.`,
+                onFinish: async ({ text }) => {
+                    await saveChapterToDb(projectId, chapterNumber, text);
+                }
+            });
+
+            return result.toTextStreamResponse();
+        }
+
+        // ==========================================================
+        // MODE B: GROUNDED GENERATION (Gemini Link)
+        // ==========================================================
+
+        // Construct prompt with summaries + instruction
+        const prompt = `
+        ROLE: Expert Academic Writer (PhD Level).
+        TASK: Write Chapter ${chapterNumber} for a Final Year Project.
+        
+        CONTEXT:
+        ${aiGeneratedContext}
+
+        INSTRUCTIONS:
+        1. Use the "File Search" tool to verify facts and find specific citations.
+        2. Integrate the provided research summaries (in CONTEXT) to synthesize arguments.
+        3. Citation Style: APA 7th Edition (Author, Year).
+        4. Length: Comprehensive (approx 1500-2000 words).
+        5. Structure: Use standard academic headings (##, ###).
+        f. Tone: Formal, objective, British English.
+        
+        Start writing now.
+        `;
+
+        // Start Gemini Stream
+        const geminiStreamResult = await GeminiFileSearchService.generateWithGroundingStream(
+            prompt,
+            [fileSearchStoreId],
+            'gemini-2.5-flash' // Use specified model
+        );
+
+        // Transform Gemini Stream to Web Stream
+        // We need to manually construct a ReadableStream that mimics the AI SDK format if possible,
+        // or just return a standard text stream. The AI SDK `useChat` on frontend expects chunks.
+
+        const encoder = new TextEncoder();
+        let fullText = '';
+
+        const stream = new ReadableStream({
+            async start(controller) {
                 try {
-                    await prisma.chapter.upsert({
-                        where: {
-                            projectId_number: {
-                                projectId,
-                                number: chapterNumber
-                            }
-                        },
-                        update: {
-                            content: text,
-                            sections: sections,
-                            wordCount,
-                            status: 'GENERATED',
-                            lastEditedAt: new Date(),
-                            generationPrompt: 'Universal Research Prompt v1' // Placeholder for actual prompt if dynamic
-                        },
-                        create: {
-                            projectId,
-                            number: chapterNumber,
-                            title: `Chapter ${chapterNumber}`, // Should ideally get real title from outline
-                            content: text,
-                            sections: sections,
-                            wordCount,
-                            status: 'GENERATED',
-                            version: 1,
+                    for await (const chunk of geminiStreamResult) {
+                        const chunkText = chunk.text;
+                        if (chunkText) {
+                            fullText += chunkText;
+                            // Send text chunk similar to Vercel AI SDK format
+                            // Just raw text is often fine for useChat with appropriate header,
+                            // or we can simulate the complex protocol. 
+                            // Simplest: just send raw text chunks. 
+                            controller.enqueue(encoder.encode(chunkText));
                         }
-                    });
+                    }
 
-                    // Update project progress
-                    await prisma.project.update({
-                        where: { id: projectId },
-                        data: { updatedAt: new Date() }
-                    });
+                    // Save on completion
+                    if (fullText) {
+                        await saveChapterToDb(projectId, chapterNumber, fullText);
+                    }
 
-                } catch (dbError) {
-                    console.error('[GenerateChapter] Failed to save chapter:', dbError);
+                    controller.close();
+                } catch (err) {
+                    console.error('Stream error:', err);
+                    controller.error(err);
                 }
             }
         });
 
-        return result.toTextStreamResponse();
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'X-Vercel-AI-Data-Stream': 'v1' // Hint compatibility if needed
+            }
+        });
 
     } catch (error: unknown) {
         console.error('[GenerateChapter] Error:', error);
@@ -182,3 +269,4 @@ export async function POST(req: Request) {
         );
     }
 }
+
