@@ -32,8 +32,7 @@ export function MobileTimelineView({ chapters, onChapterClick }: MobileTimelineV
                         <div>
                             <span className="text-2xl font-display font-bold text-white">
                                 {Math.round((
-                                    (chapters?.filter(c => c.status === 'complete').length || 0) +
-                                    ((chapters?.filter(c => c.status === 'in-progress').length || 0) * 0.5)
+                                    (chapters?.filter(c => (c.wordCount || 0) > 20).length || 0)
                                 ) / (chapters?.length || 1) * 100)}%
                             </span>
                             <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mt-1">Complete</p>

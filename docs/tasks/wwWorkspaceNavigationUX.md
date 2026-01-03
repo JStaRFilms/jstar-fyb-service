@@ -58,10 +58,10 @@
 
 ## ✅ Success Criteria
 
-- [ ] Stats dynamically calculate from actual chapter data
-- [ ] User can navigate from workspace → dashboard in ≤2 taps/clicks
-- [ ] Mobile editor mode has AI chat access
-- [ ] Chat navigation is intentional (not confusing)
+- [x] Stats dynamically calculate from actual chapter data
+- [x] User can navigate from workspace → dashboard in ≤2 taps/clicks
+- [x] Mobile editor mode has AI chat access
+- [x] Chat navigation is intentional (not confusing)
 
 ---
 

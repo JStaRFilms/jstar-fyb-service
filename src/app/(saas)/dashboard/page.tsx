@@ -5,6 +5,9 @@ import { UpsellBanner } from "@/features/dashboard/components/UpsellBanner";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-server";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DashboardPage() {
     const user = await getCurrentUser();
 
@@ -24,6 +27,16 @@ export default async function DashboardPage() {
                     processedAt: true,
                     // Exclude fileData (Bytes) to avoid serialization error
                 }
+            },
+            chapters: {
+                select: {
+                    id: true,
+                    number: true,
+                    status: true,
+                    wordCount: true,
+                    updatedAt: true,
+                },
+                orderBy: { number: 'asc' }
             }
         }
     });

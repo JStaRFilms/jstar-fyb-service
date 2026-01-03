@@ -9,11 +9,37 @@ import Link from "next/link";
 import { Project } from "@prisma/client";
 
 interface ProjectCardProps {
-    project: Partial<Project>;
+    project: Partial<Project> & {
+        chapters?: {
+            id: string;
+            number: number;
+            status: string;
+            wordCount: number;
+            updatedAt: Date;
+        }[];
+    };
 }
 
 export const ProjectCard = ({ project }: ProjectCardProps) => {
     const [showAbstract, setShowAbstract] = useState(false);
+    // Dynamic Status Calculation
+    const getDynamicStatus = () => {
+        if (!project.chapters || project.chapters.length === 0) return project.status || "Active";
+
+        // Find the "deepest" chapter that has progress
+        // Filter chapters that have content (>20 words)
+        const activeChapters = project.chapters.filter((c) => (c.wordCount || 0) > 20);
+
+        if (activeChapters.length === 0) return project.status || "Outline Ready";
+        if (activeChapters.length === 5) return "Project Complete";
+
+        // Return latest chapter being worked on
+        const lastActive = activeChapters[activeChapters.length - 1];
+        return `Writing Chapter ${lastActive.number}`;
+    };
+
+    const displayStatus = getDynamicStatus();
+
     return (
         <div className="glass-panel p-6 rounded-3xl relative overflow-hidden group border border-white/10 bg-white/5 backdrop-blur-md">
             <div className="absolute top-0 right-0 p-4 opacity-50">
@@ -21,7 +47,7 @@ export const ProjectCard = ({ project }: ProjectCardProps) => {
             </div>
 
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-xs text-green-500 font-bold uppercase tracking-wider mb-4">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> {project.status || "Active"}
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> {displayStatus}
             </div>
 
             <Link href={`/project/${project.id}/workspace`} className="block group-hover:text-primary transition-colors">
@@ -32,7 +58,11 @@ export const ProjectCard = ({ project }: ProjectCardProps) => {
             </p>
 
             {/* Status Timeline */}
-            <StatusTimeline status={project.status || "NEW"} progress={project.progressPercentage || 0} />
+            <StatusTimeline
+                status={project.status || "NEW"}
+                progress={project.progressPercentage || 0}
+                customLabel={displayStatus} // Pass dynamic writing status
+            />
 
             <div className="grid grid-cols-2 gap-3">
                 <button
