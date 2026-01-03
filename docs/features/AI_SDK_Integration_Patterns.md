@@ -72,6 +72,31 @@ await sendMessage({ text: 'Hello' });
 const isLoading = status === 'streaming' || status === 'submitted';
 ```
 
+### Custom API Endpoints (CRITICAL)
+
+> ⚠️ **AI SDK 5.0 Breaking Change**: The `api` prop passed directly to `useChat` is **ignored**. You MUST use `DefaultChatTransport`.
+
+```typescript
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+
+const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+        api: `/api/projects/${projectId}/chat`,
+        body: { projectId, chapterId } // Optional: extra body fields
+    }),
+    id: `chat-${projectId}`, // Unique ID to prevent shared state
+});
+
+// AI SDK 5.0 message format uses `parts` array, not `content`
+await sendMessage({
+    role: 'user',
+    parts: [{ type: 'text', text: 'Hello' }],
+});
+```
+
+**Bug Reference:** Hotfix 2026-01-03 - `AcademicCopilot.tsx` was sending requests to `/api/chat` instead of `/api/projects/[id]/chat` because the `api` prop was ignored.
+
 ---
 
 ## Pattern 2: Text Completion (useCompletion)

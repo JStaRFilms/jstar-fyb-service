@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import {
     BrainCircuit,
     Send,
@@ -29,22 +30,22 @@ export function AcademicCopilot({ projectId, activeChapterId, activeChapterNumbe
     const scrollRef = useRef<HTMLDivElement>(null);
     const [localInput, setLocalInput] = useState('');
 
-    // Debug: Log the API endpoint being used
+    // API endpoint for project-specific chat
     const apiEndpoint = projectId ? `/api/projects/${projectId}/chat` : '/api/chat';
     console.log('[AcademicCopilot] Using API endpoint:', apiEndpoint, 'projectId:', projectId);
 
-    // Using 'as any' as a workaround for mismatched AI SDK types in this project environment
-    // CRITICAL: The 'api' prop MUST be explicitly set to override the default '/api/chat'
+    // AI SDK 5.0 requires DefaultChatTransport for custom API endpoints
     const { messages, sendMessage, status, error, setMessages } = useChat({
-        api: apiEndpoint,
+        transport: new DefaultChatTransport({
+            api: apiEndpoint,
+            body: {
+                projectId,
+                chapterId: activeChapterId,
+                chapterNumber: activeChapterNumber
+            }
+        }),
         id: projectId ? `academic-copilot-${projectId}` : 'academic-copilot-fallback',
-        initialMessages: [],
-        body: {
-            projectId,
-            chapterId: activeChapterId,
-            chapterNumber: activeChapterNumber
-        }
-    } as any) as any;
+    });
 
     const isLoading = status === 'streaming' || status === 'submitted';
 
@@ -84,10 +85,10 @@ export function AcademicCopilot({ projectId, activeChapterId, activeChapterNumbe
         setLocalInput('');
 
         try {
-            // Use the correct message format expected by useChat
+            // AI SDK 5.0 uses parts array instead of content
             await sendMessage({
                 role: 'user',
-                content: userMessage,
+                parts: [{ type: 'text', text: userMessage }],
             });
         } catch (err) {
             console.error('[AcademicCopilot] Send failed:', err);

@@ -122,8 +122,9 @@ You are **NOT** a general assistant. You are specifically trained on THIS studen
 4. For **RESEARCH QUESTIONS** (e.g., "What does my research say about X?"), use the "searchProjectDocuments" tool to find direct quotes.
 5. Be conversational, encouraging, and maintain Nigerian academic standards.
 6. If the user asks for content generation, base it on their outline structure.
+7. **PROACTIVELY SAVE CONTEXT**: If the user mentions their department, course, or institution (e.g., "I'm a CS student at UNILAG"), IMMEDIATELY call the saveUserContext tool to save it - do NOT wait to be asked. After saving, acknowledge briefly (e.g., "Got it, I've noted you're in Computer Science at UNILAG!").
 
-**IMPORTANT**: Always answer the user's question FIRST using the context you have. Missing fields like department or institution are nice-to-have but should NEVER block you from helping. You can mention gaps briefly at the end if relevant, but prioritize being useful.
+**IMPORTANT**: Always answer the user's question FIRST using the context you have. Missing fields like department or institution are nice-to-have but should NEVER block you from helping.
 `;
 
     // 4. Stream Response
@@ -170,7 +171,7 @@ You are **NOT** a general assistant. You are specifically trained on THIS studen
                 }
             }),
             saveUserContext: tool({
-                description: `Save user context that was discovered during conversation. Use this when the user mentions their department, course code, or institution and we don't have it stored yet.`,
+                description: `PROACTIVELY save user context whenever they mention their department, course code, or institution. Call this tool IMMEDIATELY when the user says things like "I'm in Computer Science", "I study at UNILAG", "my course is CSC 499", etc. Do NOT wait for them to ask you to save it - just save it automatically and briefly acknowledge.`,
                 inputSchema: z.object({
                     department: z.string().optional().describe('e.g., Computer Science'),
                     course: z.string().optional().describe('e.g., CSC 499'),
